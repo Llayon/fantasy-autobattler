@@ -1,5 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
 import { BattleLog } from './battle-log.entity';
+import { Team } from './team.entity';
 
 @Entity()
 export class Player {
@@ -29,4 +30,7 @@ export class Player {
 
   @OneToMany(() => BattleLog, (battle) => battle.player)
   battles!: BattleLog[];
+
+  @OneToMany(() => Team, (team) => team.player)
+  teams!: Team[];
 }

@@ -1380,5 +1380,129 @@ Control: Enchanter (in mixed scenarios) ✅
 
 ---
 
+## Step 13: Team Entity ✅ COMPLETED
+**Date:** December 11, 2025  
+**Duration:** ~20 minutes  
+**Status:** SUCCESS
+
+### 🎯 Objectives
+- Create Team entity with proper validation and relationships
+- Add budget validation (totalCost <= TEAM_BUDGET)
+- Implement position validation for 8×10 grid and deployment zones
+- Add OneToMany relationship in Player entity
+- Create comprehensive test coverage
+
+### 🔧 Changes Made
+
+#### 1. Team Entity Creation
+- ✅ **UUID Primary Key**: Unique team identifier
+- ✅ **Player Relationship**: ManyToOne with Player entity
+- ✅ **Team Name**: String field for team identification (max 100 chars)
+- ✅ **Units Array**: JSON field storing TeamUnit[] with unitId and position
+- ✅ **Total Cost**: Number field for budget tracking
+- ✅ **Active Status**: Boolean for matchmaking eligibility
+- ✅ **Timestamps**: createdAt and updatedAt fields
+
+#### 2. Validation System
+- ✅ **Budget Validation**: totalCost <= TEAM_LIMITS.BUDGET (30 points)
+- ✅ **Unit Structure**: Validates unitId strings and position objects
+- ✅ **Position Validation**: Grid bounds (8×10) and deployment zones (rows 0-1)
+- ✅ **Duplicate Prevention**: No units in same position
+- ✅ **Team Size**: Minimum 1 unit, maximum TEAM_LIMITS.MAX_UNITS (10)
+
+#### 3. TypeScript Integration
+- ✅ **TeamUnit Interface**: Defines unit with ID and position
+- ✅ **IPlayer Interface**: Avoids circular dependency with Player entity
+- ✅ **Strict Typing**: No `any` types, proper type safety
+- ✅ **Position Type**: Uses Position from game.types.ts
+
+#### 4. Entity Relationships
+- ✅ **Player.teams**: Added OneToMany relationship in Player entity
+- ✅ **Team.player**: ManyToOne relationship with proper JoinColumn
+- ✅ **Foreign Key**: playerId field for database relationship
+
+#### 5. Utility Methods
+- ✅ **calculateTotalCost()**: Calculates cost using unit cost function
+- ✅ **isValidForBattle()**: Checks if team meets battle requirements
+- ✅ **getSummary()**: Returns team overview for UI display
+- ✅ **validateTeam()**: Comprehensive validation with detailed error messages
+
+#### 6. Validation Hooks
+- ✅ **@BeforeInsert**: Validates team before database insertion
+- ✅ **@BeforeUpdate**: Validates team before database updates
+- ✅ **Error Messages**: Detailed validation error descriptions
+
+### 📊 Validation Rules Implemented
+```
+Budget Constraints:
+- totalCost <= 30 points (TEAM_LIMITS.BUDGET)
+- totalCost >= 0 (no negative costs)
+
+Unit Validation:
+- Minimum 1 unit per team
+- Maximum 10 units per team (TEAM_LIMITS.MAX_UNITS)
+- Valid unitId strings required
+- Valid position objects with numeric x,y coordinates
+
+Position Validation:
+- Grid bounds: x (0-7), y (0-9)
+- Player deployment zone: rows 0-1 only
+- No duplicate positions allowed
+- All positions must be defined
+```
+
+### 📊 Test Coverage
+```bash
+✅ 17 comprehensive test cases added
+✅ Budget validation tests (3 tests)
+✅ Unit structure validation tests (4 tests)
+✅ Position validation tests (4 tests)
+✅ Utility method tests (3 tests)
+✅ Edge case handling tests (3 tests)
+✅ All 239 tests passing (100% success rate)
+```
+
+### 📊 Technical Features
+- ✅ **TypeORM Integration**: Proper entity decorators and relationships
+- ✅ **JSON Storage**: Efficient storage of unit arrays with positions
+- ✅ **Validation Hooks**: Automatic validation on save/update
+- ✅ **Type Safety**: Strict TypeScript without any types
+- ✅ **Error Handling**: Comprehensive validation with clear messages
+- ✅ **Performance**: Efficient validation algorithms
+
+### 📊 Validation Results
+```bash
+✅ npm run build - SUCCESS (clean compilation)
+✅ npm test - SUCCESS (239/239 tests pass)
+✅ TypeScript strict mode compliance
+✅ No circular dependency issues
+✅ Comprehensive JSDoc documentation
+✅ Entity relationship working correctly
+```
+
+### 📝 Files Created/Modified
+- `backend/src/entities/team.entity.ts` - **NEW** comprehensive Team entity
+- `backend/src/entities/team.entity.spec.ts` - **NEW** complete test suite
+- `backend/src/entities/player.entity.ts` - **UPDATED** added teams relationship
+
+### 🎉 Success Criteria Met
+- [x] Team entity with UUID, playerId, name, units, totalCost, isActive
+- [x] Budget validation (totalCost <= TEAM_LIMITS.BUDGET)
+- [x] Position validation for 8×10 grid and deployment zones
+- [x] OneToMany relationship added to Player entity
+- [x] Comprehensive validation with detailed error messages
+- [x] Complete test coverage with edge cases
+- [x] TypeScript strict compliance without any types
+- [x] All tests passing with no compilation errors
+
+### 🚀 Ready For
+- Step 14: Team Service Implementation
+- Team CRUD operations with validation
+- Team builder UI components
+- Matchmaking system integration
+- Advanced team management features
+
+---
+
 ## Next Steps
-Ready to proceed to **Step 13: Ability System** from the AI Development Plan.
+Ready to proceed to **Step 14: Team Service** from the AI Development Plan.
