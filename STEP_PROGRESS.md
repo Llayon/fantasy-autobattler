@@ -1153,5 +1153,126 @@ Turn Logic: Target → Move → Attack → Generate Events
 
 ---
 
+## Step 11: Battle Simulator v2 ✅ COMPLETED
+**Date:** December 11, 2025  
+**Duration:** ~45 minutes  
+**Status:** SUCCESS
+
+### 🎯 Objectives
+- Completely rewrite battle simulator using new modular system
+- Implement grid-based combat with pathfinding and targeting
+- Support TeamSetup interface with units and positions
+- Create deterministic battle simulation with comprehensive event logging
+- Update BattleService to work with new simulator interface
+
+### 🔧 Changes Made
+
+#### 1. New Battle Simulator Architecture
+- ✅ Complete rewrite of `backend/src/battle/battle.simulator.ts`
+- ✅ Uses all new modules: grid, pathfinding, damage, turn-order, targeting, actions
+- ✅ `simulateBattle(playerTeam: TeamSetup, enemyTeam: TeamSetup, seed: number): BattleResult`
+- ✅ 8×10 grid with player units in rows 0-1, enemy units in rows 8-9
+- ✅ Maximum 100 rounds with comprehensive event logging
+
+#### 2. TeamSetup Interface Implementation
+- ✅ `TeamSetup = { units: UnitTemplate[], positions: Position[] }`
+- ✅ Team validation with position checking and duplicate detection
+- ✅ Deployment zone validation (player: rows 0-1, enemy: rows 8-9)
+- ✅ Battle unit creation from templates with runtime state
+
+#### 3. Advanced Battle Features
+- ✅ **Deterministic Simulation**: Same inputs + seed = identical results
+- ✅ **Grid-Based Combat**: Full 8×10 battlefield with A* pathfinding
+- ✅ **Turn Management**: Initiative-based turn order with proper queue management
+- ✅ **AI Decision Making**: Role-based targeting with intelligent movement
+- ✅ **Event Logging**: Complete battle replay with all actions recorded
+
+#### 4. BattleService Integration
+- ✅ Updated `BattleService.startBattle()` to use new simulator interface
+- ✅ Legacy team conversion from old UnitType[] to new TeamSetup format
+- ✅ Random bot team generation using new 15-unit system
+- ✅ Deterministic seed generation for reproducible battles
+- ✅ Default position generation for team deployment
+
+#### 5. Helper Functions Added
+- ✅ `validateTeamSetup()` - Comprehensive team validation
+- ✅ `createBattleUnits()` - Convert templates to battle-ready units
+- ✅ `createFinalUnitStates()` - Capture end-of-battle unit states
+- ✅ `hashTeamSetup()` - Generate deterministic hash for seeding
+- ✅ `analyzeBattleResult()` - Battle statistics and insights
+
+#### 6. Legacy Compatibility
+- ✅ Maintained backward compatibility with existing BattleLog entity
+- ✅ Legacy unit type conversion (Warrior → knight, Mage → mage, Healer → priest)
+- ✅ Default position generation for teams without explicit positions
+- ✅ Gradual migration path from old to new system
+
+### 📊 Battle Simulation Features
+```
+Grid System: 8×10 cells with deployment zones
+Pathfinding: A* algorithm with obstacle avoidance
+Turn Order: Initiative > Speed > ID deterministic sorting
+Targeting: Role-based AI with multiple strategies
+Combat: Physical/magic damage with dodge mechanics
+Events: Complete action logging for replay system
+Determinism: Seeded randomness for consistent results
+```
+
+### 🔧 Technical Implementation
+- ✅ **Pure Function**: Main simulator is completely side-effect free
+- ✅ **Modular Design**: Uses all previously implemented battle modules
+- ✅ **Type Safety**: Strict TypeScript with comprehensive interfaces
+- ✅ **Error Handling**: Graceful validation and error reporting
+- ✅ **Performance**: Optimized algorithms with early termination
+- ✅ **Extensibility**: Ready for abilities, special actions, and advanced AI
+
+### 📊 Test Coverage
+```bash
+✅ 17/17 simulator tests passing (100% pass rate)
+✅ Team setup validation (3 tests)
+✅ Battle unit creation (2 tests)
+✅ Complete battle simulation (4 tests)
+✅ Deterministic behavior (2 tests)
+✅ Battle end conditions (3 tests)
+✅ Event generation (2 tests)
+✅ Legacy compatibility (1 test)
+```
+
+### 📊 Integration Results
+```bash
+✅ npm run build - SUCCESS (clean compilation)
+✅ npm test battle.simulator.spec.ts - SUCCESS (17/17 tests pass)
+✅ npm test - SUCCESS (210/210 total tests pass)
+✅ BattleService integration working
+✅ Legacy team conversion working
+✅ New TeamSetup interface working
+✅ Deterministic battle simulation verified
+```
+
+### 📝 Files Modified
+- `backend/src/battle/battle.simulator.ts` - **COMPLETELY REWRITTEN** with new architecture
+- `backend/src/battle/battle.service.ts` - **UPDATED** to use new simulator interface
+- `backend/src/battle/battle.simulator.spec.ts` - **UPDATED** with comprehensive tests
+
+### 🎉 Success Criteria Met
+- [x] Complete battle simulator rewrite using new modular system
+- [x] TeamSetup interface with units and positions implemented
+- [x] 8×10 grid combat with proper deployment zones
+- [x] Deterministic simulation with seeded randomness
+- [x] BattleService integration with legacy compatibility
+- [x] Comprehensive event logging for replay system
+- [x] All tests passing (210 total tests)
+- [x] Build successful with no compilation errors
+- [x] Performance optimized with early battle termination
+
+### 🚀 Ready For
+- Step 12: Ability System Implementation
+- Advanced AI personalities and strategies
+- Battle replay UI with event visualization
+- Team builder with position placement
+- Multiplayer matchmaking system
+
+---
+
 ## Next Steps
-Ready to proceed to **Step 11: Battle Simulator v2** from the AI Development Plan.
+Ready to proceed to **Step 12: Ability System** from the AI Development Plan.
