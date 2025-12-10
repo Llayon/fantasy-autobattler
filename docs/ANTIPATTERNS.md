@@ -4,6 +4,80 @@ This document lists practices that are **explicitly forbidden** in this codebase
 
 ---
 
+## ❌ Documentation Violations
+
+### 0a. Missing JSDoc on Public Functions
+ALL public functions MUST have JSDoc documentation.
+
+```typescript
+// ❌ FORBIDDEN: No documentation
+export function calculateDamage(attacker: Unit, target: Unit): number {
+  return Math.max(1, attacker.atk - target.armor);
+}
+
+// ✅ CORRECT: Full JSDoc
+/**
+ * Calculates physical damage from attacker to target.
+ * @param attacker - Unit dealing damage
+ * @param target - Unit receiving damage
+ * @returns Damage value (minimum 1)
+ */
+export function calculateDamage(attacker: Unit, target: Unit): number {
+  return Math.max(1, attacker.atk - target.armor);
+}
+```
+
+### 0b. Using console.log Instead of Logger
+Never use console.log. Use structured logging with context.
+
+```typescript
+// ❌ FORBIDDEN
+console.log('Battle started');
+console.log('Error:', error);
+console.error(error);
+
+// ✅ CORRECT
+this.logger.log('Battle started', { battleId, playerId });
+this.logger.error('Battle failed', { 
+  battleId, 
+  error: error.message,
+  stack: error.stack 
+});
+```
+
+### 0c. Logging Without Context
+Logs without context are useless for debugging.
+
+```typescript
+// ❌ FORBIDDEN: No context
+this.logger.error('Something went wrong');
+this.logger.log('Battle completed');
+
+// ✅ CORRECT: With context
+this.logger.error('Battle simulation failed', {
+  battleId,
+  playerId,
+  round: currentRound,
+  error: error.message,
+});
+this.logger.log('Battle completed', { battleId, winner, rounds: 15 });
+```
+
+### 0d. Logging Sensitive Data
+Never log tokens, passwords, or PII.
+
+```typescript
+// ❌ FORBIDDEN
+this.logger.log('User logged in', { token: user.token });
+this.logger.debug('Request', { body: req.body }); // May contain passwords
+
+// ✅ CORRECT
+this.logger.log('User logged in', { userId: user.id });
+this.logger.debug('Request received', { path: req.path, method: req.method });
+```
+
+---
+
 ## ❌ Architecture Violations
 
 ### 1. Business Logic in Controllers

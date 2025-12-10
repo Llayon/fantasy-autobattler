@@ -7,6 +7,48 @@
 - Prefer interfaces for objects, types for unions
 - No non-null assertions (`!`)
 
+### JSDoc Documentation (REQUIRED)
+- ALL public functions MUST have JSDoc comments
+- Include: @description, @param, @returns, @throws, @example
+- Interfaces and types MUST have descriptions
+- Complex logic MUST have inline comments explaining WHY
+
+```typescript
+/**
+ * Calculates physical damage dealt by attacker to target.
+ * Formula: max(1, (ATK - armor) * atkCount)
+ * 
+ * @param attacker - The unit dealing damage
+ * @param target - The unit receiving damage
+ * @returns Calculated damage value (minimum 1)
+ * @example
+ * const damage = calculatePhysicalDamage(warrior, enemy);
+ */
+function calculatePhysicalDamage(attacker: BattleUnit, target: BattleUnit): number
+```
+
+### Logging & Error Tracking (REQUIRED)
+- Use NestJS Logger, never console.log
+- Log ALL errors with context (userId, battleId, etc.)
+- Log important business events (battle started, team saved)
+- Include correlation ID for request tracing
+- Log levels: error (bugs), warn (issues), log (events), debug (dev)
+
+```typescript
+// ✅ CORRECT logging
+this.logger.error(`Battle simulation failed`, {
+  battleId,
+  playerId,
+  error: error.message,
+  stack: error.stack,
+});
+
+this.logger.log(`Battle completed`, { battleId, winner, rounds });
+
+// ❌ WRONG
+console.log('error', error);
+```
+
 ### Backend (NestJS)
 - Controllers: HTTP handling ONLY, delegate to services
 - Services: All business logic, use dependency injection

@@ -5,11 +5,13 @@ This document defines coding standards, patterns, and best practices for the Fan
 ## Table of Contents
 1. [General Principles](#general-principles)
 2. [TypeScript Standards](#typescript-standards)
-3. [Backend Patterns (NestJS)](#backend-patterns-nestjs)
-4. [Frontend Patterns (Next.js)](#frontend-patterns-nextjs)
-5. [File Naming Conventions](#file-naming-conventions)
-6. [Error Handling](#error-handling)
-7. [Testing Standards](#testing-standards)
+3. [JSDoc Documentation](#jsdoc-documentation)
+4. [Logging Standards](#logging-standards)
+5. [Backend Patterns (NestJS)](#backend-patterns-nestjs)
+6. [Frontend Patterns (Next.js)](#frontend-patterns-nextjs)
+7. [File Naming Conventions](#file-naming-conventions)
+8. [Error Handling](#error-handling)
+9. [Testing Standards](#testing-standards)
 
 ---
 
@@ -70,6 +72,211 @@ function isPlayer(obj: unknown): obj is Player {
 
 // ❌ BAD: Force casting
 const player = data as Player;
+```
+
+---
+
+## JSDoc Documentation
+
+### Requirements
+ALL public functions, classes, interfaces, and types MUST have JSDoc documentation.
+
+### Function Documentation
+```typescript
+/**
+ * Calculates physical damage dealt by attacker to target.
+ * Uses formula: max(1, (ATK - armor) * atkCount)
+ * 
+ * @param attacker - The unit dealing damage
+ * @param target - The unit receiving damage
+ * @returns Calculated damage value (minimum 1)
+ * @throws {Error} If attacker or target is null
+ * 
+ * @example
+ * const damage = calculatePhysicalDamage(warrior, goblin);
+ * // Returns: 12 (if warrior.atk=15, goblin.armor=3)
+ */
+export function calculatePhysicalDamage(
+  attacker: BattleUnit,
+  target: BattleUnit
+): number {
+  return Math.max(1, (attacker.atk - target.armor) * attacker.atkCount);
+}
+```
+
+### Interface Documentation
+```typescript
+/**
+ * Represents a unit's combat statistics.
+ * All values are base stats before buffs/debuffs.
+ */
+interface UnitStats {
+  /** Health points. Unit dies when HP reaches 0. */
+  hp: number;
+  
+  /** Attack power. Used in damage calculation. */
+  atk: number;
+  
+  /** Number of attacks per turn. Multiplies damage. */
+  atkCount: number;
+  
+  /** Armor rating. Reduces incoming physical damage. */
+  armor: number;
+  
+  /** Movement speed. Cells per turn. */
+  speed: number;
+  
+  /** Initiative. Determines turn order (higher = first). */
+  initiative: number;
+  
+  /** Dodge chance as percentage (0-100). */
+  dodge: number;
+}
+```
+
+### Class Documentation
+```typescript
+/**
+ * Service responsible for battle simulation and persistence.
+ * Handles PvP and PvE battle creation, simulation, and result storage.
+ * 
+ * @example
+ * const battleService = new BattleService(battleRepo, playerRepo);
+ * const result = await battleService.startPvPBattle(player1Id, player2Id);
+ */
+@Injectable()
+export class BattleService {
+  // ...
+}
+```
+
+### When to Add Inline Comments
+```typescript
+// ✅ GOOD: Explain WHY, not WHAT
+// Using Manhattan distance because diagonal movement is not allowed
+const distance = Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+
+// Taunt overrides normal targeting - tanks must be attacked first
+if (hasTaunt(enemy)) {
+  return enemy;
+}
+
+// ❌ BAD: Obvious comments
+// Add 1 to counter
+counter += 1;
+```
+
+---
+
+## Logging Standards
+
+### Log Levels
+| Level | Usage | Example |
+|-------|-------|---------|
+| `error` | Bugs, crashes, unrecoverable errors | Failed DB connection, unhandled exception |
+| `warn` | Issues that don't break functionality | Deprecated API usage, slow query |
+| `log` | Important business events | Battle started, team saved, user registered |
+| `debug` | Development/troubleshooting info | Function inputs/outputs, state changes |
+
+### Backend Logging (NestJS)
+```typescript
+import { Logger } from '@nestjs/common';
+
+@Injectable()
+export class BattleService {
+  private readonly logger = new Logger(BattleService.name);
+
+  async startBattle(playerId: string): Promise<BattleResult> {
+    // Log business event
+    this.logger.log(`Starting battle`, { playerId });
+
+    try {
+      const result = await this.simulateAndSave(playerId);
+      
+      // Log success with context
+      this.logger.log(`Battle completed`, {
+        battleId: result.id,
+        playerId,
+        winner: result.winner,
+        rounds: result.events.length,
+      });
+      
+      return result;
+    } catch (error) {
+      // Log error with full context for debugging
+      this.logger.error(`Battle simulation failed`, {
+        playerId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      throw error;
+    }
+  }
+}
+```
+
+### What to Log
+
+**ALWAYS log:**
+- Errors with stack traces and context
+- Authentication events (login, logout, token refresh)
+- Important business events (battle start/end, team changes)
+- External API calls (request/response time)
+- Database errors
+
+**NEVER log:**
+- Passwords or tokens
+- Full request/response bodies in production
+- Personal identifiable information (PII)
+- High-frequency events without sampling
+
+### Correlation ID
+```typescript
+// Add correlation ID for request tracing
+@Injectable()
+export class LoggingInterceptor implements NestInterceptor {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+    const request = context.switchToHttp().getRequest();
+    const correlationId = request.headers['x-correlation-id'] || uuidv4();
+    
+    // Attach to all logs in this request
+    return next.handle().pipe(
+      tap({
+        next: () => this.logger.log('Request completed', { correlationId }),
+        error: (err) => this.logger.error('Request failed', { correlationId, error: err.message }),
+      }),
+    );
+  }
+}
+```
+
+### Frontend Logging
+```typescript
+// Use a logging service, not console.log
+class LogService {
+  private context: Record<string, unknown> = {};
+
+  setContext(ctx: Record<string, unknown>) {
+    this.context = { ...this.context, ...ctx };
+  }
+
+  error(message: string, data?: Record<string, unknown>) {
+    // Send to error tracking service (Sentry, etc.)
+    console.error(message, { ...this.context, ...data });
+  }
+
+  info(message: string, data?: Record<string, unknown>) {
+    if (process.env.NODE_ENV === 'development') {
+      console.info(message, { ...this.context, ...data });
+    }
+  }
+}
+
+export const logger = new LogService();
+
+// Usage
+logger.setContext({ playerId: player.id });
+logger.error('Failed to save team', { teamId, error: err.message });
 ```
 
 ---
