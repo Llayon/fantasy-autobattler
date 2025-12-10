@@ -1,4 +1,4 @@
-import { simulateBattle, BattleResult } from './battle.simulator';
+import { simulateBattle } from './battle.simulator';
 import { UnitType } from '../unit/unit.data';
 
 describe('BattleSimulator', () => {

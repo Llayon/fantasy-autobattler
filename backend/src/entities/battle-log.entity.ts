@@ -4,27 +4,27 @@ import { Player } from './player.entity';
 @Entity()
 export class BattleLog {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column()
-  playerId: string;
+  playerId!: string;
 
   @ManyToOne(() => Player, (player) => player.battles)
   @JoinColumn({ name: 'playerId' })
-  player: Player;
+  player!: Player;
 
   @Column('json')
-  playerTeam: any;
+  playerTeam!: unknown;
 
   @Column('json')
-  botTeam: any;
+  botTeam!: unknown;
 
   @Column('json')
-  events: any;
+  events!: unknown;
 
   @Column()
-  winner: string;
+  winner!: string;
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 }

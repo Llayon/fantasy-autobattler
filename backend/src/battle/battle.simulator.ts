@@ -1,4 +1,5 @@
 import { UnitStats, UnitType, createUnit } from '../unit/unit.data';
+import { BATTLE_LIMITS, GAMEPLAY_VALUES } from '../config/game.constants';
 
 export interface BattleUnit extends UnitStats {
   id: string;
@@ -35,8 +36,16 @@ function createBattleUnit(type: UnitType, team: 'player' | 'bot', index: number)
   };
 }
 
+/**
+ * Calculate damage dealt by attacker to defender.
+ * Formula: max(MIN_DAMAGE, ATK - DEF)
+ * 
+ * @param attacker - The attacking unit
+ * @param defender - The defending unit
+ * @returns Calculated damage value (minimum 1)
+ */
 function calculateDamage(attacker: BattleUnit, defender: BattleUnit): number {
-  return Math.max(1, attacker.atk - defender.def);
+  return Math.max(BATTLE_LIMITS.MIN_DAMAGE, attacker.atk - defender.def);
 }
 
 function getAliveUnits(units: BattleUnit[], team?: 'player' | 'bot'): BattleUnit[] {
@@ -56,9 +65,9 @@ function getEnemyTarget(units: BattleUnit[], attackerTeam: 'player' | 'bot'): Ba
   
   // Prioritize Warriors (taunt)
   const warriors = enemies.filter(e => e.type === 'Warrior');
-  if (warriors.length > 0) return warriors[0];
+  if (warriors.length > 0) return warriors[0] || null;
   
-  return enemies[0];
+  return enemies[0] || null;
 }
 
 function getSplashTargets(units: BattleUnit[], attackerTeam: 'player' | 'bot'): BattleUnit[] {
@@ -78,7 +87,7 @@ export function simulateBattle(playerTypes: UnitType[], botTypes: UnitType[]): B
 
   const events: BattleEvent[] = [];
   let round = 0;
-  const maxRounds = 50;
+  const maxRounds = BATTLE_LIMITS.MAX_ROUNDS;
 
   while (round < maxRounds) {
     round++;
@@ -96,8 +105,8 @@ export function simulateBattle(playerTypes: UnitType[], botTypes: UnitType[]): B
         if (healTarget) {
           event.action = 'heal';
           event.target = healTarget.id;
-          event.value = 15;
-          healTarget.hp = Math.min(healTarget.maxHp, healTarget.hp + 15);
+          event.value = GAMEPLAY_VALUES.HEAL_AMOUNT;
+          healTarget.hp = Math.min(healTarget.maxHp, healTarget.hp + GAMEPLAY_VALUES.HEAL_AMOUNT);
           events.push(event);
           continue;
         }

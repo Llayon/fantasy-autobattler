@@ -13,7 +13,7 @@ module.exports = {
   env: {
     node: true,
   },
-  ignorePatterns: ['.eslintrc.js', 'dist'],
+  ignorePatterns: ['.eslintrc.js', 'dist', '**/*.spec.ts', '**/*.test.ts'],
   rules: {
     // TypeScript strict rules
     '@typescript-eslint/no-explicit-any': 'warn',

@@ -61,8 +61,9 @@ function applyEvent(units: UnitState[], event: BattleEvent): UnitState[] {
   if (event.action === 'splash' && event.targets && event.damages) {
     event.targets.forEach((targetId, i) => {
       const target = newUnits.find(u => u.id === targetId);
-      if (target && event.damages) {
-        target.currentHp -= event.damages[i];
+      const damage = event.damages?.[i];
+      if (target && damage !== undefined) {
+        target.currentHp -= damage;
         if (target.currentHp <= 0) target.alive = false;
       }
     });
@@ -111,9 +112,12 @@ export function BattleReplay({ battle }: BattleReplayProps) {
     const timer = setTimeout(() => {
       if (eventIndex < battle.events.length - 1) {
         const nextIndex = eventIndex + 1;
-        setEventIndex(nextIndex);
-        setCurrentEvent(battle.events[nextIndex]);
-        setUnits(prev => applyEvent(prev, battle.events[nextIndex]));
+        const nextEvent = battle.events[nextIndex];
+        if (nextEvent) {
+          setEventIndex(nextIndex);
+          setCurrentEvent(nextEvent);
+          setUnits(prev => applyEvent(prev, nextEvent));
+        }
       } else {
         setIsPlaying(false);
       }
@@ -135,9 +139,12 @@ export function BattleReplay({ battle }: BattleReplayProps) {
   const handleStep = () => {
     if (eventIndex < battle.events.length - 1) {
       const nextIndex = eventIndex + 1;
-      setEventIndex(nextIndex);
-      setCurrentEvent(battle.events[nextIndex]);
-      setUnits(prev => applyEvent(prev, battle.events[nextIndex]));
+      const nextEvent = battle.events[nextIndex];
+      if (nextEvent) {
+        setEventIndex(nextIndex);
+        setCurrentEvent(nextEvent);
+        setUnits(prev => applyEvent(prev, nextEvent));
+      }
     }
   };
 

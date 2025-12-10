@@ -4,29 +4,29 @@ import { BattleLog } from './battle-log.entity';
 @Entity()
 export class Player {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column({ unique: true })
-  guestId: string;
+  guestId!: string;
 
   @Column({ default: 'Guest' })
-  name: string;
+  name!: string;
 
   @Column('json', { default: [] })
-  team: string[];
+  team!: string[];
 
   @Column({ default: 0 })
-  wins: number;
+  wins!: number;
 
   @Column({ default: 0 })
-  losses: number;
+  losses!: number;
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updatedAt!: Date;
 
   @OneToMany(() => BattleLog, (battle) => battle.player)
-  battles: BattleLog[];
+  battles!: BattleLog[];
 }
