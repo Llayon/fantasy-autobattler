@@ -1,0 +1,17 @@
+{
+  "name": "autobattler",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "prepare": "husky install",
+    "validate:all": "npm run validate:backend && npm run validate:frontend",
+    "validate:backend": "cd backend && npm run validate",
+    "validate:frontend": "cd frontend && npm run validate",
+    "format:all": "npm run format:backend && npm run format:frontend",
+    "format:backend": "cd backend && npm run format",
+    "format:frontend": "cd frontend && npm run format"
+  },
+  "devDependencies": {
+    "husky": "^8.0.0"
+  }
+}
