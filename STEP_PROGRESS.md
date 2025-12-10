@@ -1274,5 +1274,111 @@ Determinism: Seeded randomness for consistent results
 
 ---
 
+## Step 12: Battle Simulator Tests ✅ COMPLETED
+**Date:** December 11, 2025  
+**Duration:** ~30 minutes  
+**Status:** SUCCESS
+
+### 🎯 Objectives
+- Update battle simulator tests with comprehensive scenarios
+- Test deterministic behavior with identical seeds
+- Test victory conditions (player win, bot win, draw)
+- Test event generation for replay (move, attack, damage, death)
+- Test Taunt mechanics and targeting priorities
+- Test ranged combat behavior (archers maintaining distance)
+- Use real units from unit.data.ts for authentic scenarios
+
+### 🔧 Changes Made
+
+#### 1. Comprehensive Test Coverage
+- ✅ **Deterministic Behavior**: Same seed produces identical results across multiple runs
+- ✅ **Victory Conditions**: Player victory, bot victory, and draw scenarios
+- ✅ **Event Generation**: Complete battle replay with move, attack, damage, death events
+- ✅ **Taunt Mechanics**: Guardian taunt ability prioritizes targeting
+- ✅ **Ranged Combat**: Archer and crossbowman maintain optimal distance
+
+#### 2. Real Unit Integration
+- ✅ Used all 15 units from `unit.data.ts` in test scenarios
+- ✅ **High Initiative Units**: Assassin (initiative 10) vs Guardian (initiative 3)
+- ✅ **Ranged Units**: Archer (range 4), Crossbowman (range 5) behavior
+- ✅ **Tank Units**: Guardian with taunt, Knight with armor
+- ✅ **DPS Units**: Berserker, Assassin with high damage
+- ✅ **Support Units**: Priest, Bard in team compositions
+
+#### 3. Advanced Battle Scenarios
+- ✅ **Deterministic Verification**: Identical event sequences with same seed
+- ✅ **Player Victory**: Strong team (Berserker + Elementalist) vs weak enemies
+- ✅ **Bot Victory**: Weak player vs strong enemy team
+- ✅ **Draw Conditions**: High-armor tanks reaching MAX_ROUNDS timeout
+- ✅ **Event Replay**: Move paths, attack targets, damage amounts, unit deaths
+
+#### 4. Targeting and AI Testing
+- ✅ **Taunt Priority**: Guardian forces targeting regardless of strategy
+- ✅ **Role-Based AI**: Different targeting strategies per unit role
+- ✅ **Range Optimization**: Ranged units avoid unnecessary movement
+- ✅ **Pathfinding Integration**: Complex movement around obstacles
+
+#### 5. Technical Validation
+- ✅ **Type Safety**: All tests use strict TypeScript with proper null checks
+- ✅ **Event Validation**: Comprehensive event structure verification
+- ✅ **Performance**: Efficient test execution with realistic scenarios
+- ✅ **Integration**: Tests verify all battle systems working together
+
+### 📊 Test Categories Added
+```
+Deterministic Behavior: 2 tests
+Victory Conditions: 3 tests (player, bot, draw)
+Event Generation: 4 tests (comprehensive, move, attack/damage, death)
+Taunt Mechanics: 1 test
+Ranged Combat: 2 tests (archer, crossbowman)
+Integration Tests: 3 tests (turn order, pathfinding, targeting)
+Total New Tests: 15 comprehensive scenarios
+```
+
+### 📊 Unit Coverage in Tests
+```
+Tanks: Knight, Guardian, Berserker ✅
+Melee DPS: Rogue, Duelist, Assassin ✅
+Ranged DPS: Archer, Crossbowman, Hunter ✅
+Mages: Mage, Warlock, Elementalist ✅
+Support: Priest, Bard ✅
+Control: Enchanter (in mixed scenarios) ✅
+```
+
+### 📊 Validation Results
+```bash
+✅ npm run build - SUCCESS (clean compilation)
+✅ npm test - SUCCESS (222/222 tests pass)
+✅ All new test scenarios passing
+✅ Deterministic behavior verified
+✅ Victory conditions working correctly
+✅ Event generation comprehensive
+✅ Real unit integration successful
+```
+
+### 📝 Files Modified
+- `backend/src/battle/battle.simulator.spec.ts` - **COMPLETELY ENHANCED** with comprehensive test scenarios
+
+### 🎉 Success Criteria Met
+- [x] Deterministic behavior tested (same seed = same result)
+- [x] Player victory scenarios with strong vs weak teams
+- [x] Bot victory scenarios with weak vs strong teams  
+- [x] Draw scenarios with MAX_ROUNDS timeout
+- [x] Event generation for complete battle replay
+- [x] Taunt mechanics testing with Guardian
+- [x] Ranged combat behavior (archers maintaining distance)
+- [x] Real units from unit.data.ts used throughout
+- [x] All 222 tests passing with comprehensive coverage
+- [x] TypeScript strict mode compliance
+
+### 🚀 Ready For
+- Step 13: Ability System Implementation
+- Advanced battle mechanics with special abilities
+- UI components for battle visualization
+- Team builder with unit positioning
+- Multiplayer matchmaking system
+
+---
+
 ## Next Steps
-Ready to proceed to **Step 12: Ability System** from the AI Development Plan.
+Ready to proceed to **Step 13: Ability System** from the AI Development Plan.
