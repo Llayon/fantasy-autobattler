@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { BattleLog, BattleStatus } from '../entities/battle-log.entity';
 import { Player } from '../entities/player.entity';
+import { Team } from '../entities/team.entity';
 import { simulateBattle, TeamSetup } from './battle.simulator';
 import { generateRandomTeam, getUnitTemplate, UnitId } from '../unit/unit.data';
 import { GAMEPLAY_VALUES, DEPLOYMENT_ZONES, GRID_DIMENSIONS, TEAM_LIMITS } from '../config/game.constants';
@@ -21,6 +22,8 @@ export class BattleService {
     private battleRepo: Repository<BattleLog>,
     @InjectRepository(Player)
     private playerRepo: Repository<Player>,
+    @InjectRepository(Team)
+    private teamRepo: Repository<Team>,
   ) {}
 
   /**
@@ -103,23 +106,26 @@ export class BattleService {
 
   /**
    * Start a new PvP battle between two players.
-   * Simulates the battle and stores the result.
+   * Loads active teams for both players, simulates the battle and stores the result.
    * 
    * @param player1Id - ID of the first player
    * @param player2Id - ID of the second player
-   * @returns Object containing the battle ID
+   * @returns Battle log entity with complete battle data
    * @throws NotFoundException when either player is not found
+   * @throws BadRequestException when either player doesn't have an active team
    * @example
-   * const result = await battleService.startPvPBattle('player-123', 'player-456');
-   * console.log(result.battleId); // 'battle-789'
+   * const battle = await battleService.startPvPBattle('player-123', 'player-456');
+   * console.log(battle.id); // 'battle-789'
    */
-  async startPvPBattle(player1Id: string, player2Id: string) {
+  async startPvPBattle(player1Id: string, player2Id: string): Promise<BattleLog> {
     this.logger.log(`Starting PvP battle between ${player1Id} and ${player2Id}`);
 
-    // Fetch both players
-    const [player1, player2] = await Promise.all([
+    // Fetch both players and their active teams
+    const [player1, player2, player1Team, player2Team] = await Promise.all([
       this.playerRepo.findOne({ where: { id: player1Id } }),
-      this.playerRepo.findOne({ where: { id: player2Id } })
+      this.playerRepo.findOne({ where: { id: player2Id } }),
+      this.teamRepo.findOne({ where: { playerId: player1Id, isActive: true } }),
+      this.teamRepo.findOne({ where: { playerId: player2Id, isActive: true } })
     ]);
 
     if (!player1) {
@@ -132,16 +138,26 @@ export class BattleService {
       throw new NotFoundException('Player2 not found');
     }
 
-    // Convert both player teams to new format
-    const player1Team = player1.team as string[];
-    const player2Team = player2.team as string[];
-    const player1TeamSetup = this.convertLegacyTeamToSetup(player1Team, 'player');
-    const player2TeamSetup = this.convertLegacyTeamToSetup(player2Team, 'bot');
+    if (!player1Team) {
+      this.logger.warn(`PvP battle start failed: Player1 ${player1Id} has no active team`);
+      throw new BadRequestException('Player1 has no active team');
+    }
 
-    this.logger.debug(`PvP battle teams - Player1: ${player1Team.join(', ')}, Player2: ${player2Team.join(', ')}`);
+    if (!player2Team) {
+      this.logger.warn(`PvP battle start failed: Player2 ${player2Id} has no active team`);
+      throw new BadRequestException('Player2 has no active team');
+    }
+
+    // Convert team entities to TeamSetup format
+    const player1TeamSetup = this.convertTeamToSetup(player1Team);
+    const player2TeamSetup = this.convertTeamToSetup(player2Team);
+
+    this.logger.debug(`PvP battle teams - Player1: ${player1Team.name}, Player2: ${player2Team.name}`);
 
     // Generate deterministic seed for battle
-    const seed = this.generateBattleSeed(`${player1Id}-${player2Id}`, player1Team, player2Team);
+    const seed = this.generateBattleSeed(`${player1Id}-${player2Id}`, 
+      player1Team.units.map(u => u.unitId), 
+      player2Team.units.map(u => u.unitId));
     
     const result = simulateBattle(player1TeamSetup, player2TeamSetup, seed);
 
@@ -187,7 +203,97 @@ export class BattleService {
       durationMs: result.metadata.durationMs,
     });
 
-    return { battleId: battleLog.id };
+    return battleLog;
+  }
+
+  /**
+   * Start a new PvE battle between player and bot with specified difficulty.
+   * Generates bot team based on difficulty level and simulates the battle.
+   * 
+   * @param playerId - ID of the player starting the battle
+   * @param botDifficulty - Bot difficulty level affecting team strength
+   * @returns Battle log entity with complete battle data
+   * @throws NotFoundException when player is not found
+   * @throws BadRequestException when player doesn't have an active team
+   * @example
+   * const battle = await battleService.startPvEBattle('player-123', 'hard');
+   * console.log(battle.id); // 'battle-456'
+   */
+  async startPvEBattle(playerId: string, botDifficulty: 'easy' | 'medium' | 'hard'): Promise<BattleLog> {
+    this.logger.log(`Starting PvE battle for player ${playerId} vs ${botDifficulty} bot`);
+
+    // Fetch player and their active team
+    const [player, playerTeam] = await Promise.all([
+      this.playerRepo.findOne({ where: { id: playerId } }),
+      this.teamRepo.findOne({ where: { playerId, isActive: true } })
+    ]);
+
+    if (!player) {
+      this.logger.warn(`PvE battle start failed: Player ${playerId} not found`);
+      throw new NotFoundException('Player not found');
+    }
+
+    if (!playerTeam) {
+      this.logger.warn(`PvE battle start failed: Player ${playerId} has no active team`);
+      throw new BadRequestException('Player has no active team');
+    }
+
+    // Convert player team to TeamSetup format
+    const playerTeamSetup = this.convertTeamToSetup(playerTeam);
+    
+    // Generate bot team based on difficulty
+    const botTeamSetup = this.generateBotTeam(botDifficulty);
+
+    this.logger.debug(`PvE battle - Player: ${playerTeam.name}, Bot: ${botDifficulty}`);
+
+    // Generate deterministic seed for battle
+    const seed = this.generateBattleSeed(`${playerId}-bot-${botDifficulty}`, 
+      playerTeam.units.map(u => u.unitId), 
+      botTeamSetup.units.map(u => u.id));
+    
+    const result = simulateBattle(playerTeamSetup, botTeamSetup, seed);
+
+    // Map winner from simulation result to new format
+    let winner: 'player1' | 'player2' | 'draw' | undefined;
+    if (result.winner === 'player') {
+      winner = 'player1';
+    } else if (result.winner === 'bot') {
+      winner = 'player2';
+    } else if (result.winner === 'draw') {
+      winner = 'draw';
+    }
+
+    // Update player stats
+    if (result.winner === 'player') {
+      await this.playerRepo.increment({ id: playerId }, 'wins', 1);
+    } else if (result.winner === 'bot') {
+      await this.playerRepo.increment({ id: playerId }, 'losses', 1);
+    }
+
+    // Store PvE battle (bot as player2Id)
+    const battleLog = this.battleRepo.create({
+      player1Id: playerId,
+      player2Id: `bot-${botDifficulty}`,
+      player1TeamSnapshot: playerTeamSetup,
+      player2TeamSnapshot: botTeamSetup,
+      seed,
+      events: result.events,
+      ...(winner && { winner }),
+      rounds: result.metadata.totalRounds,
+      status: BattleStatus.SIMULATED,
+    });
+    await this.battleRepo.save(battleLog);
+
+    this.logger.log(`PvE battle completed`, {
+      battleId: battleLog.id,
+      playerId,
+      botDifficulty,
+      winner: result.winner,
+      rounds: result.metadata.totalRounds,
+      durationMs: result.metadata.durationMs,
+    });
+
+    return battleLog;
   }
 
   /**
@@ -218,9 +324,9 @@ export class BattleService {
    * @param playerId - ID of the player
    * @returns Array of recent battle logs (limited to 10)
    * @example
-   * const battles = await battleService.getPlayerBattles('player-123');
+   * const battles = await battleService.getBattlesForPlayer('player-123');
    */
-  async getPlayerBattles(playerId: string) {
+  async getBattlesForPlayer(playerId: string): Promise<BattleLog[]> {
     this.logger.debug(`Retrieving battle history for player ${playerId}`);
     
     return this.battleRepo.find({
@@ -241,9 +347,9 @@ export class BattleService {
    * @param playerId - ID of the player who viewed the battle
    * @throws NotFoundException when battle is not found or player is not a participant
    * @example
-   * await battleService.markBattleAsViewed('battle-123', 'player-456');
+   * await battleService.markAsViewed('battle-123', 'player-456');
    */
-  async markBattleAsViewed(battleId: string, playerId: string) {
+  async markAsViewed(battleId: string, playerId: string): Promise<void> {
     const battle = await this.battleRepo.findOne({ where: { id: battleId } });
 
     if (!battle) {
@@ -265,6 +371,30 @@ export class BattleService {
   // =============================================================================
   // PRIVATE HELPER METHODS
   // =============================================================================
+
+  /**
+   * Convert Team entity to TeamSetup format for battle simulation.
+   * Maps team units with their positions to battle simulator format.
+   * 
+   * @param team - Team entity with units and positions
+   * @returns TeamSetup with units and positions for battle simulation
+   * @example
+   * const setup = this.convertTeamToSetup(playerTeam);
+   */
+  private convertTeamToSetup(team: Team): TeamSetup {
+    const units = team.units.map(teamUnit => {
+      const template = getUnitTemplate(teamUnit.unitId as UnitId);
+      if (!template) {
+        throw new Error(`Unit template not found for unit ID: ${teamUnit.unitId}`);
+      }
+      return template;
+    });
+
+    // Use positions from team configuration
+    const positions = team.units.map(teamUnit => teamUnit.position);
+
+    return { units, positions };
+  }
 
   /**
    * Convert legacy unit type array to new TeamSetup format.
@@ -321,6 +451,33 @@ export class BattleService {
     const positions = this.generateDefaultPositions(units.length, teamType);
 
     return { units, positions };
+  }
+
+  /**
+   * Generate bot team based on difficulty level.
+   * Creates balanced teams with varying strength based on difficulty.
+   * 
+   * @param difficulty - Bot difficulty level
+   * @returns TeamSetup with bot units and positions
+   * @example
+   * const botTeam = this.generateBotTeam('hard');
+   */
+  private generateBotTeam(difficulty: 'easy' | 'medium' | 'hard'): TeamSetup {
+    // Adjust budget based on difficulty
+    const budgetMultipliers = {
+      easy: 0.7,    // 21 points (70% of player budget)
+      medium: 0.85, // 25.5 points (85% of player budget)
+      hard: 1.0,    // 30 points (100% of player budget)
+    };
+
+    const botBudget = Math.floor(TEAM_LIMITS.BUDGET * budgetMultipliers[difficulty]);
+    
+    // Generate random team within budget
+    const botUnitIds = generateRandomTeam(botBudget);
+    
+    this.logger.debug(`Generated ${difficulty} bot team with ${botBudget} budget: ${botUnitIds.join(', ')}`);
+    
+    return this.createTeamSetup(botUnitIds, 'bot');
   }
 
   /**
