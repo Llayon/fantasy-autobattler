@@ -113,7 +113,7 @@ export class HealthController {
         () => this.memoryHealthIndicator.checkHeap('memory_heap', 150 * 1024 * 1024),
         // Disk usage check (should have at least 250MB free)
         () => this.diskHealthIndicator.checkStorage('disk', { 
-          path: '/', 
+          path: process.platform === 'win32' ? 'C:\\' : '/', 
           thresholdPercent: 0.9 
         }),
       ]);

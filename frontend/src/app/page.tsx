@@ -14,6 +14,7 @@ import { EnhancedBattleGrid } from '@/components/EnhancedBattleGrid';
 import { DragDropProvider, DragDropHandlers } from '@/components/DragDropProvider';
 import { BudgetIndicator } from '@/components/BudgetIndicator';
 import { SavedTeamsModal } from '@/components/SavedTeamsModal';
+import { MatchmakingPanel } from '@/components/MatchmakingPanel';
 import { 
   usePlayerStore, 
   useTeamStore, 
@@ -418,7 +419,7 @@ export default function TeamBuilderPage() {
               </h1>
               {player && (
                 <p className="text-gray-300 text-sm">
-                  {player.name} | Побед: {player.stats.wins} | Поражений: {player.stats.losses}
+                  {player.name} | Побед: {player.stats?.wins || 0} | Поражений: {player.stats?.losses || 0}
                 </p>
               )}
             </div>
@@ -499,6 +500,9 @@ export default function TeamBuilderPage() {
                 <p>🎯 Размещение доступно только в синих зонах (ряды 0-1)</p>
                 <p>🗑️ Кликните на размещенного юнита для удаления</p>
               </div>
+              
+              {/* Matchmaking Panel */}
+              <MatchmakingPanel className="mt-6" />
             </div>
           </div>
         </div>
@@ -535,6 +539,9 @@ export default function TeamBuilderPage() {
             <p>💡 Выберите юнита и коснитесь поля для размещения</p>
             <p>🎯 Размещение только в синих зонах</p>
           </div>
+          
+          {/* Matchmaking Panel */}
+          <MatchmakingPanel />
         </div>
         
         {/* Mobile unit sheet */}
