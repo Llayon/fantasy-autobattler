@@ -9,9 +9,12 @@ import {
   Column, 
   CreateDateColumn, 
   UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
   Index
 } from 'typeorm';
 import { Position } from '../../src/types/game.types';
+import { PlayerTest } from './player-test.entity';
 
 /**
  * Team unit configuration interface for testing.
@@ -43,6 +46,13 @@ export class TeamTest {
    */
   @Column({ type: 'varchar' })
   playerId!: string;
+
+  /**
+   * Player entity relationship.
+   */
+  @ManyToOne(() => PlayerTest, (player) => player.teams)
+  @JoinColumn({ name: 'playerId' })
+  player!: PlayerTest;
 
   /**
    * Team name for identification and display.

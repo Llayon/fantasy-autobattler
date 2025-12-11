@@ -43,7 +43,7 @@ interface HttpResponse {
   /** Set status code */
   status: (code: number) => HttpResponse;
   /** Send JSON response */
-  json: (body: any) => HttpResponse;
+  json: (body: unknown) => HttpResponse;
 }
 
 /**
@@ -109,11 +109,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
     // Extract error message and details
     const message = typeof exceptionResponse === 'string' 
       ? exceptionResponse 
-      : (exceptionResponse as any)?.message || exception.message;
+      : (exceptionResponse as { message?: string })?.message || exception.message;
     
     const error = typeof exceptionResponse === 'string'
       ? this.getErrorNameFromStatus(status)
-      : (exceptionResponse as any)?.error || this.getErrorNameFromStatus(status);
+      : (exceptionResponse as { error?: string })?.error || this.getErrorNameFromStatus(status);
 
     // Create standardized error response
     const errorResponse: ErrorResponse = {

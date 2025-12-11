@@ -98,7 +98,7 @@ export class BattleLog {
    * Preserves the exact team composition used in the battle for replay purposes.
    */
   @Column({
-    type: 'jsonb',
+    type: 'json',
     nullable: false,
     comment: 'Player 1 team snapshot at battle time'
   })
@@ -109,7 +109,7 @@ export class BattleLog {
    * Preserves the exact team composition used in the battle for replay purposes.
    */
   @Column({
-    type: 'jsonb',
+    type: 'json',
     nullable: false,
     comment: 'Player 2 team snapshot at battle time'
   })
@@ -130,8 +130,8 @@ export class BattleLog {
    * Current status of the battle.
    */
   @Column({
-    type: 'enum',
-    enum: BattleStatus,
+    type: 'varchar',
+    length: 20,
     nullable: false,
     default: BattleStatus.PENDING,
     comment: 'Current battle processing status'
@@ -143,7 +143,7 @@ export class BattleLog {
    * Contains all actions, movements, attacks, and state changes.
    */
   @Column({
-    type: 'jsonb',
+    type: 'json',
     nullable: true,
     comment: 'Complete battle event sequence for replay'
   })
@@ -197,7 +197,6 @@ export class BattleLog {
    * Timestamp when the battle was created.
    */
   @CreateDateColumn({
-    type: 'timestamp with time zone',
     comment: 'When this battle was created'
   })
   createdAt!: Date;
@@ -206,7 +205,6 @@ export class BattleLog {
    * Timestamp when the battle was last updated.
    */
   @UpdateDateColumn({
-    type: 'timestamp with time zone',
     comment: 'When this battle was last updated'
   })
   updatedAt!: Date;

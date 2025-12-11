@@ -79,7 +79,7 @@ export class LoggingInterceptor implements NestInterceptor {
    * // Automatically called by NestJS for each HTTP request
    * // Logs: [LoggingInterceptor] POST /team 201 - 45ms [correlation-id-123]
    */
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     if (context.getType() !== 'http') {
       return next.handle();
     }
@@ -168,7 +168,7 @@ export class LoggingInterceptor implements NestInterceptor {
    * const size = this.getResponseSize({ teams: [...] });
    * // Returns: "1.2KB" or "unknown"
    */
-  private getResponseSize(data: any): string {
+  private getResponseSize(data: unknown): string {
     try {
       if (data === null || data === undefined) {
         return '0B';

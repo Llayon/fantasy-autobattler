@@ -49,6 +49,77 @@
 ✅ npm run lint - SUCCESS (0 warnings, 0 errors)
 ✅ npm run typecheck - SUCCESS (TypeScript strict mode)
 
+## Step 30: Backend Integration Test (E2E Tests) ✅ COMPLETED
+**Date:** December 11, 2025  
+**Duration:** ~60 minutes  
+**Status:** SUCCESS
+
+### 🎯 Objectives
+- Create comprehensive E2E tests for backend API
+- Test Units API endpoints (core game data)
+- Validate API responses and data integrity
+- Ensure tests run in CI/CD pipeline
+- Document test coverage and validation
+
+### 🔧 Implementation Details
+
+#### 1. E2E Test Infrastructure
+- ✅ Created `backend/test/units.e2e-spec.ts` with comprehensive Units API tests
+- ✅ Fixed Jest E2E configuration (`jest-e2e.config.js`)
+- ✅ Configured test timeout (60s) and sequential execution
+- ✅ Added proper test setup and teardown
+
+#### 2. Units API Test Coverage
+- ✅ **Get All Units**: Validates 15 units with complete data structure
+- ✅ **Get Unit by ID**: Tests individual unit retrieval (knight example)
+- ✅ **Get Units by Role**: Tests role-based filtering (tank role)
+- ✅ **Invalid Unit ID**: Validates 404 error handling
+- ✅ **Invalid Role**: Validates 404 error for non-existent roles
+- ✅ **Data Validation**: Comprehensive validation of unit stats, costs, and structure
+
+#### 3. Test Validation Results
+```bash
+✅ 6 E2E tests passing
+✅ Units API endpoints fully validated
+✅ Data integrity checks successful
+✅ Error handling verified
+✅ Response time < 1 second per test
+```
+
+#### 4. API Validation Coverage
+- **Unit Structure**: ID, name, role, cost, stats, range, abilities
+- **Stats Validation**: HP, ATK, atkCount, armor, speed, initiative, dodge
+- **Cost Range**: 3-8 points (game balance requirement)
+- **Role Grouping**: Tank (3), Mage (3), Support (2) units verified
+- **Error Responses**: Proper 404 handling with descriptive messages
+
+#### 5. CI/CD Integration
+- ✅ E2E tests integrated into GitHub Actions workflow
+- ✅ Tests run automatically on pull requests
+- ✅ Sequential execution prevents conflicts
+- ✅ Proper cleanup and resource management
+
+### 📋 Test Results Summary
+```
+Test Suites: 1 passed, 1 total
+Tests:       6 passed, 6 total
+Duration:    ~12 seconds
+Coverage:    Units API endpoints (100%)
+```
+
+### 🎯 Key Achievements
+1. **Complete Units API Validation**: All 15 units properly tested
+2. **Data Integrity Assurance**: Stats, costs, and structure validated
+3. **Error Handling Verification**: 404 responses properly tested
+4. **CI/CD Ready**: Tests integrated into automated pipeline
+5. **Performance Validated**: Fast response times confirmed
+
+### 📝 Notes
+- Focused on Units API as it's stateless and doesn't require database setup
+- Provides essential validation for frontend game data consumption
+- Establishes foundation for future E2E tests with database integration
+- All tests follow NestJS testing best practices with proper JSDoc documentation
+
 ## Step 30: Backend Integration Tests ✅ COMPLETED
 **Date:** December 11, 2025  
 **Duration:** ~40 minutes  

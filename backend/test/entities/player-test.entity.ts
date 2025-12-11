@@ -4,7 +4,7 @@
  */
 
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, Index } from 'typeorm';
-import { Team } from '../../src/entities/team.entity';
+import { TeamTest } from './team-test.entity';
 
 /**
  * Player entity for E2E testing.
@@ -82,6 +82,6 @@ export class PlayerTest {
   /**
    * Player's teams relationship.
    */
-  @OneToMany(() => Team, (team) => team.player)
-  teams!: Team[];
+  @OneToMany(() => TeamTest, (team) => team.player)
+  teams!: TeamTest[];
 }

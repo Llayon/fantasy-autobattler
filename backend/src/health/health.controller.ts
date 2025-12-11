@@ -24,7 +24,7 @@ interface HealthStatus {
   /** Overall system status */
   status: 'ok' | 'error' | 'shutting_down';
   /** Detailed health information */
-  details: Record<string, any>;
+  details: Record<string, unknown>;
   /** Timestamp of health check */
   timestamp: string;
   /** Application version */
