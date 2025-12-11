@@ -109,11 +109,15 @@ jobs:
         working-directory: backend
         run: npm ci
       
-      - name: Run tests
+      - name: Run unit tests
         working-directory: backend
         run: npm test -- --passWithNoTests
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/autobattler_test
+      
+      - name: Run E2E tests
+        working-directory: backend
+        run: npm run test:e2e
 
   # ============================================
   # FRONTEND CHECKS
