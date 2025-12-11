@@ -1,265 +1,380 @@
 /**
- * Unit tests for TeamValidator.
- * Tests validation logic for team configuration, budget constraints, and positioning.
+ * Test suite for TeamValidator service.
+ * Tests all validation functions with comprehensive scenarios.
  */
 
-import { TeamValidator, CreateTeamRequest } from './team.validator';
-import { TEAM_LIMITS } from '../config/game.constants';
+import { Test, TestingModule } from '@nestjs/testing';
+import { TeamValidator, UnitSelection, CreateTeamDto } from './team.validator';
+import { Position } from '../types/game.types';
 
 describe('TeamValidator', () => {
   let validator: TeamValidator;
 
-  beforeEach(() => {
-    validator = new TeamValidator();
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [TeamValidator],
+    }).compile();
+
+    validator = module.get<TeamValidator>(TeamValidator);
+  });
+
+  describe('validateTeamBudget', () => {
+    it('should validate budget within limits', () => {
+      const units: UnitSelection[] = [
+        { unitId: 'knight', position: { x: 0, y: 0 } },
+        { unitId: 'mage', position: { x: 1, y: 0 } },
+      ];
+
+      const result = validator.validateTeamBudget(units);
+
+      expect(result.valid).toBe(true);
+      expect(result.totalCost).toBe(11); // knight(5) + mage(6)
+      expect(result.error).toBeUndefined();
+    });
+
+    it('should reject budget exceeding limit', () => {
+      const units: UnitSelection[] = [
+        { unitId: 'berserker', position: { x: 0, y: 0 } }, // 8 points
+        { unitId: 'elementalist', position: { x: 1, y: 0 } }, // 8 points
+        { unitId: 'assassin', position: { x: 2, y: 0 } }, // 7 points
+        { unitId: 'warlock', position: { x: 3, y: 0 } }, // 7 points
+        { unitId: 'hunter', position: { x: 4, y: 0 } }, // 6 points
+      ]; // Total: 36 points > 30 limit
+
+      const result = validator.validateTeamBudget(units);
+
+      expect(result.valid).toBe(false);
+      expect(result.totalCost).toBe(36);
+      expect(result.error).toContain('превышает бюджет');
+    });
+
+    it('should reject unknown unit IDs', () => {
+      const units: UnitSelection[] = [
+        { unitId: 'unknown_unit', position: { x: 0, y: 0 } },
+      ];
+
+      const result = validator.validateTeamBudget(units);
+
+      expect(result.valid).toBe(false);
+      expect(result.totalCost).toBe(0);
+      expect(result.error).toContain('Неизвестный юнит');
+    });
+
+    it('should handle empty units array', () => {
+      const result = validator.validateTeamBudget([]);
+
+      expect(result.valid).toBe(true);
+      expect(result.totalCost).toBe(0);
+      expect(result.error).toBeUndefined();
+    });
+  });
+
+  describe('validatePositions', () => {
+    it('should validate correct positions in deployment zone', () => {
+      const positions: Position[] = [
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+        { x: 2, y: 1 },
+        { x: 7, y: 1 },
+      ];
+
+      const result = validator.validatePositions(positions);
+
+      expect(result.valid).toBe(true);
+      expect(result.error).toBeUndefined();
+    });
+
+    it('should reject positions outside deployment zone', () => {
+      const positions: Position[] = [
+        { x: 0, y: 2 }, // Row 2 is outside player deployment zone
+      ];
+
+      const result = validator.validatePositions(positions);
+
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('зоне развертывания');
+    });
+
+    it('should reject positions outside grid bounds', () => {
+      const positions: Position[] = [
+        { x: 8, y: 0 }, // x=8 is outside 8×10 grid (0-7)
+      ];
+
+      const result = validator.validatePositions(positions);
+
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('за пределами поля');
+    });
+
+    it('should reject negative coordinates', () => {
+      const positions: Position[] = [
+        { x: -1, y: 0 },
+      ];
+
+      const result = validator.validatePositions(positions);
+
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('за пределами поля');
+    });
+
+    it('should reject duplicate positions', () => {
+      const positions: Position[] = [
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+        { x: 0, y: 0 }, // Duplicate
+      ];
+
+      const result = validator.validatePositions(positions);
+
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('Дублирующаяся позиция');
+    });
+
+    it('should reject invalid position structure', () => {
+      const positions: any[] = [
+        { x: 'invalid', y: 0 }, // Non-numeric x
+      ];
+
+      const result = validator.validatePositions(positions);
+
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('числовые координаты');
+    });
+
+    it('should handle empty positions array', () => {
+      const result = validator.validatePositions([]);
+
+      expect(result.valid).toBe(true);
+      expect(result.error).toBeUndefined();
+    });
+  });
+
+  describe('validateNoDuplicateUnits', () => {
+    it('should validate unique unit IDs', () => {
+      const unitIds = ['knight', 'mage', 'priest', 'archer'];
+
+      const result = validator.validateNoDuplicateUnits(unitIds);
+
+      expect(result.valid).toBe(true);
+      expect(result.error).toBeUndefined();
+    });
+
+    it('should reject duplicate unit IDs', () => {
+      const unitIds = ['knight', 'mage', 'knight']; // Duplicate knight
+
+      const result = validator.validateNoDuplicateUnits(unitIds);
+
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('уже добавлен');
+    });
+
+    it('should handle empty unit IDs array', () => {
+      const result = validator.validateNoDuplicateUnits([]);
+
+      expect(result.valid).toBe(true);
+      expect(result.error).toBeUndefined();
+    });
+
+    it('should handle single unit ID', () => {
+      const result = validator.validateNoDuplicateUnits(['knight']);
+
+      expect(result.valid).toBe(true);
+      expect(result.error).toBeUndefined();
+    });
   });
 
   describe('validateTeam', () => {
-    it('should validate a correct team configuration', () => {
-      const teamData: CreateTeamRequest = {
+    it('should validate complete valid team', () => {
+      const team: CreateTeamDto = {
         name: 'Test Team',
         units: [
           { unitId: 'knight', position: { x: 0, y: 0 } },
           { unitId: 'mage', position: { x: 1, y: 0 } },
-          { unitId: 'priest', position: { x: 2, y: 0 } },
+          { unitId: 'priest', position: { x: 2, y: 1 } },
         ],
       };
 
-      const result = validator.validateTeam(teamData);
+      const result = validator.validateTeam(team);
 
-      expect(result.isValid).toBe(true);
-      expect(result.errors).toHaveLength(0);
-      expect(result.totalCost).toBe(15); // 5 + 6 + 4
-      expect(result.unitCount).toBe(3);
+      expect(result.valid).toBe(true);
+      expect(result.error).toBeUndefined();
+      expect(result.data).toBeDefined();
+      expect(result.data?.totalCost).toBe(15); // knight(5) + mage(6) + priest(4)
+      expect(result.data?.unitCount).toBe(3);
     });
 
-    it('should reject team with empty name', () => {
-      const teamData: CreateTeamRequest = {
+    it('should reject team without name', () => {
+      const team: CreateTeamDto = {
         name: '',
-        units: [{ unitId: 'knight', position: { x: 0, y: 0 } }],
+        units: [
+          { unitId: 'knight', position: { x: 0, y: 0 } },
+        ],
       };
 
-      const result = validator.validateTeam(teamData);
+      const result = validator.validateTeam(team);
 
-      expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Team name is required');
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('Название команды обязательно');
     });
 
-    it('should reject team with name too long', () => {
-      const teamData: CreateTeamRequest = {
-        name: 'a'.repeat(101), // 101 characters
-        units: [{ unitId: 'knight', position: { x: 0, y: 0 } }],
+    it('should reject team with long name', () => {
+      const team: CreateTeamDto = {
+        name: 'A'.repeat(101), // 101 characters
+        units: [
+          { unitId: 'knight', position: { x: 0, y: 0 } },
+        ],
       };
 
-      const result = validator.validateTeam(teamData);
+      const result = validator.validateTeam(team);
 
-      expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Team name cannot exceed 100 characters');
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('не может превышать 100 символов');
     });
 
-    it('should reject team with no units', () => {
-      const teamData: CreateTeamRequest = {
+    it('should reject team without units', () => {
+      const team: CreateTeamDto = {
         name: 'Empty Team',
         units: [],
       };
 
-      const result = validator.validateTeam(teamData);
+      const result = validator.validateTeam(team);
 
-      expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Team must have at least one unit');
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('хотя бы одного юнита');
     });
 
-    it('should reject team exceeding budget', () => {
-      const teamData: CreateTeamRequest = {
-        name: 'Expensive Team',
-        units: [
-          { unitId: 'berserker', position: { x: 0, y: 0 } }, // 7 cost
-          { unitId: 'assassin', position: { x: 1, y: 0 } },  // 8 cost
-          { unitId: 'elementalist', position: { x: 2, y: 0 } }, // 8 cost
-          { unitId: 'guardian', position: { x: 3, y: 0 } }, // 6 cost
-          { unitId: 'hunter', position: { x: 4, y: 0 } }, // 6 cost
-        ], // Total: 35 > 30 budget
+    it('should reject team with too many units', () => {
+      const units: UnitSelection[] = [];
+      for (let i = 0; i < 11; i++) { // 11 units > MAX_UNITS (10)
+        units.push({
+          unitId: 'priest', // Cheapest unit (4 points)
+          position: { x: i % 8, y: Math.floor(i / 8) },
+        });
+      }
+
+      const team: CreateTeamDto = {
+        name: 'Too Many Units',
+        units,
       };
 
-      const result = validator.validateTeam(teamData);
+      const result = validator.validateTeam(team);
 
-      expect(result.isValid).toBe(false);
-      expect(result.errors).toContain(`Team cost 35 exceeds maximum budget of ${TEAM_LIMITS.BUDGET} points`);
-      expect(result.totalCost).toBe(35);
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('не может содержать более');
     });
 
-    it('should reject team with duplicate positions', () => {
-      const teamData: CreateTeamRequest = {
-        name: 'Duplicate Positions',
+    it('should reject team with unknown unit', () => {
+      const team: CreateTeamDto = {
+        name: 'Invalid Team',
+        units: [
+          { unitId: 'unknown_unit', position: { x: 0, y: 0 } },
+        ],
+      };
+
+      const result = validator.validateTeam(team);
+
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('Неизвестный юнит');
+    });
+
+    it('should reject team with duplicate units', () => {
+      const team: CreateTeamDto = {
+        name: 'Duplicate Team',
         units: [
           { unitId: 'knight', position: { x: 0, y: 0 } },
-          { unitId: 'mage', position: { x: 0, y: 0 } }, // Duplicate position
+          { unitId: 'knight', position: { x: 1, y: 0 } }, // Duplicate
         ],
       };
 
-      const result = validator.validateTeam(teamData);
+      const result = validator.validateTeam(team);
 
-      expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Duplicate position at (0, 0)');
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('уже добавлен');
     });
 
-    it('should reject units with invalid unitId', () => {
-      const teamData: CreateTeamRequest = {
-        name: 'Invalid Unit',
+    it('should reject team with invalid positions', () => {
+      const team: CreateTeamDto = {
+        name: 'Invalid Position Team',
         units: [
-          { unitId: 'invalid_unit', position: { x: 0, y: 0 } },
+          { unitId: 'knight', position: { x: 0, y: 2 } }, // Outside deployment zone
         ],
       };
 
-      const result = validator.validateTeam(teamData);
+      const result = validator.validateTeam(team);
 
-      expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Unit at index 0 has unknown unitId: invalid_unit');
-    });
-
-    it('should reject units with positions outside grid bounds', () => {
-      const teamData: CreateTeamRequest = {
-        name: 'Out of Bounds',
-        units: [
-          { unitId: 'knight', position: { x: -1, y: 0 } }, // x < 0
-          { unitId: 'mage', position: { x: 8, y: 0 } },   // x >= 8
-          { unitId: 'priest', position: { x: 0, y: 10 } }, // y >= 10
-        ],
-      };
-
-      const result = validator.validateTeam(teamData);
-
-      expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Unit at index 0 position (-1, 0) is outside grid bounds (0-7, 0-9)');
-      expect(result.errors).toContain('Unit at index 1 position (8, 0) is outside grid bounds (0-7, 0-9)');
-      expect(result.errors).toContain('Unit at index 2 position (0, 10) is outside grid bounds (0-7, 0-9)');
-    });
-
-    it('should reject units outside player deployment zone', () => {
-      const teamData: CreateTeamRequest = {
-        name: 'Wrong Zone',
-        units: [
-          { unitId: 'knight', position: { x: 0, y: 2 } }, // y not in [0, 1]
-          { unitId: 'mage', position: { x: 1, y: 5 } },   // y not in [0, 1]
-        ],
-      };
-
-      const result = validator.validateTeam(teamData);
-
-      expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Unit at index 0 position (0, 2) is outside player deployment zone (rows 0, 1)');
-      expect(result.errors).toContain('Unit at index 1 position (1, 5) is outside player deployment zone (rows 0, 1)');
-    });
-  });
-
-  describe('validateUnit', () => {
-    it('should validate a correct unit', () => {
-      const unit = { unitId: 'knight', position: { x: 0, y: 0 } };
-      const errors = validator.validateUnit(unit, 0);
-
-      expect(errors).toHaveLength(0);
-    });
-
-    it('should reject unit with invalid unitId', () => {
-      const unit = { unitId: '', position: { x: 0, y: 0 } };
-      const errors = validator.validateUnit(unit, 0);
-
-      expect(errors).toContain('Unit at index 0 must have a valid unitId string');
-    });
-
-    it('should reject unit with invalid position', () => {
-      const unit = { unitId: 'knight', position: { x: 'invalid', y: 0 } as any };
-      const errors = validator.validateUnit(unit, 0);
-
-      expect(errors).toContain('Unit at index 0 position must have numeric x and y coordinates');
-    });
-  });
-
-  describe('validateBudget', () => {
-    it('should validate team within budget', () => {
-      const result = validator.validateBudget(['knight', 'mage', 'priest']); // 5 + 6 + 4 = 15
-
-      expect(result.isValid).toBe(true);
-      expect(result.totalCost).toBe(15);
-      expect(result.errors).toHaveLength(0);
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('зоне развертывания');
     });
 
     it('should reject team exceeding budget', () => {
-      const result = validator.validateBudget(['berserker', 'assassin', 'elementalist', 'guardian']); // 7 + 8 + 8 + 6 = 29
+      const team: CreateTeamDto = {
+        name: 'Expensive Team',
+        units: [
+          { unitId: 'berserker', position: { x: 0, y: 0 } }, // 8 points
+          { unitId: 'elementalist', position: { x: 1, y: 0 } }, // 8 points
+          { unitId: 'assassin', position: { x: 2, y: 0 } }, // 7 points
+          { unitId: 'warlock', position: { x: 3, y: 0 } }, // 7 points
+          { unitId: 'hunter', position: { x: 4, y: 0 } }, // 6 points
+        ], // Total: 36 > 30
+      };
 
-      expect(result.isValid).toBe(true); // 29 <= 30
-      expect(result.totalCost).toBe(29);
+      const result = validator.validateTeam(team);
+
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('превышает бюджет');
     });
 
-    it('should reject unknown unit IDs', () => {
-      const result = validator.validateBudget(['knight', 'invalid_unit']);
+    it('should handle invalid units array', () => {
+      const team: any = {
+        name: 'Invalid Team',
+        units: 'not an array',
+      };
 
-      expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Unknown unit ID: invalid_unit');
+      const result = validator.validateTeam(team);
+
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('должны быть массивом');
     });
   });
 
-  describe('validateForBattle', () => {
-    it('should validate team ready for battle', () => {
-      const team = {
-        units: [{ unitId: 'knight', position: { x: 0, y: 0 } }],
-        totalCost: 15,
+  describe('Integration Tests', () => {
+    it('should validate maximum budget team', () => {
+      const team: CreateTeamDto = {
+        name: 'Max Budget Team',
+        units: [
+          { unitId: 'elementalist', position: { x: 0, y: 0 } }, // 8 points
+          { unitId: 'assassin', position: { x: 1, y: 0 } }, // 8 points
+          { unitId: 'berserker', position: { x: 2, y: 0 } }, // 7 points
+          { unitId: 'warlock', position: { x: 3, y: 0 } }, // 7 points
+        ], // Total: 30 points exactly
       };
 
-      const result = validator.validateForBattle(team);
+      const result = validator.validateTeam(team);
 
-      expect(result).toBe(true);
+      expect(result.valid).toBe(true);
+      expect(result.data?.totalCost).toBe(30);
     });
 
-    it('should reject empty team', () => {
-      const team = {
-        units: [],
-        totalCost: 0,
+    it('should validate team with multiple units in deployment zone', () => {
+      const units: UnitSelection[] = [
+        { unitId: 'priest', position: { x: 0, y: 0 } }, // 4 points
+        { unitId: 'bard', position: { x: 1, y: 0 } }, // 5 points
+        { unitId: 'archer', position: { x: 2, y: 0 } }, // 4 points
+        { unitId: 'knight', position: { x: 3, y: 0 } }, // 5 points
+        { unitId: 'crossbowman', position: { x: 4, y: 1 } }, // 5 points
+        { unitId: 'rogue', position: { x: 5, y: 1 } }, // 5 points
+      ]; // Total: 28 points (within budget, all unique units)
+
+      const team: CreateTeamDto = {
+        name: 'Multi Unit Deployment',
+        units,
       };
 
-      const result = validator.validateForBattle(team);
+      const result = validator.validateTeam(team);
 
-      expect(result).toBe(false);
-    });
-
-    it('should reject team exceeding budget', () => {
-      const team = {
-        units: [{ unitId: 'knight', position: { x: 0, y: 0 } }],
-        totalCost: 35,
-      };
-
-      const result = validator.validateForBattle(team);
-
-      expect(result).toBe(false);
-    });
-  });
-
-  describe('getTeamSummary', () => {
-    it('should provide correct team summary', () => {
-      const units = [
-        { unitId: 'knight', position: { x: 0, y: 0 } },    // tank, 5 cost
-        { unitId: 'mage', position: { x: 1, y: 0 } },      // mage, 6 cost
-        { unitId: 'priest', position: { x: 2, y: 0 } },    // support, 4 cost
-      ];
-
-      const summary = validator.getTeamSummary(units);
-
-      expect(summary.unitCount).toBe(3);
-      expect(summary.totalCost).toBe(15);
-      expect(summary.averageCost).toBe(5); // 15 / 3
-      expect(summary.roleDistribution).toEqual({
-        tank: 1,
-        mage: 1,
-        support: 1,
-      });
-    });
-
-    it('should handle empty team', () => {
-      const summary = validator.getTeamSummary([]);
-
-      expect(summary.unitCount).toBe(0);
-      expect(summary.totalCost).toBe(0);
-      expect(summary.averageCost).toBe(0);
-      expect(summary.roleDistribution).toEqual({});
+      expect(result.valid).toBe(true);
+      expect(result.data?.unitCount).toBe(6);
+      expect(result.data?.totalCost).toBe(28);
     });
   });
 });

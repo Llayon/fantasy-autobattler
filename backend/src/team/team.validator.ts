@@ -10,6 +10,26 @@ import { getUnitTemplate, UnitId } from '../unit/unit.data';
 import { TEAM_LIMITS, GRID_DIMENSIONS, DEPLOYMENT_ZONES } from '../config/game.constants';
 
 /**
+ * Interface for unit selection in team building.
+ */
+export interface UnitSelection {
+  /** Unit ID from available units */
+  unitId: string;
+  /** Position on the battlefield */
+  position: Position;
+}
+
+/**
+ * Interface for team creation DTO.
+ */
+export interface CreateTeamDto {
+  /** Team name for identification */
+  name: string;
+  /** Array of selected units with positions */
+  units: UnitSelection[];
+}
+
+/**
  * Interface for team creation/update requests.
  */
 export interface CreateTeamRequest {
@@ -17,6 +37,21 @@ export interface CreateTeamRequest {
   name: string;
   /** Array of units with positions */
   units: TeamUnit[];
+}
+
+/**
+ * Interface for validation results.
+ */
+export interface ValidationResult {
+  /** Whether the validation passed */
+  valid: boolean;
+  /** Error message if validation failed */
+  error?: string;
+  /** Additional validation data */
+  data?: {
+    totalCost?: number;
+    unitCount?: number;
+  };
 }
 
 /**
@@ -40,18 +75,246 @@ export interface TeamValidationResult {
 @Injectable()
 export class TeamValidator {
   /**
-   * Validate a complete team configuration.
-   * Checks budget constraints, unit positioning, and composition rules.
+   * Validate team budget based on unit selections.
+   * Calculates total cost and checks against budget limit.
    * 
-   * @param teamData - Team data to validate
-   * @returns Validation result with errors and metadata
+   * @param units - Array of unit selections to validate
+   * @returns Validation result with cost information
+   * @example
+   * const result = validator.validateTeamBudget([
+   *   { unitId: 'knight', position: { x: 0, y: 0 } }
+   * ]);
+   */
+  validateTeamBudget(units: UnitSelection[]): { valid: boolean; totalCost: number; error?: string } {
+    let totalCost = 0;
+
+    // Calculate total cost
+    for (const unit of units) {
+      const template = getUnitTemplate(unit.unitId as UnitId);
+      if (!template) {
+        return {
+          valid: false,
+          totalCost: 0,
+          error: `Неизвестный юнит: ${unit.unitId}`,
+        };
+      }
+      totalCost += template.cost;
+    }
+
+    // Check budget constraint
+    if (totalCost > TEAM_LIMITS.BUDGET) {
+      return {
+        valid: false,
+        totalCost,
+        error: `Стоимость команды ${totalCost} превышает бюджет ${TEAM_LIMITS.BUDGET} очков`,
+      };
+    }
+
+    return {
+      valid: true,
+      totalCost,
+    };
+  }
+
+  /**
+   * Validate unit positions for grid bounds and deployment zones.
+   * Ensures all positions are in rows 0-1 and no duplicates exist.
+   * 
+   * @param positions - Array of positions to validate
+   * @returns Validation result with error details
+   * @example
+   * const result = validator.validatePositions([
+   *   { x: 0, y: 0 }, { x: 1, y: 0 }
+   * ]);
+   */
+  validatePositions(positions: Position[]): { valid: boolean; error?: string } {
+    const usedPositions = new Set<string>();
+
+    for (let i = 0; i < positions.length; i++) {
+      const position = positions[i];
+
+      // Validate position structure
+      if (!position || typeof position.x !== 'number' || typeof position.y !== 'number') {
+        return {
+          valid: false,
+          error: `Позиция ${i + 1} должна содержать числовые координаты x и y`,
+        };
+      }
+
+      // Validate grid bounds
+      if (
+        position.x < 0 || 
+        position.x >= GRID_DIMENSIONS.WIDTH || 
+        position.y < 0 || 
+        position.y >= GRID_DIMENSIONS.HEIGHT
+      ) {
+        return {
+          valid: false,
+          error: `Позиция (${position.x}, ${position.y}) находится за пределами поля ${GRID_DIMENSIONS.WIDTH}×${GRID_DIMENSIONS.HEIGHT}`,
+        };
+      }
+
+      // Validate deployment zone (rows 0-1)
+      if (position.y < 0 || position.y > 1) {
+        return {
+          valid: false,
+          error: `Позиция (${position.x}, ${position.y}) должна быть в зоне развертывания (ряды 0-1)`,
+        };
+      }
+
+      // Check for duplicates
+      const positionKey = `${position.x},${position.y}`;
+      if (usedPositions.has(positionKey)) {
+        return {
+          valid: false,
+          error: `Дублирующаяся позиция (${position.x}, ${position.y})`,
+        };
+      }
+      usedPositions.add(positionKey);
+    }
+
+    return { valid: true };
+  }
+
+  /**
+   * Validate that no duplicate units are selected.
+   * Ensures each unit type appears only once in the team.
+   * 
+   * @param unitIds - Array of unit IDs to check
+   * @returns Validation result with duplicate information
+   * @example
+   * const result = validator.validateNoDuplicateUnits(['knight', 'mage', 'knight']);
+   */
+  validateNoDuplicateUnits(unitIds: string[]): { valid: boolean; error?: string } {
+    const usedUnits = new Set<string>();
+
+    for (const unitId of unitIds) {
+      if (usedUnits.has(unitId)) {
+        const template = getUnitTemplate(unitId as UnitId);
+        const unitName = template?.name || unitId;
+        return {
+          valid: false,
+          error: `Юнит "${unitName}" уже добавлен в команду`,
+        };
+      }
+      usedUnits.add(unitId);
+    }
+
+    return { valid: true };
+  }
+
+  /**
+   * Validate complete team DTO with user-friendly error messages.
+   * Performs comprehensive validation for team creation.
+   * 
+   * @param team - Team DTO to validate
+   * @returns Validation result with detailed error information
    * @example
    * const result = validator.validateTeam({
    *   name: 'My Team',
    *   units: [{ unitId: 'knight', position: { x: 0, y: 0 } }]
    * });
    */
-  validateTeam(teamData: CreateTeamRequest): TeamValidationResult {
+  validateTeam(team: CreateTeamDto): ValidationResult {
+    // Validate team name
+    if (!team.name || team.name.trim().length === 0) {
+      return {
+        valid: false,
+        error: 'Название команды обязательно',
+      };
+    }
+
+    if (team.name.length > 100) {
+      return {
+        valid: false,
+        error: 'Название команды не может превышать 100 символов',
+      };
+    }
+
+    // Validate units array
+    if (!Array.isArray(team.units)) {
+      return {
+        valid: false,
+        error: 'Юниты должны быть массивом',
+      };
+    }
+
+    if (team.units.length === 0) {
+      return {
+        valid: false,
+        error: 'Команда должна содержать хотя бы одного юнита',
+      };
+    }
+
+    if (team.units.length > TEAM_LIMITS.MAX_UNITS) {
+      return {
+        valid: false,
+        error: `Команда не может содержать более ${TEAM_LIMITS.MAX_UNITS} юнитов`,
+      };
+    }
+
+    // Validate unit IDs exist
+    const unitIds = team.units.map(unit => unit.unitId);
+    for (const unitId of unitIds) {
+      const template = getUnitTemplate(unitId as UnitId);
+      if (!template) {
+        return {
+          valid: false,
+          error: `Неизвестный юнит: ${unitId}`,
+        };
+      }
+    }
+
+    // Validate no duplicate units
+    const duplicateCheck = this.validateNoDuplicateUnits(unitIds);
+    if (!duplicateCheck.valid) {
+      return {
+        valid: false,
+        error: duplicateCheck.error || 'Duplicate units found',
+      };
+    }
+
+    // Validate positions
+    const positions = team.units.map(unit => unit.position);
+    const positionCheck = this.validatePositions(positions);
+    if (!positionCheck.valid) {
+      return {
+        valid: false,
+        error: positionCheck.error || 'Invalid positions',
+      };
+    }
+
+    // Validate budget
+    const budgetCheck = this.validateTeamBudget(team.units);
+    if (!budgetCheck.valid) {
+      return {
+        valid: false,
+        error: budgetCheck.error || 'Budget exceeded',
+      };
+    }
+
+    return {
+      valid: true,
+      data: {
+        totalCost: budgetCheck.totalCost,
+        unitCount: team.units.length,
+      },
+    };
+  }
+
+  /**
+   * Validate a complete team configuration (legacy method).
+   * Checks budget constraints, unit positioning, and composition rules.
+   * 
+   * @param teamData - Team data to validate
+   * @returns Validation result with errors and metadata
+   * @example
+   * const result = validator.validateTeamLegacy({
+   *   name: 'My Team',
+   *   units: [{ unitId: 'knight', position: { x: 0, y: 0 } }]
+   * });
+   */
+  validateTeamLegacy(teamData: CreateTeamRequest): TeamValidationResult {
     const errors: string[] = [];
     let totalCost = 0;
 

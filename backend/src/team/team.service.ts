@@ -80,12 +80,12 @@ export class TeamService {
 
     // Validate team configuration
     const validation = this.teamValidator.validateTeam(teamData);
-    if (!validation.isValid) {
+    if (!validation.valid) {
       this.logger.warn(`Team validation failed for player ${playerId}`, {
-        errors: validation.errors,
+        error: validation.error,
         teamName: teamData.name,
       });
-      throw new BadRequestException(`Team validation failed: ${validation.errors.join(', ')}`);
+      throw new BadRequestException(`Team validation failed: ${validation.error}`);
     }
 
     // Create team entity
@@ -93,7 +93,7 @@ export class TeamService {
       playerId,
       name: teamData.name.trim(),
       units: teamData.units,
-      totalCost: validation.totalCost,
+      totalCost: validation.data?.totalCost || 0,
       isActive: false, // New teams start inactive
     });
 
@@ -104,8 +104,8 @@ export class TeamService {
       teamId: savedTeam.id,
       playerId,
       teamName: savedTeam.name,
-      unitCount: validation.unitCount,
-      totalCost: validation.totalCost,
+      unitCount: validation.data?.unitCount || 0,
+      totalCost: validation.data?.totalCost || 0,
     });
 
     return this.enrichTeamResponse(savedTeam);
@@ -194,13 +194,13 @@ export class TeamService {
     // Validate if units or name changed
     if (updateData.name || updateData.units) {
       const validation = this.teamValidator.validateTeam(updatedTeamData);
-      if (!validation.isValid) {
+      if (!validation.valid) {
         this.logger.warn(`Team update validation failed for team ${teamId}`, {
-          errors: validation.errors,
+          error: validation.error,
         });
-        throw new BadRequestException(`Team validation failed: ${validation.errors.join(', ')}`);
+        throw new BadRequestException(`Team validation failed: ${validation.error}`);
       }
-      team.totalCost = validation.totalCost;
+      team.totalCost = validation.data?.totalCost || 0;
     }
 
     // Apply updates

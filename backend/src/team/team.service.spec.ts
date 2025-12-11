@@ -92,10 +92,11 @@ describe('TeamService', () => {
     it('should create a team successfully', async () => {
       playerRepo.findOne.mockResolvedValue(mockPlayer as Player);
       validator.validateTeam.mockReturnValue({
-        isValid: true,
-        errors: [],
-        totalCost: 5,
-        unitCount: 1,
+        valid: true,
+        data: {
+          totalCost: 5,
+          unitCount: 1,
+        },
       });
       teamRepo.create.mockReturnValue(mockTeam as Team);
       teamRepo.save.mockResolvedValue(mockTeam as Team);
@@ -125,10 +126,8 @@ describe('TeamService', () => {
     it('should throw BadRequestException if validation fails', async () => {
       playerRepo.findOne.mockResolvedValue(mockPlayer as Player);
       validator.validateTeam.mockReturnValue({
-        isValid: false,
-        errors: ['Team exceeds budget'],
-        totalCost: 35,
-        unitCount: 1,
+        valid: false,
+        error: 'Team exceeds budget',
       });
 
       await expect(service.createTeam('player-123', teamData))
@@ -181,10 +180,11 @@ describe('TeamService', () => {
     it('should update a team successfully', async () => {
       teamRepo.findOne.mockResolvedValue(mockTeam as Team);
       validator.validateTeam.mockReturnValue({
-        isValid: true,
-        errors: [],
-        totalCost: 6,
-        unitCount: 1,
+        valid: true,
+        data: {
+          totalCost: 6,
+          unitCount: 1,
+        },
       });
       teamRepo.save.mockResolvedValue({ ...mockTeam, ...updateData } as Team);
 
@@ -205,10 +205,8 @@ describe('TeamService', () => {
     it('should throw BadRequestException if validation fails', async () => {
       teamRepo.findOne.mockResolvedValue(mockTeam as Team);
       validator.validateTeam.mockReturnValue({
-        isValid: false,
-        errors: ['Invalid team configuration'],
-        totalCost: 35,
-        unitCount: 1,
+        valid: false,
+        error: 'Invalid team configuration',
       });
 
       await expect(service.updateTeam('team-123', 'player-123', updateData))
