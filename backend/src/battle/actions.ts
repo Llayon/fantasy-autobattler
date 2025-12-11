@@ -222,20 +222,31 @@ export function executeAttack(
   const isPhysicalAttack = attacker.role !== 'mage';
   
   // Resolve attack based on type
-  const attackResult = isPhysicalAttack 
-    ? resolvePhysicalAttack(attacker, target, seed)
-    : resolveMagicAttack(attacker, target);
-  
-  return {
-    round: 0, // Will be set by caller
-    type: 'attack',
-    actorId: attacker.instanceId,
-    targetId: target.instanceId,
-    damage: attackResult.damage,
-    dodged: isPhysicalAttack ? (attackResult as any).dodged || false : false,
-    killed: attackResult.newHp <= 0,
-    attackType: isPhysicalAttack ? 'physical' : 'magic',
-  };
+  if (isPhysicalAttack) {
+    const attackResult = resolvePhysicalAttack(attacker, target, seed);
+    return {
+      round: 0, // Will be set by caller
+      type: 'attack',
+      actorId: attacker.instanceId,
+      targetId: target.instanceId,
+      damage: attackResult.damage,
+      dodged: attackResult.dodged,
+      killed: attackResult.newHp <= 0,
+      attackType: 'physical' as const,
+    };
+  } else {
+    const attackResult = resolveMagicAttack(attacker, target);
+    return {
+      round: 0, // Will be set by caller
+      type: 'attack',
+      actorId: attacker.instanceId,
+      targetId: target.instanceId,
+      damage: attackResult.damage,
+      dodged: false,
+      killed: attackResult.newHp <= 0,
+      attackType: 'magic' as const,
+    };
+  }
 }
 
 /**
@@ -435,7 +446,7 @@ export function createBattleState(
  * const newState = applyBattleEvents(state, turnEvents);
  */
 export function applyBattleEvents(state: BattleState, events: BattleEvent[]): BattleState {
-  let currentState = state;
+  const currentState = state;
   const updatedUnits = new Map<string, BattleUnit>();
   
   // Initialize updated units map with current units

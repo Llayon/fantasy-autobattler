@@ -1871,3 +1871,136 @@ Ready to proceed to **Step 15: Team Validation** from the AI Development Plan.
 - ELO rating calculations and updates
 - Automatic queue cleanup and expiration
 - Player matching algorithms
+
+---
+
+## Step 17: Matchmaking Service ✅ COMPLETED
+**Date:** December 11, 2025  
+**Duration:** ~40 minutes  
+**Status:** SUCCESS
+
+### 🎯 Objectives
+- Create comprehensive MatchmakingService with ELO-based matching
+- Implement joinQueue, leaveQueue, findMatch, and createBattle methods
+- Add rating expansion over time for better match finding
+- Create MatchmakingModule and MatchmakingController with REST API
+- Integrate with existing BattleService and Team entities
+
+### 🔧 Changes Made
+
+#### 1. MatchmakingService Implementation
+- ✅ **joinQueue()**: Add player to queue with team validation
+- ✅ **leaveQueue()**: Remove player from queue with proper cleanup
+- ✅ **findMatch()**: ELO-based opponent matching with rating expansion
+- ✅ **createBattle()**: Battle creation and queue entry updates
+- ✅ **getQueueStats()**: Queue statistics for monitoring
+- ✅ **cleanupExpiredEntries()**: Automatic cleanup of stale entries
+
+#### 2. ELO-Based Matching Algorithm
+- ✅ **Base Rating Range**: ±200 ELO difference for initial matching
+- ✅ **Time-Based Expansion**: +50 ELO per minute waiting (max 500)
+- ✅ **Priority Ordering**: Closest rating first, then longest wait time
+- ✅ **Deterministic Selection**: Consistent opponent selection
+- ✅ **Fallback Logic**: Graceful handling when no opponents available
+
+#### 3. MatchmakingController REST API
+- ✅ **POST /matchmaking/queue**: Join queue with team selection
+- ✅ **DELETE /matchmaking/queue**: Leave queue
+- ✅ **GET /matchmaking/find**: Find match for current player
+- ✅ **GET /matchmaking/stats**: Get queue statistics
+- ✅ **POST /matchmaking/cleanup**: Admin cleanup endpoint
+
+#### 4. MatchmakingModule Registration
+- ✅ **NestJS Module**: Proper dependency injection setup
+- ✅ **TypeORM Integration**: MatchmakingQueue, Player, Team repositories
+- ✅ **BattleModule Import**: Access to BattleService for battle creation
+- ✅ **App Module Registration**: Integrated into main application
+
+#### 5. Integration Features
+- ✅ **Team Validation**: Verifies active team exists before queue join
+- ✅ **Player Verification**: Ensures player exists and owns team
+- ✅ **Battle Creation**: Uses existing BattleService for match resolution
+- ✅ **Queue Management**: Prevents duplicate entries and handles conflicts
+- ✅ **Error Handling**: Comprehensive error messages in Russian
+
+#### 6. Advanced Features
+- ✅ **Structured Logging**: NestJS Logger with context (playerId, teamId, etc.)
+- ✅ **Type Safety**: Strict TypeScript compliance, no `any` types
+- ✅ **JSDoc Documentation**: Comprehensive documentation with examples
+- ✅ **Guest Authentication**: GuestGuard protection on all endpoints
+- ✅ **Correlation IDs**: Request tracing for debugging
+
+### 📊 Matchmaking Algorithm Details
+```
+Initial Rating Range: ±200 ELO difference
+Time-Based Expansion: +50 ELO per minute waiting
+Maximum Expansion: 500 ELO (prevents unlimited expansion)
+Queue Timeout: 5 minutes (entries auto-expire)
+Priority Order: Rating difference ASC, wait time ASC
+Default ELO: 1200 for new players
+```
+
+### 🔧 Technical Implementation
+- ✅ **Pure Business Logic**: Service contains all matchmaking logic
+- ✅ **Controller Pattern**: HTTP handling only, delegates to service
+- ✅ **Database Integration**: TypeORM queries with proper indexing
+- ✅ **Error Handling**: NestJS exceptions with user-friendly messages
+- ✅ **Performance**: Efficient queries with rating-based indexing
+- ✅ **Extensibility**: Ready for advanced matchmaking features
+
+### 📊 Test Coverage
+```bash
+✅ 16/16 MatchmakingService tests passing (100% pass rate)
+✅ Queue management tests (4 tests)
+✅ Match finding tests (4 tests)
+✅ Battle creation tests (2 tests)
+✅ Queue statistics tests (2 tests)
+✅ Cleanup functionality tests (2 tests)
+✅ Error handling tests (2 tests)
+```
+
+### 📊 API Endpoints
+```
+POST /matchmaking/queue - Join matchmaking queue
+DELETE /matchmaking/queue - Leave matchmaking queue
+GET /matchmaking/find - Find match for current player
+GET /matchmaking/stats - Get queue statistics
+POST /matchmaking/cleanup - Clean up expired entries
+```
+
+### 📊 Validation Results
+```bash
+✅ npm run build - SUCCESS (clean compilation)
+✅ npm test matchmaking - SUCCESS (43/43 tests pass)
+✅ TypeScript strict mode compliance
+✅ All service methods working correctly
+✅ Controller endpoints properly configured
+✅ Module registration successful
+✅ Integration with BattleService working
+```
+
+### 📝 Files Created
+- `backend/src/matchmaking/matchmaking.service.ts` - **NEW** comprehensive service
+- `backend/src/matchmaking/matchmaking.service.spec.ts` - **NEW** complete test suite
+- `backend/src/matchmaking/matchmaking.controller.ts` - **NEW** REST API controller
+- `backend/src/matchmaking/matchmaking.module.ts` - **NEW** NestJS module
+- `backend/src/app.module.ts` - **UPDATED** registered MatchmakingModule
+
+### 🎉 Success Criteria Met
+- [x] MatchmakingService with joinQueue, leaveQueue, findMatch, createBattle
+- [x] ELO-based matching with rating expansion over time
+- [x] Complete REST API with all CRUD operations
+- [x] NestJS module with proper dependency injection
+- [x] Integration with BattleService and Team entities
+- [x] Comprehensive error handling and validation
+- [x] Structured logging with NestJS Logger
+- [x] Complete test coverage with realistic scenarios
+- [x] TypeScript strict compliance
+- [x] All tests passing with no compilation errors
+
+### 🚀 Ready For
+- Step 18: Frontend Matchmaking Integration
+- Real-time queue status updates
+- Advanced matchmaking algorithms (skill-based, role-based)
+- Tournament and ranked matchmaking systems
+- Matchmaking analytics and monitoring

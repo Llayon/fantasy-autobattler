@@ -349,9 +349,9 @@ export function simulateBattleLegacy(
   _playerTypes: string[],
   _botTypes: string[]
 ): {
-  playerTeam: any[];
-  botTeam: any[];
-  events: any[];
+  playerTeam: unknown[];
+  botTeam: unknown[];
+  events: unknown[];
   winner: 'player' | 'bot' | 'draw';
 } {
   // This is a placeholder for backward compatibility

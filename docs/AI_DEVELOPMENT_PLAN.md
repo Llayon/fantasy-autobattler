@@ -414,7 +414,7 @@ executeTurn должен:
 4. Используется GuestGuard для авторизации
 5. Ошибки через NestJS exceptions
 Протестируй endpoints через curl или Postman.
-```
+```      
 
 ---
 
