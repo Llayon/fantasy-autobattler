@@ -22,6 +22,9 @@ export class Player {
   @Column({ default: 0 })
   losses!: number;
 
+  @Column({ default: 1000 })
+  rating!: number;
+
   @CreateDateColumn()
   createdAt!: Date;
 
