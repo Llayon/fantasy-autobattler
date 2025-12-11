@@ -296,7 +296,7 @@ export interface TeamValidationResult {
 /**
  * Matchmaking status enumeration.
  */
-export type MatchmakingStatus = 'searching' | 'found' | 'cancelled' | 'timeout';
+export type MatchmakingStatus = 'queued' | 'matched' | 'not_in_queue';
 
 /**
  * Matchmaking queue entry.
