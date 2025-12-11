@@ -1,6 +1,9 @@
 import { Controller, Get, Post, Param, UseGuards, Req } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiSecurity } from '@nestjs/swagger';
 import { BattleService } from './battle.service';
 import { GuestGuard } from '../auth/guest.guard';
+import { BattleResultDto, BattleLogDto, BattleListResponseDto } from './dto/battle.dto';
+import { ErrorResponseDto } from '../common/dto/api-response.dto';
 
 interface AuthenticatedRequest extends Request {
   player: {
@@ -12,6 +15,8 @@ interface AuthenticatedRequest extends Request {
  * Controller handling battle-related HTTP endpoints.
  * All endpoints require guest authentication.
  */
+@ApiTags('battles')
+@ApiSecurity('guest-token')
 @Controller('battle')
 @UseGuards(GuestGuard)
 export class BattleController {
@@ -23,6 +28,25 @@ export class BattleController {
    * @returns Battle result with events and winner
    */
   @Post('start')
+  @ApiOperation({
+    summary: 'Start new battle',
+    description: 'Starts a new battle against a bot opponent using player\'s active team',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Battle started successfully',
+    type: BattleResultDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - invalid guest token',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - no active team or invalid team',
+    type: ErrorResponseDto,
+  })
   async startBattle(@Req() req: AuthenticatedRequest) {
     return this.battleService.startBattle(req.player.id);
   }
@@ -33,6 +57,30 @@ export class BattleController {
    * @returns Battle log with events and metadata
    */
   @Get(':id')
+  @ApiOperation({
+    summary: 'Get battle by ID',
+    description: 'Returns complete battle log with events for replay functionality',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Battle identifier',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Battle retrieved successfully',
+    type: BattleLogDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Battle not found',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - invalid guest token',
+    type: ErrorResponseDto,
+  })
   async getBattle(@Param('id') id: string) {
     return this.battleService.getBattle(id);
   }
@@ -43,6 +91,20 @@ export class BattleController {
    * @returns Array of player's battle logs
    */
   @Get()
+  @ApiOperation({
+    summary: 'Get player battles',
+    description: 'Returns all battles for the authenticated player with pagination support',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Battles retrieved successfully',
+    type: BattleListResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - invalid guest token',
+    type: ErrorResponseDto,
+  })
   async getMyBattles(@Req() req: AuthenticatedRequest) {
     return this.battleService.getBattlesForPlayer(req.player.id);
   }

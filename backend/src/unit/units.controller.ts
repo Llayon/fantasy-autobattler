@@ -7,6 +7,7 @@
  */
 
 import { Controller, Get, Param, NotFoundException, Logger, Header } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { UnitTemplate, UnitRole } from '../types/game.types';
 import { 
   UNIT_TEMPLATES, 
@@ -15,30 +16,14 @@ import {
   getUnitsByRole
 } from './unit.data';
 import { UNIT_ROLES } from '../config/game.constants';
+import { 
+  UnitsListResponseDto, 
+  UnitTemplateDto, 
+  UnitsByRoleResponseDto
+} from './dto/unit.dto';
+import { ErrorResponseDto } from '../common/dto/api-response.dto';
 
-/**
- * Response interface for unit list endpoint.
- */
-interface UnitsListResponse {
-  /** Array of all unit templates */
-  units: UnitTemplate[];
-  /** Total number of units */
-  total: number;
-  /** Units grouped by role for easy filtering */
-  byRole: Record<UnitRole, UnitTemplate[]>;
-}
 
-/**
- * Response interface for units by role endpoint.
- */
-interface UnitsByRoleResponse {
-  /** The requested role */
-  role: UnitRole;
-  /** Array of units with the specified role */
-  units: UnitTemplate[];
-  /** Number of units in this role */
-  count: number;
-}
 
 /**
  * Controller handling unit data endpoints.
@@ -47,6 +32,7 @@ interface UnitsByRoleResponse {
  * All endpoints are public (no authentication required) as unit data
  * is considered public game information needed for team building.
  */
+@ApiTags('units')
 @Controller('units')
 export class UnitsController {
   private readonly logger = new Logger(UnitsController.name);
@@ -70,7 +56,16 @@ export class UnitsController {
    */
   @Get()
   @Header('Cache-Control', 'public, max-age=3600') // Cache for 1 hour
-  getAllUnits(): UnitsListResponse {
+  @ApiOperation({
+    summary: 'Get all units',
+    description: 'Returns complete list of all 15 units with role grouping for team building interfaces',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully retrieved all units',
+    type: UnitsListResponseDto,
+  })
+  getAllUnits(): UnitsListResponseDto {
     this.logger.debug('Fetching all units');
 
     const allUnits = Object.values(UNIT_TEMPLATES);
@@ -95,9 +90,9 @@ export class UnitsController {
     this.logger.debug(`Retrieved ${allUnits.length} units grouped by ${Object.keys(byRole).length} roles`);
 
     return {
-      units: allUnits,
+      units: allUnits as UnitTemplateDto[],
       total: allUnits.length,
-      byRole,
+      byRole: byRole as Record<UnitRole, UnitTemplateDto[]>,
     };
   }
 
@@ -122,7 +117,33 @@ export class UnitsController {
    */
   @Get(':id')
   @Header('Cache-Control', 'public, max-age=3600') // Cache for 1 hour
-  getUnitById(@Param('id') id: string): UnitTemplate {
+  @ApiOperation({
+    summary: 'Get unit by ID',
+    description: 'Returns detailed unit information for unit cards and tooltips',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Unit identifier',
+    example: 'knight',
+    enum: [
+      'knight', 'guardian', 'berserker',
+      'rogue', 'duelist', 'assassin',
+      'archer', 'crossbowman', 'hunter',
+      'mage', 'warlock', 'elementalist',
+      'priest', 'bard', 'enchanter'
+    ],
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully retrieved unit',
+    type: UnitTemplateDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Unit not found',
+    type: ErrorResponseDto,
+  })
+  getUnitById(@Param('id') id: string): UnitTemplateDto {
     this.logger.debug(`Fetching unit by ID: ${id}`);
 
     const unit = getUnitTemplate(id as UnitId);
@@ -133,7 +154,7 @@ export class UnitsController {
     }
 
     this.logger.debug(`Retrieved unit: ${unit.name} (${unit.role})`);
-    return unit;
+    return unit as UnitTemplateDto;
   }
 
   /**
@@ -157,7 +178,27 @@ export class UnitsController {
    */
   @Get('roles/:role')
   @Header('Cache-Control', 'public, max-age=3600') // Cache for 1 hour
-  getUnitsByRole(@Param('role') role: string): UnitsByRoleResponse {
+  @ApiOperation({
+    summary: 'Get units by role',
+    description: 'Returns filtered unit list for role-based team building',
+  })
+  @ApiParam({
+    name: 'role',
+    description: 'Unit role for filtering',
+    example: 'tank',
+    enum: ['tank', 'melee_dps', 'ranged_dps', 'mage', 'support', 'control'],
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully retrieved units by role',
+    type: UnitsByRoleResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Invalid role',
+    type: ErrorResponseDto,
+  })
+  getUnitsByRole(@Param('role') role: string): UnitsByRoleResponseDto {
     this.logger.debug(`Fetching units by role: ${role}`);
 
     // Validate role exists in our constants

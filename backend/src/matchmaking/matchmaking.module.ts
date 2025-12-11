@@ -11,6 +11,7 @@ import { MatchmakingQueue } from '../entities/matchmaking-queue.entity';
 import { Player } from '../entities/player.entity';
 import { Team } from '../entities/team.entity';
 import { BattleModule } from '../battle/battle.module';
+import { AuthModule } from '../auth/auth.module';
 
 /**
  * Matchmaking module providing queue management and battle creation.
@@ -23,6 +24,7 @@ import { BattleModule } from '../battle/battle.module';
   imports: [
     TypeOrmModule.forFeature([MatchmakingQueue, Player, Team]),
     BattleModule, // Import BattleModule to access BattleService
+    AuthModule, // Import AuthModule for GuestGuard
   ],
   controllers: [MatchmakingController],
   providers: [MatchmakingService],

@@ -16,9 +16,17 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiSecurity, ApiBody } from '@nestjs/swagger';
 import { TeamService, UpdateTeamRequest } from './team.service';
 import { CreateTeamRequest } from './team.validator';
 import { GuestGuard } from '../auth/guest.guard';
+import { 
+  CreateTeamRequestDto, 
+  UpdateTeamRequestDto, 
+  TeamResponseDto, 
+  TeamListResponseDto
+} from './dto/team.dto';
+import { ErrorResponseDto } from '../common/dto/api-response.dto';
 
 interface AuthenticatedRequest extends Request {
   player: {
@@ -30,6 +38,8 @@ interface AuthenticatedRequest extends Request {
  * Controller handling team-related HTTP endpoints.
  * All endpoints require guest authentication.
  */
+@ApiTags('teams')
+@ApiSecurity('guest-token')
 @Controller('team')
 @UseGuards(GuestGuard)
 export class TeamController {
@@ -51,6 +61,29 @@ export class TeamController {
    * }
    */
   @Post()
+  @ApiOperation({
+    summary: 'Create new team',
+    description: 'Creates a new team with unit composition and positions within budget constraints',
+  })
+  @ApiBody({
+    type: CreateTeamRequestDto,
+    description: 'Team configuration data',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Team created successfully',
+    type: TeamResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid team data - budget exceeded or invalid positions',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - invalid guest token',
+    type: ErrorResponseDto,
+  })
   async createTeam(
     @Req() req: AuthenticatedRequest,
     @Body() teamData: CreateTeamRequest,
@@ -68,6 +101,20 @@ export class TeamController {
    * GET /team
    */
   @Get()
+  @ApiOperation({
+    summary: 'Get player teams',
+    description: 'Returns all teams for the authenticated player ordered by creation date',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Teams retrieved successfully',
+    type: TeamListResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - invalid guest token',
+    type: ErrorResponseDto,
+  })
   async getPlayerTeams(@Req() req: AuthenticatedRequest) {
     return this.teamService.getPlayerTeams(req.player.id);
   }
@@ -83,6 +130,30 @@ export class TeamController {
    * GET /team/team-123
    */
   @Get(':id')
+  @ApiOperation({
+    summary: 'Get team by ID',
+    description: 'Returns specific team with enriched unit information if owned by player',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Team identifier',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Team retrieved successfully',
+    type: TeamResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Team not found or not owned by player',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - invalid guest token',
+    type: ErrorResponseDto,
+  })
   async getTeam(
     @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
@@ -108,6 +179,39 @@ export class TeamController {
    * }
    */
   @Put(':id')
+  @ApiOperation({
+    summary: 'Update team',
+    description: 'Updates existing team with new configuration, validates ownership and constraints',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Team identifier',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @ApiBody({
+    type: UpdateTeamRequestDto,
+    description: 'Updated team data',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Team updated successfully',
+    type: TeamResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid update data - budget exceeded or invalid positions',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Team not found or not owned by player',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - invalid guest token',
+    type: ErrorResponseDto,
+  })
   async updateTeam(
     @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
@@ -127,6 +231,34 @@ export class TeamController {
    */
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Delete team',
+    description: 'Deletes team if owned by player and not currently active',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Team identifier',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @ApiResponse({
+    status: 204,
+    description: 'Team deleted successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Cannot delete active team',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Team not found or not owned by player',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - invalid guest token',
+    type: ErrorResponseDto,
+  })
   async deleteTeam(
     @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
@@ -145,6 +277,30 @@ export class TeamController {
    * POST /team/team-123/activate
    */
   @Post(':id/activate')
+  @ApiOperation({
+    summary: 'Activate team',
+    description: 'Activates team for matchmaking and deactivates all other player teams',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Team identifier',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Team activated successfully',
+    type: TeamResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Team not found or not owned by player',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - invalid guest token',
+    type: ErrorResponseDto,
+  })
   async activateTeam(
     @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
