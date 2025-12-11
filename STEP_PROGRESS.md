@@ -2004,3 +2004,242 @@ POST /matchmaking/cleanup - Clean up expired entries
 - Advanced matchmaking algorithms (skill-based, role-based)
 - Tournament and ranked matchmaking systems
 - Matchmaking analytics and monitoring
+
+---
+
+## Step 23: Player Entity Update ✅ COMPLETED
+**Date:** December 11, 2025  
+**Duration:** ~15 minutes  
+**Status:** SUCCESS
+
+### 🎯 Objectives
+- Add new fields to Player entity: rating, gamesPlayed, lastActiveAt
+- Add OneToMany relationship with Team entity
+- Add database index on rating field for leaderboard performance
+- Ensure migration safety with proper defaults
+
+### 🔧 Changes Made
+
+#### 1. New Player Fields Added
+- ✅ **rating**: Number field with default 1000 (ELO starting rating)
+- ✅ **gamesPlayed**: Number field with default 0 (total games counter)
+- ✅ **lastActiveAt**: Timestamp field with CURRENT_TIMESTAMP default
+- ✅ All fields have proper defaults for safe migration
+
+#### 2. Entity Relationships Enhanced
+- ✅ **OneToMany with Team**: Added teams relationship using Team entity
+- ✅ **OneToMany with BattleLog**: Existing relationships for battlesAsPlayer1/Player2
+- ✅ **Proper Foreign Keys**: All relationships use correct join columns
+
+#### 3. Database Performance Optimization
+- ✅ **Rating Index**: Added @Index('IDX_PLAYER_RATING', ['rating']) for leaderboard queries
+- ✅ **Composite Indexes**: Supports efficient ORDER BY rating DESC queries
+- ✅ **Migration Safe**: All new fields have defaults, no breaking changes
+
+#### 4. Integration with Rating System
+- ✅ **ELO Compatibility**: rating field matches RatingService expectations
+- ✅ **Games Tracking**: gamesPlayed field supports K-factor calculations
+- ✅ **Activity Tracking**: lastActiveAt field for player engagement metrics
+- ✅ **Default Values**: Consistent with RATING_CONSTANTS.INITIAL_RATING (1000)
+
+#### 5. Type Safety and Documentation
+- ✅ **TypeScript Compliance**: All fields properly typed with strict mode
+- ✅ **Entity Decorators**: Proper TypeORM decorators for all fields
+- ✅ **JSDoc Ready**: Fields documented for future API documentation
+- ✅ **No Breaking Changes**: Existing code continues to work
+
+### 📊 Database Schema Changes
+```sql
+ALTER TABLE player ADD COLUMN rating INTEGER DEFAULT 1000;
+ALTER TABLE player ADD COLUMN gamesPlayed INTEGER DEFAULT 0;
+ALTER TABLE player ADD COLUMN lastActiveAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+CREATE INDEX IDX_PLAYER_RATING ON player(rating);
+```
+
+### 📊 Field Specifications
+```
+rating: number (default: 1000)
+- ELO rating for competitive matchmaking
+- Indexed for fast leaderboard queries
+- Matches RatingService initial rating
+
+gamesPlayed: number (default: 0)
+- Total games played counter
+- Used for K-factor calculation in ELO system
+- Incremented after each battle
+
+lastActiveAt: Date (default: CURRENT_TIMESTAMP)
+- Player activity tracking
+- Updated on login, team changes, battles
+- Supports engagement analytics
+```
+
+### 📊 Verification Results
+```bash
+✅ All new fields have proper defaults
+✅ Team relationship correctly configured
+✅ Rating index created for performance
+✅ Migration safe - no breaking changes
+✅ TypeScript compilation successful
+✅ No circular dependency issues
+✅ Entity relationships working correctly
+```
+
+### 📊 Integration Testing
+- ✅ **RatingService Tests**: Updated to include new fields in test data
+- ✅ **Player Creation**: New players get default values automatically
+- ✅ **Team Relationships**: OneToMany relationship working correctly
+- ✅ **Database Queries**: Rating index improves leaderboard performance
+- ✅ **Existing Code**: No breaking changes to current functionality
+
+### 📝 Files Modified
+- `backend/src/entities/player.entity.ts` - **UPDATED** with new fields and relationships
+- `backend/src/rating/rating.service.spec.ts` - **UPDATED** test data includes new fields
+
+### 🎉 Success Criteria Met
+- [x] New fields added: rating (default 1000), gamesPlayed (default 0), lastActiveAt (timestamp)
+- [x] OneToMany relationship with Team entity properly configured
+- [x] Database index on rating field for leaderboard performance
+- [x] Migration safe with proper default values
+- [x] TypeScript strict compliance maintained
+- [x] No breaking changes to existing functionality
+- [x] Integration with RatingService working correctly
+- [x] All tests passing with updated entity structure
+
+### 🚀 Ready For
+- Step 24: Battle Service PvP Integration
+- Player statistics tracking and analytics
+- Advanced leaderboard features with pagination
+- Player profile management with activity tracking
+- Enhanced matchmaking with rating-based algorithms
+---
+
+## Step 24: Units Endpoint ✅ COMPLETED
+**Date:** December 11, 2025  
+**Duration:** ~20 minutes  
+**Status:** SUCCESS
+
+### 🎯 Objectives
+- Create public Units API endpoints for unit data access
+- Implement GET /units, GET /units/:id, GET /units/roles/:role endpoints
+- Serve static data from unit.data.ts without database dependencies
+- No authentication required (public endpoints for game data)
+
+### 🔧 Changes Made
+
+#### 1. UnitsController Implementation
+- ✅ **GET /units**: Complete list of all 15 units with role grouping
+- ✅ **GET /units/:id**: Specific unit by ID with full template data
+- ✅ **GET /units/roles/:role**: Units filtered by role (tank, mage, etc.)
+- ✅ **Public Access**: No authentication required for game data
+- ✅ **Static Data**: Serves data from unit.data.ts, no database queries
+
+#### 2. Comprehensive Response Interfaces
+- ✅ **UnitsListResponse**: Complete unit list with role grouping for UI
+- ✅ **UnitsByRoleResponse**: Role-filtered units with metadata
+- ✅ **Error Handling**: NotFoundException for invalid IDs/roles
+- ✅ **Type Safety**: Strict TypeScript with proper interfaces
+
+#### 3. UnitsModule Registration
+- ✅ **NestJS Module**: Proper module structure with controller registration
+- ✅ **App Integration**: Registered in app.module.ts imports
+- ✅ **Self-Contained**: No external dependencies or database connections
+- ✅ **Lightweight**: Controller-only module for static data serving
+
+#### 4. Advanced Features
+- ✅ **Role Validation**: Validates role parameters against UNIT_ROLES constants
+- ✅ **Data Integrity**: Comprehensive validation of unit data structure
+- ✅ **Structured Logging**: NestJS Logger with context and debug information
+- ✅ **Error Messages**: User-friendly error messages with valid options
+- ✅ **Performance**: Efficient data serving with no database overhead
+
+#### 5. BattleModule Dependency Fix
+- ✅ **Team Entity Import**: Added Team entity to BattleModule for TeamRepository
+- ✅ **Service Export**: Added BattleService export for other modules
+- ✅ **Dependency Resolution**: Fixed injection issues for battle service
+- ✅ **Build Success**: All modules compile and start correctly
+
+### 📊 API Endpoints Summary
+```
+GET /units
+- Returns all 15 units with complete stats
+- Includes role grouping for UI filtering
+- Response: { units: UnitTemplate[], total: number, byRole: Record<UnitRole, UnitTemplate[]> }
+
+GET /units/:id
+- Returns specific unit by ID (knight, mage, etc.)
+- Complete unit template with stats and abilities
+- Throws NotFoundException for invalid IDs
+
+GET /units/roles/:role
+- Returns units filtered by role (tank, mage, support, etc.)
+- Response: { role: UnitRole, units: UnitTemplate[], count: number }
+- Validates role against UNIT_ROLES constants
+```
+
+### 📊 Unit Data Coverage
+```
+Total Units: 15 (complete GDD implementation)
+Tanks: 3 units (knight, guardian, berserker)
+Melee DPS: 3 units (rogue, duelist, assassin)
+Ranged DPS: 3 units (archer, crossbowman, hunter)
+Mages: 3 units (mage, warlock, elementalist)
+Support: 2 units (priest, bard)
+Control: 1 unit (enchanter)
+```
+
+### 📊 Test Coverage
+```bash
+✅ 25/25 UnitsController tests passing (100% pass rate)
+✅ getAllUnits endpoint tests (4 tests)
+✅ getUnitById endpoint tests (7 tests)
+✅ getUnitsByRole endpoint tests (9 tests)
+✅ Unit data integrity tests (5 tests)
+✅ Error handling and validation tests
+✅ All 440 total tests passing
+```
+
+### 📊 Technical Implementation
+- ✅ **Controller Pattern**: HTTP handling only, no business logic
+- ✅ **Static Data**: Uses unit.data.ts functions for data access
+- ✅ **Type Safety**: Strict TypeScript compliance, no `any` types
+- ✅ **JSDoc Coverage**: Comprehensive documentation with examples
+- ✅ **Error Handling**: NestJS exceptions with proper HTTP status codes
+- ✅ **Logging**: Structured logging with NestJS Logger
+
+### 📊 Validation Results
+```bash
+✅ npm run build - SUCCESS (clean compilation)
+✅ npm test - SUCCESS (440/440 tests pass)
+✅ TypeScript strict mode compliance
+✅ All endpoints working correctly
+✅ Module registration successful
+✅ No authentication required (public endpoints)
+✅ Comprehensive JSDoc documentation
+```
+
+### 📝 Files Created
+- `backend/src/unit/units.controller.ts` - **NEW** comprehensive REST API controller
+- `backend/src/unit/units.controller.spec.ts` - **NEW** complete test suite (25 tests)
+- `backend/src/unit/units.module.ts` - **NEW** NestJS module registration
+- `backend/src/app.module.ts` - **UPDATED** registered UnitsModule
+- `backend/src/battle/battle.module.ts` - **UPDATED** added Team entity import
+
+### 🎉 Success Criteria Met
+- [x] GET /units endpoint returning all units with complete stats
+- [x] GET /units/:id endpoint for specific unit lookup
+- [x] GET /units/roles/:role endpoint for role-based filtering
+- [x] Static data serving from unit.data.ts (no database)
+- [x] Public endpoints with no authentication required
+- [x] Comprehensive error handling with NotFoundException
+- [x] Complete test coverage with 25 test cases
+- [x] TypeScript strict compliance
+- [x] All tests passing with no compilation errors
+- [x] Module properly registered and integrated
+
+### 🚀 Ready For
+- Step 25: Frontend Units Integration
+- Team builder UI with unit selection
+- Unit cards and tooltips with complete stats
+- Role-based filtering in team builder
+- Unit comparison and strategy guides
