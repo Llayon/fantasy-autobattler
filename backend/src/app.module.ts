@@ -3,8 +3,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { PlayerModule } from './player/player.module';
 import { BattleModule } from './battle/battle.module';
+import { TeamModule } from './team/team.module';
 import { Player } from './entities/player.entity';
 import { BattleLog } from './entities/battle-log.entity';
+import { Team } from './entities/team.entity';
 
 @Module({
   imports: [
@@ -15,12 +17,13 @@ import { BattleLog } from './entities/battle-log.entity';
       username: 'postgres',
       password: 'postgres',
       database: 'autobattler',
-      entities: [Player, BattleLog],
+      entities: [Player, BattleLog, Team],
       synchronize: true, // Auto-create tables (dev only)
     }),
     AuthModule,
     PlayerModule,
     BattleModule,
+    TeamModule,
   ],
 })
 export class AppModule {}

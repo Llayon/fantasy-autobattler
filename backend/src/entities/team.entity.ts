@@ -15,7 +15,8 @@ import {
   ManyToOne, 
   JoinColumn,
   BeforeInsert,
-  BeforeUpdate
+  BeforeUpdate,
+  Index
 } from 'typeorm';
 import { Position } from '../types/game.types';
 import { TEAM_LIMITS } from '../config/game.constants';
@@ -46,6 +47,9 @@ export interface TeamUnit {
  * Contains team composition, positioning, and matchmaking status.
  */
 @Entity()
+@Index(['playerId']) // Index for player team queries
+@Index(['isActive']) // Index for matchmaking queries
+@Index(['playerId', 'isActive']) // Composite index for active team queries
 export class Team {
   /**
    * Unique team identifier.
@@ -56,7 +60,7 @@ export class Team {
   /**
    * ID of the player who owns this team.
    */
-  @Column()
+  @Column({ type: 'uuid' })
   playerId!: string;
 
   /**
@@ -76,14 +80,23 @@ export class Team {
    * Team composition with unit IDs and positions.
    * Stored as JSON array of TeamUnit objects.
    */
-  @Column('json')
+  @Column({ 
+    type: 'json',
+    nullable: false,
+    comment: 'Array of TeamUnit objects with unitId and position'
+  })
   units!: TeamUnit[];
 
   /**
    * Total cost of all units in the team.
    * Must not exceed TEAM_LIMITS.BUDGET (30 points).
    */
-  @Column()
+  @Column({ 
+    type: 'int',
+    unsigned: true,
+    default: 0,
+    comment: 'Total cost of all units, must not exceed budget limit'
+  })
   totalCost!: number;
 
   /**
