@@ -55,6 +55,8 @@ interface BattleGridProps {
   units?: GridUnit[];
   /** Callback when cell is clicked */
   onCellClick?: (position: Position) => void;
+  /** Callback when unit is dropped on cell */
+  onUnitDrop?: (unit: UnitTemplate, position: Position) => void;
   /** Cells to highlight */
   highlightedCells?: HighlightedCell[];
   /** Currently selected unit */
@@ -242,6 +244,7 @@ interface GridCellProps {
   showCoordinates: boolean;
   onCellClick: (position: Position) => void;
   onCellHover: (position: Position | null) => void;
+  onUnitDrop?: (unit: UnitTemplate, position: Position) => void;
 }
 
 function GridCell({
@@ -254,6 +257,7 @@ function GridCell({
   showCoordinates,
   onCellClick,
   onCellHover,
+  onUnitDrop,
 }: GridCellProps) {
   const baseStyle = getBaseCellStyle(position.y);
   const highlightStyle = highlight ? HIGHLIGHT_STYLES[highlight.type] : '';
@@ -276,6 +280,37 @@ function GridCell({
     }
   }, [interactive, onCellHover]);
   
+  // Drag and drop handlers
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    if (interactive && onUnitDrop && mode === 'team-builder') {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+    }
+  }, [interactive, onUnitDrop, mode]);
+  
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    if (interactive && onUnitDrop && mode === 'team-builder') {
+      e.preventDefault();
+    }
+  }, [interactive, onUnitDrop, mode]);
+  
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    if (!interactive || !onUnitDrop || mode !== 'team-builder') {
+      return;
+    }
+    
+    e.preventDefault();
+    
+    try {
+      const dragData = JSON.parse(e.dataTransfer.getData('application/json'));
+      if (dragData.type === 'unit' && dragData.unit) {
+        onUnitDrop(dragData.unit, position);
+      }
+    } catch (error) {
+      // Invalid drag data, ignore silently
+    }
+  }, [interactive, onUnitDrop, mode, position]);
+  
   return (
     <div
       className={`
@@ -288,6 +323,9 @@ function GridCell({
       onClick={handleClick}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      onDragOver={handleDragOver}
+      onDragEnter={handleDragEnter}
+      onDrop={handleDrop}
     >
       {/* Unit display */}
       {unit && (
@@ -337,6 +375,7 @@ function GridCell({
 export function BattleGrid({
   units = [],
   onCellClick,
+  onUnitDrop,
   highlightedCells = [],
   selectedUnit,
   interactive = true,
@@ -420,6 +459,7 @@ export function BattleGrid({
             showCoordinates={showCoordinates}
             onCellClick={handleCellClick}
             onCellHover={handleCellHover}
+            onUnitDrop={onUnitDrop}
           />
         ))}
       </div>

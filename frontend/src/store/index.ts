@@ -89,43 +89,48 @@ export async function initializeStores(): Promise<void> {
  * resetAllStores();
  */
 export function resetAllStores(): void {
-  const { usePlayerStore } = require('./playerStore');
-  const { useTeamStore } = require('./teamStore');
-  const { useBattleStore } = require('./battleStore');
-  const { useMatchmakingStore } = require('./matchmakingStore');
-  
-  // Reset all stores
-  usePlayerStore.getState().logout();
-  useMatchmakingStore.getState().reset();
-  
-  // Clear other store states
-  useTeamStore.setState({
-    units: [],
-    teams: [],
-    activeTeam: null,
-    currentTeam: {
-      name: '',
-      units: [],
-      totalCost: 0,
-      isValid: false,
-      errors: [],
-    },
-    loading: false,
-    error: null,
-    unitsLoaded: false,
+  // Import stores dynamically to avoid circular dependencies
+  import('./playerStore').then(({ usePlayerStore }) => {
+    usePlayerStore.getState().logout();
   });
   
-  useBattleStore.setState({
-    currentBattle: null,
-    battles: [],
-    loading: false,
-    error: null,
-    battlesLoaded: false,
-    replayState: {
-      isPlaying: false,
-      currentEventIndex: 0,
-      speed: 1,
-    },
+  import('./matchmakingStore').then(({ useMatchmakingStore }) => {
+    useMatchmakingStore.getState().reset();
+  });
+  
+  // Reset team store
+  import('./teamStore').then(({ useTeamStore }) => {
+    useTeamStore.setState({
+      units: [],
+      teams: [],
+      activeTeam: null,
+      currentTeam: {
+        name: '',
+        units: [],
+        totalCost: 0,
+        isValid: false,
+        errors: [],
+      },
+      loading: false,
+      error: null,
+      unitsLoaded: false,
+    });
+  });
+  
+  // Reset battle store
+  import('./battleStore').then(({ useBattleStore }) => {
+    useBattleStore.setState({
+      currentBattle: null,
+      battles: [],
+      loading: false,
+      error: null,
+      battlesLoaded: false,
+      replayState: {
+        isPlaying: false,
+        currentEventIndex: 0,
+        speed: 1,
+      },
+    });
   });
 }
 

@@ -7,7 +7,7 @@
 
 'use client';
 
-import { useState, useRef, useCallback, useEffect, ReactNode } from 'react';
+import { useState, useRef, useCallback, ReactNode } from 'react';
 
 // =============================================================================
 // TYPES
@@ -116,10 +116,10 @@ function getCenter(p1: TouchPoint, p2: TouchPoint): { x: number; y: number } {
 /**
  * Convert touch to point.
  * 
- * @param touch - Touch object
+ * @param touch - React Touch object
  * @returns Touch point
  */
-function touchToPoint(touch: Touch): TouchPoint {
+function touchToPoint(touch: React.Touch): TouchPoint {
   return {
     id: touch.identifier,
     x: touch.clientX,
@@ -201,10 +201,10 @@ export function ZoomableGrid({
     
     e.preventDefault();
     
-    const touches = Array.from(e.touches).map(touchToPoint);
+    const touches = Array.from(e.touches).map((touch) => touchToPoint(touch));
     setLastTouches(touches);
     
-    if (touches.length === 2) {
+    if (touches.length === 2 && touches[0] && touches[1]) {
       setIsGesturing(true);
       const distance = getDistance(touches[0], touches[1]);
       const center = getCenter(touches[0], touches[1]);
@@ -221,9 +221,9 @@ export function ZoomableGrid({
     
     e.preventDefault();
     
-    const touches = Array.from(e.touches).map(touchToPoint);
+    const touches = Array.from(e.touches).map((touch) => touchToPoint(touch));
     
-    if (touches.length === 2 && lastTouches.length === 2) {
+    if (touches.length === 2 && lastTouches.length === 2 && touches[0] && touches[1] && lastTouches[0] && lastTouches[1]) {
       const distance = getDistance(touches[0], touches[1]);
       const center = getCenter(touches[0], touches[1]);
       
@@ -243,7 +243,7 @@ export function ZoomableGrid({
       
       setLastDistance(distance);
       setLastCenter(center);
-    } else if (touches.length === 1 && lastTouches.length === 1) {
+    } else if (touches.length === 1 && lastTouches.length === 1 && touches[0] && lastTouches[0]) {
       // Single finger pan
       const deltaX = touches[0].x - lastTouches[0].x;
       const deltaY = touches[0].y - lastTouches[0].y;
@@ -264,7 +264,7 @@ export function ZoomableGrid({
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
     if (!enabled) return;
     
-    const touches = Array.from(e.touches).map(touchToPoint);
+    const touches = Array.from(e.touches).map((touch) => touchToPoint(touch));
     setLastTouches(touches);
     
     if (touches.length < 2) {

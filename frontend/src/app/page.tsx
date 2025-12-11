@@ -10,7 +10,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Position, UnitTemplate, UnitId } from '@/types/game';
 import { UnitList } from '@/components/UnitList';
-import { BattleGrid } from '@/components/BattleGrid';
+import { EnhancedBattleGrid } from '@/components/EnhancedBattleGrid';
+import { DragDropProvider, DragDropHandlers } from '@/components/DragDropProvider';
 import { 
   usePlayerStore, 
   useTeamStore, 
@@ -284,23 +285,56 @@ export default function TeamBuilderPage() {
     }
   }, [selectedUnit, currentTeam.units, addUnitToTeam, removeUnitFromTeam]);
   
-  // Handle drag and drop (for future implementation)
-  // const handleDrop = useCallback((e: React.DragEvent, position: Position) => {
-  //   e.preventDefault();
-  //   
-  //   if (!isPlayerZone(position)) {
-  //     return; // Only allow drops in player zone
-  //   }
-  //   
-  //   try {
-  //     const dragData = JSON.parse(e.dataTransfer.getData('application/json'));
-  //     if (dragData.type === 'unit' && dragData.unit) {
-  //       addUnitToTeam(dragData.unit.id, position);
-  //     }
-  //   } catch (error) {
-  //     // Invalid drag data, ignore
-  //   }
-  // }, [addUnitToTeam]);
+  // Enhanced drag and drop handlers
+  const dragDropHandlers: DragDropHandlers = {
+    onUnitDropOnGrid: useCallback((unit: UnitTemplate, position: Position) => {
+      // Check if position is in player zone
+      if (!isPlayerZone(position)) {
+        return; // Only allow drops in player zone
+      }
+      
+      // Check if there's a unit at this position
+      const existingUnitIndex = currentTeam.units.findIndex(
+        teamUnit => teamUnit.position.x === position.x && teamUnit.position.y === position.y
+      );
+      
+      if (existingUnitIndex >= 0) {
+        // Remove existing unit first, then add new unit
+        removeUnitFromTeam(existingUnitIndex);
+      }
+      
+      // Add the dropped unit
+      addUnitToTeam(unit.id, position);
+    }, [currentTeam.units, addUnitToTeam, removeUnitFromTeam]),
+    
+    onUnitDropOnList: useCallback((_unit: UnitTemplate, originalPosition?: Position) => {
+      // Remove unit from team when dropped back to list
+      if (originalPosition) {
+        const unitIndex = currentTeam.units.findIndex(
+          teamUnit => teamUnit.position.x === originalPosition.x && teamUnit.position.y === originalPosition.y
+        );
+        if (unitIndex >= 0) {
+          removeUnitFromTeam(unitIndex);
+        }
+      }
+    }, [currentTeam.units, removeUnitFromTeam]),
+    
+    onDragStart: useCallback((unit: UnitTemplate, source: 'list' | 'grid') => {
+      // Visual feedback on drag start
+      if (source === 'list') {
+        setSelectedUnit(unit);
+      }
+    }, []),
+    
+    onDragEnd: useCallback(() => {
+      // Clear selection on drag end
+      setSelectedUnit(null);
+    }, []),
+    
+    onDragOver: useCallback(() => {
+      // Could add hover effects here if needed
+    }, []),
+  };
   
   // Handle team actions
   const handleSaveTeam = useCallback(async () => {
@@ -317,8 +351,8 @@ export default function TeamBuilderPage() {
   
   const handleStartBattle = useCallback(() => {
     // TODO: Implement battle start logic
-    console.log('Starting battle with team:', currentTeam);
-  }, [currentTeam]);
+    // Battle will be started with current team
+  }, []);
   
   // Get disabled units (already in team)
   const disabledUnits = currentTeam.units.map(unit => unit.unitId);
@@ -360,7 +394,8 @@ export default function TeamBuilderPage() {
   }
   
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <DragDropProvider handlers={dragDropHandlers} enabled={true}>
+      <div className="min-h-screen bg-gray-900 text-white">
       {/* Header */}
       <header className="bg-gray-800/50 border-b border-gray-700 p-4">
         <div className="max-w-7xl mx-auto">
@@ -430,7 +465,7 @@ export default function TeamBuilderPage() {
           {/* Battle grid - Right side */}
           <div className="col-span-8 flex items-center justify-center">
             <div className="w-full max-w-2xl">
-              <BattleGrid
+              <EnhancedBattleGrid
                 units={gridUnits}
                 onCellClick={handleGridCellClick}
                 highlightedCells={highlightedCells}
@@ -458,7 +493,7 @@ export default function TeamBuilderPage() {
         <div className="md:hidden space-y-4">
           {/* Battle grid */}
           <div className="bg-gray-800/30 rounded-lg p-4">
-            <BattleGrid
+            <EnhancedBattleGrid
               units={gridUnits}
               onCellClick={handleGridCellClick}
               highlightedCells={highlightedCells}
@@ -512,6 +547,7 @@ export default function TeamBuilderPage() {
           </div>
         )}
       </main>
-    </div>
+      </div>
+    </DragDropProvider>
   );
 }

@@ -10,6 +10,8 @@
 import { useState, useMemo, useCallback } from 'react';
 import { UnitTemplate, UnitRole, UnitId } from '@/types/game';
 import { UnitCard, ROLE_NAMES } from './UnitCard';
+import { DraggableUnit } from './DraggableUnit';
+import { DroppableUnitList } from './DroppableUnitList';
 
 // =============================================================================
 // TYPES
@@ -404,22 +406,10 @@ export function UnitList({
     }
   }, [disabledUnits, onUnitSelect]);
   
-  const handleDragStart = useCallback((e: React.DragEvent, unit: UnitTemplate) => {
-    if (!enableDragDrop || isUnitDisabled(unit, disabledUnits)) {
-      e.preventDefault();
-      return;
-    }
-    
-    // Set drag data for drop handling
-    e.dataTransfer.setData('application/json', JSON.stringify({
-      type: 'unit',
-      unit: unit,
-    }));
-    e.dataTransfer.effectAllowed = 'copy';
-  }, [enableDragDrop, disabledUnits]);
+
   
   return (
-    <div className={`space-y-4 ${className}`}>
+    <DroppableUnitList enabled={enableDragDrop} className={`space-y-4 ${className}`}>
       {/* Filter controls */}
       <FilterControls
         filter={currentFilter}
@@ -443,19 +433,28 @@ export function UnitList({
           : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
         }
       `}>
-        {processedUnits.map(unit => {
+        {processedUnits.map((unit, index) => {
           const disabled = isUnitDisabled(unit, disabledUnits);
           const selected = selectedUnit?.id === unit.id;
           
-          return (
+          return enableDragDrop && !disabled ? (
+            <DraggableUnit
+              key={unit.id}
+              unit={unit}
+              id={`unit-list-${unit.id}-${index}`}
+              source="list"
+              originalIndex={index}
+              selected={selected}
+              disabled={disabled}
+              size={compact ? 'compact' : 'full'}
+              onClick={() => handleUnitClick(unit)}
+              showAbilities={!compact}
+              className="relative"
+            />
+          ) : (
             <div
               key={unit.id}
-              draggable={enableDragDrop && !disabled}
-              onDragStart={(e) => handleDragStart(e, unit)}
-              className={`
-                ${enableDragDrop && !disabled ? 'cursor-grab active:cursor-grabbing' : ''}
-                ${disabled ? 'opacity-50' : ''}
-              `}
+              className={`relative ${disabled ? 'opacity-50' : ''}`}
             >
               <UnitCard
                 unit={unit}
@@ -495,7 +494,7 @@ export function UnitList({
           💡 Перетащите юнита на поле боя для добавления в команду
         </div>
       )}
-    </div>
+    </DroppableUnitList>
   );
 }
 

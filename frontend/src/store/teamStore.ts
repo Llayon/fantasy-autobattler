@@ -265,6 +265,13 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
       return;
     }
 
+    // Check budget before adding unit
+    const newTotalCost = currentTeam.totalCost + unitTemplate.cost;
+    if (newTotalCost > MAX_BUDGET) {
+      set({ error: `Превышен бюджет: ${newTotalCost}/${MAX_BUDGET}. Нельзя добавить юнита стоимостью ${unitTemplate.cost}.` });
+      return;
+    }
+
     // Check if position is already occupied
     const positionOccupied = currentTeam.units.some(
       unit => unit.position.x === position.x && unit.position.y === position.y
@@ -283,14 +290,13 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
 
     // Add unit to team
     const newUnits = [...currentTeam.units, { unitId, position }];
-    const newTotalCost = currentTeam.totalCost + unitTemplate.cost;
     
     const updatedTeam: TeamDraft = {
       ...currentTeam,
       units: newUnits,
       totalCost: newTotalCost,
       isValid: newTotalCost <= MAX_BUDGET && newUnits.length > 0,
-      errors: newTotalCost > MAX_BUDGET ? [`Превышен бюджет: ${newTotalCost}/${MAX_BUDGET}`] : [],
+      errors: [],
     };
     
     set({ currentTeam: updatedTeam, error: null });
@@ -312,6 +318,11 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     }
 
     const unitToRemove = currentTeam.units[index];
+    if (!unitToRemove) {
+      set({ error: 'Юнит не найден по индексу' });
+      return;
+    }
+
     const unitTemplate = units.find(u => u.id === unitToRemove.unitId);
     
     if (!unitTemplate) {
@@ -360,7 +371,16 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     }
 
     const newUnits = [...currentTeam.units];
-    newUnits[index] = { ...newUnits[index], position };
+    const unitToUpdate = newUnits[index];
+    if (!unitToUpdate) {
+      set({ error: 'Юнит не найден по индексу' });
+      return;
+    }
+    
+    newUnits[index] = { 
+      unitId: unitToUpdate.unitId, 
+      position 
+    };
     
     const updatedTeam: TeamDraft = {
       ...currentTeam,

@@ -1,105 +1,94 @@
 /**
  * Legacy game store for Fantasy Autobattler.
  * 
- * @deprecated This store has been refactored into separate stores.
- * Use the new modular stores instead:
- * - usePlayerStore for player authentication and profile
- * - useTeamStore for team building and management
- * - useBattleStore for battle operations and replay
- * - useMatchmakingStore for matchmaking functionality
- * 
- * @fileoverview Legacy store maintained for backward compatibility.
+ * @fileoverview Legacy compatibility layer for the old game store.
+ * The main functionality is now in modular stores (playerStore, teamStore, etc.).
+ * @deprecated Use the new modular stores instead.
  */
 
 import { create } from 'zustand';
-import { Player, UnitType } from '@/types/game';
-import { api } from '@/lib/api';
+import { Player, UnitTemplate } from '@/types/game';
 
-// Import new stores for delegation
-import { usePlayerStore } from './playerStore';
-import { useBattleStore } from './battleStore';
-
-interface GameState {
+/**
+ * Legacy game state interface.
+ * @deprecated Use the new modular stores instead.
+ */
+interface LegacyGameState {
+  /** Current player */
   player: Player | null;
+  /** Available units */
+  units: UnitTemplate[];
+  /** Loading state */
   loading: boolean;
+  /** Error message */
   error: string | null;
-  selectedTeam: UnitType[];
-  
-  initPlayer: () => Promise<void>;
-  setSelectedTeam: (team: UnitType[]) => void;
-  saveTeam: () => Promise<void>;
-  startBattle: () => Promise<string>;
 }
 
 /**
- * Legacy game store.
- * @deprecated Use individual stores (usePlayerStore, useTeamStore, etc.) instead.
+ * Legacy game actions interface.
+ * @deprecated Use the new modular stores instead.
  */
-export const useGameStore = create<GameState>((set, get) => ({
+interface LegacyGameActions {
+  /** Initialize game */
+  initGame: () => Promise<void>;
+  /** Clear error */
+  clearError: () => void;
+}
+
+/**
+ * Legacy game store type.
+ * @deprecated Use the new modular stores instead.
+ */
+type LegacyGameStore = LegacyGameState & LegacyGameActions;
+
+/**
+ * Legacy game store for backward compatibility.
+ * 
+ * @deprecated Use the new modular stores:
+ * - usePlayerStore for player data
+ * - useTeamStore for team management
+ * - useBattleStore for battle operations
+ * - useMatchmakingStore for matchmaking
+ * 
+ * @example
+ * // OLD (deprecated)
+ * const { player, units } = useGameStore();
+ * 
+ * // NEW (recommended)
+ * const player = usePlayerStore(selectPlayer);
+ * const units = useTeamStore(selectUnits);
+ */
+export const useGameStore = create<LegacyGameStore>((set) => ({
+  // State
   player: null,
+  units: [],
   loading: false,
   error: null,
-  selectedTeam: ['Warrior', 'Mage', 'Healer'],
 
-  /**
-   * Initialize player session.
-   * @deprecated Use usePlayerStore.initPlayer() instead.
-   */
-  initPlayer: async () => {
-    // Delegate to new player store
-    await usePlayerStore.getState().initPlayer();
+  // Actions
+  initGame: async () => {
+    set({ loading: true, error: null });
     
-    // Sync state for backward compatibility
-    const playerState = usePlayerStore.getState();
-    set({ 
-      player: playerState.player,
-      loading: playerState.loading,
-      error: playerState.error,
-    });
-  },
-
-  /**
-   * Set selected team.
-   * @deprecated Use useTeamStore for team management instead.
-   */
-  setSelectedTeam: (team) => set({ selectedTeam: team }),
-
-  /**
-   * Save team.
-   * @deprecated Use useTeamStore.saveTeam() instead.
-   */
-  saveTeam: async () => {
-    const { selectedTeam } = get();
-    set({ loading: true });
     try {
-      const player = await api.updatePlayerTeam(selectedTeam);
-      set({ player, loading: false });
-    } catch {
-      set({ error: 'Failed to save team', loading: false });
-    }
-  },
-
-  /**
-   * Start battle.
-   * @deprecated Use useBattleStore.startBattle() instead.
-   */
-  startBattle: async () => {
-    const { selectedTeam, player } = get();
-    set({ loading: true });
-    try {
-      // Save team first if changed
-      if (JSON.stringify(selectedTeam) !== JSON.stringify(player?.team)) {
-        await api.updatePlayerTeam(selectedTeam);
-      }
-      
-      // Delegate to battle store
-      const battleId = await useBattleStore.getState().startBattle();
-      
+      // Legacy initialization - redirect to new stores
+      // Note: useGameStore is deprecated. Use the new modular stores instead.
       set({ loading: false });
-      return battleId || '';
-    } catch {
-      set({ error: 'Failed to start battle', loading: false });
-      throw new Error('Battle failed');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      set({ error: errorMessage, loading: false });
     }
+  },
+
+  clearError: () => {
+    set({ error: null });
   },
 }));
+
+/**
+ * Legacy selectors for backward compatibility.
+ * @deprecated Use the new store selectors instead.
+ */
+export const selectPlayer = (state: LegacyGameStore) => state.player;
+export const selectUnits = (state: LegacyGameStore) => state.units;
+export const selectLoading = (state: LegacyGameStore) => state.loading;
+export const selectError = (state: LegacyGameStore) => state.error;
