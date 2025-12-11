@@ -182,7 +182,7 @@ export class BattleService {
 
     // Convert team entities to TeamSetup format
     const player1TeamSetup = this.convertTeamToSetup(player1Team);
-    const player2TeamSetup = this.convertTeamToSetup(player2Team);
+    const player2TeamSetup = this.convertTeamToSetupForEnemy(player2Team);
 
     this.logger.debug(`PvP battle teams - Player1: ${player1Team.name}, Player2: ${player2Team.name}`);
 
@@ -434,6 +434,33 @@ export class BattleService {
 
     // Use positions from team configuration
     const positions = team.units.map(teamUnit => teamUnit.position);
+
+    return { units, positions };
+  }
+
+  /**
+   * Convert team to setup format for enemy team (rows 8-9).
+   * Translates player positions from rows 0-1 to rows 8-9 for PvP battles.
+   * 
+   * @param team - Team entity to convert
+   * @returns TeamSetup with units and translated positions for enemy deployment
+   * @example
+   * const setup = this.convertTeamToSetupForEnemy(player2Team);
+   */
+  private convertTeamToSetupForEnemy(team: Team): TeamSetup {
+    const units = team.units.map(teamUnit => {
+      const template = getUnitTemplate(teamUnit.unitId as UnitId);
+      if (!template) {
+        throw new Error(`Unit template not found for unit ID: ${teamUnit.unitId}`);
+      }
+      return template;
+    });
+
+    // Translate positions from player zone (0-1) to enemy zone (8-9)
+    const positions = team.units.map(teamUnit => ({
+      x: teamUnit.position.x,
+      y: teamUnit.position.y === 0 ? 8 : 9, // 0 -> 8, 1 -> 9
+    }));
 
     return { units, positions };
   }

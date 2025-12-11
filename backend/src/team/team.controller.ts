@@ -95,7 +95,7 @@ export class TeamController {
    * Returns teams ordered by creation date (newest first).
    * 
    * @param req - Authenticated request containing player information
-   * @returns Array of player's teams
+   * @returns Array of player's teams with total count
    * @example
    * GET /team
    */
@@ -115,7 +115,11 @@ export class TeamController {
     type: ErrorResponseDto,
   })
   async getPlayerTeams(@Req() req: AuthenticatedRequest) {
-    return this.teamService.getPlayerTeams(req.player.id);
+    const teams = await this.teamService.getPlayerTeams(req.player.id);
+    return {
+      teams,
+      total: teams.length,
+    };
   }
 
   /**

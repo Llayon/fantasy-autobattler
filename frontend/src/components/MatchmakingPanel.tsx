@@ -41,7 +41,7 @@ interface MatchmakingPanelProps {
 // =============================================================================
 
 /**
- * Search animation component.
+ * Search animation component with pulsing effect.
  */
 function SearchAnimation() {
   return (
@@ -49,6 +49,19 @@ function SearchAnimation() {
       <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
       <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
       <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+    </div>
+  );
+}
+
+/**
+ * Match found celebration animation.
+ */
+function MatchFoundAnimation() {
+  return (
+    <div className="flex items-center justify-center space-x-2">
+      <div className="w-3 h-3 bg-green-400 rounded-full animate-ping"></div>
+      <span className="text-green-400 font-bold animate-pulse">🎉</span>
+      <div className="w-3 h-3 bg-green-400 rounded-full animate-ping" style={{ animationDelay: '200ms' }}></div>
     </div>
   );
 }
@@ -134,10 +147,17 @@ export function MatchmakingPanel({ className = '' }: MatchmakingPanelProps) {
   // Handle match found - redirect to battle
   useEffect(() => {
     if (hasMatch && match) {
-      // Clear match state and redirect
-      clearMatch();
-      router.push(`/battle/${match.battleId}`);
+      // Small delay to show "Match Found!" message before redirect
+      const timer = setTimeout(() => {
+        clearMatch();
+        router.push(`/battle/${match.battleId}`);
+      }, 1500); // 1.5 second delay
+      
+      return () => clearTimeout(timer);
     }
+    
+    // Return empty cleanup function for other code paths
+    return () => {};
   }, [hasMatch, match, clearMatch, router]);
   
   /**
@@ -193,7 +213,10 @@ export function MatchmakingPanel({ className = '' }: MatchmakingPanelProps) {
           )}
           
           {status === 'matched' && (
-            <span className="text-green-400 text-sm font-medium">✅ Матч найден!</span>
+            <div className="flex items-center space-x-2">
+              <MatchFoundAnimation />
+              <span className="text-green-400 text-sm font-medium">Матч найден!</span>
+            </div>
           )}
           
           {status === 'not_in_queue' && !loading && (
@@ -234,18 +257,28 @@ export function MatchmakingPanel({ className = '' }: MatchmakingPanelProps) {
       {isInQueue && queueEntry && (
         <div className="mb-4 p-4 bg-blue-900/30 border border-blue-500 rounded-lg">
           <div className="text-center">
-            <div className="text-blue-300 font-medium mb-2">🔍 Поиск противника...</div>
-            <div className="text-2xl font-bold text-blue-400 mb-1">
+            <div className="flex items-center justify-center space-x-2 mb-3">
+              <SearchAnimation />
+              <div className="text-blue-300 font-medium">Поиск противника...</div>
+            </div>
+            <div className="text-3xl font-bold text-blue-400 mb-2">
               {formatWaitTime(waitTime)}
             </div>
-            <div className="text-blue-300 text-sm">
-              Команда: {activeTeam?.name}
-            </div>
-            {queueEntry.rating && (
+            <div className="space-y-1">
               <div className="text-blue-300 text-sm">
-                Рейтинг: {queueEntry.rating}
+                Команда: <span className="font-medium">{activeTeam?.name}</span>
               </div>
-            )}
+              {queueEntry.rating && (
+                <div className="text-blue-300 text-sm">
+                  Рейтинг: <span className="font-medium">{queueEntry.rating}</span>
+                </div>
+              )}
+              <div className="text-blue-400 text-xs mt-2">
+                {waitTime < 30 ? '🔍 Поиск подходящего противника...' :
+                 waitTime < 60 ? '⏳ Расширяем диапазон поиска...' :
+                 '🌐 Поиск по всем рейтингам...'}
+              </div>
+            </div>
           </div>
         </div>
       )}

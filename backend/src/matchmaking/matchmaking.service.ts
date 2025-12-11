@@ -3,7 +3,7 @@
  * Manages player queue, opponent matching, and battle creation.
  */
 
-import { Injectable, Logger, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { MatchmakingQueue, MatchmakingStatus } from '../entities/matchmaking-queue.entity';
@@ -72,7 +72,7 @@ export interface Battle {
  * const match = await matchmakingService.findMatch('player-123');
  */
 @Injectable()
-export class MatchmakingService {
+export class MatchmakingService implements OnModuleInit {
   private readonly logger = new Logger(MatchmakingService.name);
 
   constructor(
@@ -84,6 +84,40 @@ export class MatchmakingService {
     private readonly teamRepository: Repository<Team>,
     private readonly battleService: BattleService,
   ) {}
+
+  /**
+   * Initialize the matchmaking service.
+   * Cleans up old queue entries on startup.
+   */
+  async onModuleInit() {
+    await this.cleanupOldQueueEntries();
+  }
+
+  /**
+   * Clean up old queue entries that may be stuck in waiting state.
+   * Removes entries older than 1 hour to prevent accumulation.
+   */
+  private async cleanupOldQueueEntries() {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    
+    try {
+      const result = await this.queueRepository
+        .createQueryBuilder()
+        .delete()
+        .from(MatchmakingQueue)
+        .where('status = :status', { status: MatchmakingStatus.WAITING })
+        .andWhere('joinedAt < :cutoff', { cutoff: oneHourAgo })
+        .execute();
+
+      if (result.affected && result.affected > 0) {
+        this.logger.log(`Cleaned up ${result.affected} old queue entries`);
+      }
+    } catch (error) {
+      this.logger.error(`Failed to cleanup old queue entries`, {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
 
   /**
    * Add a player to the matchmaking queue with their selected team.
@@ -120,8 +154,13 @@ export class MatchmakingService {
       where: { playerId, status: MatchmakingStatus.WAITING },
     });
     if (existingEntry) {
-      this.logger.warn(`Player already in queue`, { playerId, existingEntryId: existingEntry.id });
-      throw new ConflictException(`Игрок уже находится в очереди`);
+      // Remove old queue entry and allow rejoining
+      this.logger.log(`Removing old queue entry for player`, { 
+        playerId, 
+        existingEntryId: existingEntry.id,
+        oldJoinedAt: existingEntry.joinedAt 
+      });
+      await this.queueRepository.remove(existingEntry);
     }
 
     // Create queue entry
@@ -305,12 +344,12 @@ export class MatchmakingService {
         throw new BadRequestException(`Данные команды не найдены`);
       }
 
-      // Start battle simulation using BattleService
-      const battleResult = await this.battleService.startBattle(player1.playerId);
+      // Start PvP battle simulation using BattleService
+      const battleLog = await this.battleService.startPvPBattle(player1.playerId, player2.playerId);
 
       // Mark queue entries as matched and remove from queue
-      player1.markAsMatched(battleResult.battleId);
-      player2.markAsMatched(battleResult.battleId);
+      player1.markAsMatched(battleLog.id);
+      player2.markAsMatched(battleLog.id);
 
       // Save the matched status first, then remove from queue
       await Promise.all([
@@ -325,13 +364,13 @@ export class MatchmakingService {
       ]);
 
       this.logger.log(`Battle created successfully`, {
-        battleId: battleResult.battleId,
+        battleId: battleLog.id,
         player1Id: player1.playerId,
         player2Id: player2.playerId,
       });
 
       return {
-        id: battleResult.battleId,
+        id: battleLog.id,
         player1Id: player1.playerId,
         player2Id: player2.playerId,
         status: 'completed',

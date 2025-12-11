@@ -53,6 +53,12 @@ export {
   selectHasMatch,
 } from './matchmakingStore';
 
+// Import stores for utilities
+import { usePlayerStore } from './playerStore';
+import { useTeamStore } from './teamStore';
+import { useMatchmakingStore } from './matchmakingStore';
+import { useBattleStore } from './battleStore';
+
 // =============================================================================
 // STORE UTILITIES
 // =============================================================================
@@ -65,19 +71,13 @@ export {
  * await initializeStores();
  */
 export async function initializeStores(): Promise<void> {
-  const { usePlayerStore } = await import('./playerStore');
-  const { useTeamStore } = await import('./teamStore');
+  // Load units first (they're static data)
+  await useTeamStore.getState().loadUnits();
   
-  // Initialize player first
-  await usePlayerStore.getState().initPlayer();
-  
-  // Then load teams and units if player is authenticated
+  // Then load teams if player is authenticated
   const isAuthenticated = usePlayerStore.getState().isAuthenticated;
   if (isAuthenticated) {
-    await Promise.all([
-      useTeamStore.getState().loadUnits(),
-      useTeamStore.getState().loadTeams(),
-    ]);
+    await useTeamStore.getState().loadTeams();
   }
 }
 
@@ -89,48 +89,39 @@ export async function initializeStores(): Promise<void> {
  * resetAllStores();
  */
 export function resetAllStores(): void {
-  // Import stores dynamically to avoid circular dependencies
-  import('./playerStore').then(({ usePlayerStore }) => {
-    usePlayerStore.getState().logout();
-  });
-  
-  import('./matchmakingStore').then(({ useMatchmakingStore }) => {
-    useMatchmakingStore.getState().reset();
-  });
+  // Reset all stores
+  usePlayerStore.getState().logout();
+  useMatchmakingStore.getState().reset();
   
   // Reset team store
-  import('./teamStore').then(({ useTeamStore }) => {
-    useTeamStore.setState({
+  useTeamStore.setState({
+    units: [],
+    teams: [],
+    activeTeam: null,
+    currentTeam: {
+      name: '',
       units: [],
-      teams: [],
-      activeTeam: null,
-      currentTeam: {
-        name: '',
-        units: [],
-        totalCost: 0,
-        isValid: false,
-        errors: [],
-      },
-      loading: false,
-      error: null,
-      unitsLoaded: false,
-    });
+      totalCost: 0,
+      isValid: false,
+      errors: [],
+    },
+    loading: false,
+    error: null,
+    unitsLoaded: false,
   });
   
   // Reset battle store
-  import('./battleStore').then(({ useBattleStore }) => {
-    useBattleStore.setState({
-      currentBattle: null,
-      battles: [],
-      loading: false,
-      error: null,
-      battlesLoaded: false,
-      replayState: {
-        isPlaying: false,
-        currentEventIndex: 0,
-        speed: 1,
-      },
-    });
+  useBattleStore.setState({
+    currentBattle: null,
+    battles: [],
+    loading: false,
+    error: null,
+    battlesLoaded: false,
+    replayState: {
+      isPlaying: false,
+      currentEventIndex: 0,
+      speed: 1,
+    },
   });
 }
 

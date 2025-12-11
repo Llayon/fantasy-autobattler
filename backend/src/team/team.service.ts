@@ -149,6 +149,13 @@ export class TeamService {
   async getTeam(teamId: string, playerId: string): Promise<TeamResponse> {
     this.logger.debug(`Retrieving team ${teamId} for player ${playerId}`);
 
+    // Validate UUID format to prevent database errors
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(teamId)) {
+      this.logger.warn(`Team retrieval failed: Invalid UUID format ${teamId}`);
+      throw new NotFoundException('Team not found');
+    }
+
     const team = await this.teamRepo.findOne({
       where: { id: teamId, playerId },
     });
@@ -178,6 +185,13 @@ export class TeamService {
    */
   async updateTeam(teamId: string, playerId: string, updateData: UpdateTeamRequest): Promise<TeamResponse> {
     this.logger.log(`Updating team ${teamId} for player ${playerId}`);
+
+    // Validate UUID format to prevent database errors
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(teamId)) {
+      this.logger.warn(`Team update failed: Invalid UUID format ${teamId}`);
+      throw new NotFoundException('Team not found');
+    }
 
     // Find existing team
     const team = await this.teamRepo.findOne({
@@ -244,6 +258,13 @@ export class TeamService {
   async deleteTeam(teamId: string, playerId: string): Promise<void> {
     this.logger.log(`Deleting team ${teamId} for player ${playerId}`);
 
+    // Validate UUID format to prevent database errors
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(teamId)) {
+      this.logger.warn(`Team deletion failed: Invalid UUID format ${teamId}`);
+      throw new NotFoundException('Team not found');
+    }
+
     // Find existing team
     const team = await this.teamRepo.findOne({
       where: { id: teamId, playerId },
@@ -284,6 +305,13 @@ export class TeamService {
    */
   async activateTeam(teamId: string, playerId: string): Promise<TeamResponse> {
     this.logger.log(`Activating team ${teamId} for player ${playerId}`);
+
+    // Validate UUID format to prevent database errors
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(teamId)) {
+      this.logger.warn(`Team activation failed: Invalid UUID format ${teamId}`);
+      throw new NotFoundException('Team not found');
+    }
 
     // Find team to activate
     const team = await this.teamRepo.findOne({

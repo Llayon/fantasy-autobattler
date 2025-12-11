@@ -252,7 +252,8 @@ export const useMatchmakingStore = create<MatchmakingStore>((set, get) => ({
       
       // Only poll if we're queued
       if (status === 'queued') {
-        get().getStatus();
+        // Use findMatch instead of getStatus for active matchmaking
+        get().findMatch();
       } else {
         // Stop polling if not searching
         get().stopPolling();

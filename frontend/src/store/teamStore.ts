@@ -491,11 +491,24 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
       
       const savedTeam = await api.createTeam(teamData);
       
-      // Refresh teams list
-      await get().loadTeams();
-      
-      set({ loading: false });
-      return savedTeam;
+      // Auto-activate the saved team for better UX
+      try {
+        const activatedTeam = await api.activateTeam(savedTeam.id);
+        
+        // Update state with activated team
+        set(state => ({
+          activeTeam: activatedTeam,
+          teams: [...state.teams, activatedTeam],
+          loading: false,
+        }));
+        
+        return activatedTeam;
+      } catch (activateError) {
+        // If activation fails, still refresh teams list
+        await get().loadTeams();
+        set({ loading: false });
+        return savedTeam;
+      }
     } catch (error) {
       const errorMessage = error instanceof ApiError 
         ? error.message 
