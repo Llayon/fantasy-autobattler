@@ -12,6 +12,7 @@ import { Position, UnitTemplate, UnitId } from '@/types/game';
 import { UnitList } from '@/components/UnitList';
 import { EnhancedBattleGrid } from '@/components/EnhancedBattleGrid';
 import { DragDropProvider, DragDropHandlers } from '@/components/DragDropProvider';
+import { BudgetIndicator } from '@/components/BudgetIndicator';
 import { 
   usePlayerStore, 
   useTeamStore, 
@@ -74,40 +75,7 @@ function teamToGridUnits(units: UnitTemplate[], teamUnits: Array<{ unitId: UnitI
 // COMPONENTS
 // =============================================================================
 
-/**
- * Budget display component.
- */
-interface BudgetDisplayProps {
-  currentCost: number;
-  maxBudget: number;
-}
 
-function BudgetDisplay({ currentCost, maxBudget }: BudgetDisplayProps) {
-  const remaining = maxBudget - currentCost;
-  const isOverBudget = currentCost > maxBudget;
-  
-  return (
-    <div className={`
-      flex items-center gap-2 px-4 py-2 rounded-lg border-2
-      ${isOverBudget 
-        ? 'bg-red-900/30 border-red-500 text-red-300' 
-        : remaining <= 5 
-        ? 'bg-yellow-900/30 border-yellow-500 text-yellow-300'
-        : 'bg-green-900/30 border-green-500 text-green-300'
-      }
-    `}>
-      <span className="text-2xl">💰</span>
-      <div>
-        <div className="font-bold text-lg">
-          {currentCost}/{maxBudget}
-        </div>
-        <div className="text-xs opacity-80">
-          {isOverBudget ? `Превышение: ${-remaining}` : `Остаток: ${remaining}`}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 /**
  * Team actions component.
@@ -414,9 +382,10 @@ export default function TeamBuilderPage() {
             
             {/* Budget and actions */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              <BudgetDisplay 
-                currentCost={currentTeam.totalCost} 
-                maxBudget={MAX_BUDGET} 
+              <BudgetIndicator 
+                current={currentTeam.totalCost} 
+                max={MAX_BUDGET}
+                showDetails
               />
               
               <TeamActions
