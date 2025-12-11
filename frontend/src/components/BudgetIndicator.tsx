@@ -153,7 +153,14 @@ function ProgressBar({ percentage, status, animated = true }: ProgressBarProps) 
   const colors = STATUS_COLORS[status];
   
   return (
-    <div className="relative w-full h-2 bg-gray-800 rounded-full overflow-hidden">
+    <div 
+      className="relative w-full h-2 bg-gray-800 rounded-full overflow-hidden"
+      role="progressbar"
+      aria-valuenow={percentage}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-label={`Budget usage: ${percentage.toFixed(1)}%`}
+    >
       {/* Background track */}
       <div className="absolute inset-0 bg-gray-700/50 rounded-full" />
       
@@ -248,6 +255,9 @@ export function BudgetIndicator({
         ${status === 'over' ? 'animate-pulse' : ''}
         ${className}
       `}
+      role="region"
+      aria-label="Team Budget Indicator"
+      aria-describedby={`budget-status-${status}`}
     >
       {/* Header with icon and budget display */}
       <div className="flex items-center gap-3">
@@ -258,7 +268,10 @@ export function BudgetIndicator({
         
         {/* Budget text */}
         <div className="flex-1">
-          <div className={`font-bold ${compact ? 'text-lg' : 'text-2xl'} ${colors.text}`}>
+          <div 
+            className={`font-bold ${compact ? 'text-lg' : 'text-2xl'} ${colors.text}`}
+            aria-label={`Current budget: ${current} out of ${max} points`}
+          >
             {current}/{max}
           </div>
           
@@ -271,7 +284,11 @@ export function BudgetIndicator({
         
         {/* Status indicator */}
         {!compact && (
-          <div className={`text-xs font-medium ${colors.text} opacity-90`}>
+          <div 
+            id={`budget-status-${status}`}
+            className={`text-xs font-medium ${colors.text} opacity-90`}
+            aria-live="polite"
+          >
             {status === 'safe' && 'Safe'}
             {status === 'warning' && 'Warning'}
             {status === 'danger' && 'Danger'}

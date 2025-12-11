@@ -8,11 +8,12 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Position, UnitTemplate, UnitId } from '@/types/game';
+import { Position, UnitTemplate, UnitId, TeamResponse } from '@/types/game';
 import { UnitList } from '@/components/UnitList';
 import { EnhancedBattleGrid } from '@/components/EnhancedBattleGrid';
 import { DragDropProvider, DragDropHandlers } from '@/components/DragDropProvider';
 import { BudgetIndicator } from '@/components/BudgetIndicator';
+import { SavedTeamsModal } from '@/components/SavedTeamsModal';
 import { 
   usePlayerStore, 
   useTeamStore, 
@@ -23,6 +24,7 @@ import {
   selectCurrentTeam,
   selectTeamLoading,
   selectTeamError,
+  selectTeams,
   initializeStores
 } from '@/store';
 
@@ -84,26 +86,50 @@ interface TeamActionsProps {
   onSave: () => void;
   onClear: () => void;
   onStartBattle: () => void;
+  onShowTeams: () => void;
   canSave: boolean;
   canBattle: boolean;
   loading: boolean;
+  teamCount: number;
 }
 
-function TeamActions({ onSave, onClear, onStartBattle, canSave, canBattle, loading }: TeamActionsProps) {
+function TeamActions({ 
+  onSave, 
+  onClear, 
+  onStartBattle, 
+  onShowTeams, 
+  canSave, 
+  canBattle, 
+  loading,
+  teamCount 
+}: TeamActionsProps) {
   return (
-    <div className="flex gap-3">
+    <div className="flex flex-wrap gap-2">
       <button
         onClick={onClear}
         disabled={loading}
-        className="px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white rounded-lg transition-colors"
+        className="px-3 py-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white text-sm rounded-lg transition-colors"
       >
         🗑️ Очистить
       </button>
       
       <button
+        onClick={onShowTeams}
+        disabled={loading}
+        className="px-3 py-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-sm rounded-lg transition-colors relative"
+      >
+        📋 Мои команды
+        {teamCount > 0 && (
+          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+            {teamCount}
+          </span>
+        )}
+      </button>
+      
+      <button
         onClick={onSave}
         disabled={!canSave || loading}
-        className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg transition-colors"
+        className="px-3 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm rounded-lg transition-colors"
       >
         💾 Сохранить
       </button>
@@ -111,7 +137,7 @@ function TeamActions({ onSave, onClear, onStartBattle, canSave, canBattle, loadi
       <button
         onClick={onStartBattle}
         disabled={!canBattle || loading}
-        className="px-6 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:opacity-50 text-white font-bold rounded-lg transition-all transform hover:scale-105"
+        className="px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:opacity-50 text-white font-bold text-sm rounded-lg transition-all transform hover:scale-105"
       >
         ⚔️ В бой!
       </button>
@@ -188,6 +214,7 @@ function MobileUnitSheet({ isOpen, onClose, children }: MobileUnitSheetProps) {
 export default function TeamBuilderPage() {
   const [selectedUnit, setSelectedUnit] = useState<UnitTemplate | null>(null);
   const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
+  const [showSavedTeamsModal, setShowSavedTeamsModal] = useState(false);
   
   // Store selectors
   const player = usePlayerStore(selectPlayer);
@@ -198,6 +225,7 @@ export default function TeamBuilderPage() {
   const currentTeam = useTeamStore(selectCurrentTeam);
   const teamLoading = useTeamStore(selectTeamLoading);
   const teamError = useTeamStore(selectTeamError);
+  const teams = useTeamStore(selectTeams);
   
   // Store actions
   const { initPlayer } = usePlayerStore();
@@ -206,7 +234,9 @@ export default function TeamBuilderPage() {
     removeUnitFromTeam, 
     createNewTeam, 
     saveTeam, 
-    validateTeam 
+    validateTeam,
+    loadTeams,
+    loadTeamToDraft
   } = useTeamStore();
   
   // Initialize stores on mount
@@ -308,9 +338,13 @@ export default function TeamBuilderPage() {
   const handleSaveTeam = useCallback(async () => {
     validateTeam();
     if (currentTeam.isValid) {
-      await saveTeam();
+      const savedTeam = await saveTeam();
+      if (savedTeam) {
+        // Refresh teams list after successful save
+        await loadTeams();
+      }
     }
-  }, [validateTeam, currentTeam.isValid, saveTeam]);
+  }, [validateTeam, currentTeam.isValid, saveTeam, loadTeams]);
   
   const handleClearTeam = useCallback(() => {
     createNewTeam('Новая команда');
@@ -321,6 +355,15 @@ export default function TeamBuilderPage() {
     // TODO: Implement battle start logic
     // Battle will be started with current team
   }, []);
+
+  const handleShowTeams = useCallback(() => {
+    setShowSavedTeamsModal(true);
+  }, []);
+
+  const handleLoadTeam = useCallback((team: TeamResponse) => {
+    loadTeamToDraft(team);
+    setSelectedUnit(null);
+  }, [loadTeamToDraft]);
   
   // Get disabled units (already in team)
   const disabledUnits = currentTeam.units.map(unit => unit.unitId);
@@ -392,9 +435,11 @@ export default function TeamBuilderPage() {
                 onSave={handleSaveTeam}
                 onClear={handleClearTeam}
                 onStartBattle={handleStartBattle}
+                onShowTeams={handleShowTeams}
                 canSave={currentTeam.isValid && currentTeam.units.length > 0}
                 canBattle={currentTeam.isValid && currentTeam.units.length > 0}
                 loading={teamLoading}
+                teamCount={teams.length}
               />
             </div>
           </div>
@@ -516,6 +561,13 @@ export default function TeamBuilderPage() {
           </div>
         )}
       </main>
+      
+      {/* Saved Teams Modal */}
+      <SavedTeamsModal
+        isOpen={showSavedTeamsModal}
+        onClose={() => setShowSavedTeamsModal(false)}
+        onLoadTeam={handleLoadTeam}
+      />
       </div>
     </DragDropProvider>
   );
