@@ -13,6 +13,7 @@
     "incremental": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
+    "types": ["jest", "node"],
 
     // STRICT MODE - All checks enabled
     "strict": true,
@@ -36,8 +37,6 @@
     "forceConsistentCasingInFileNames": true
   },
   "exclude": [
-    "**/*.spec.ts",
-    "**/*.test.ts",
     "node_modules",
     "dist"
   ]
