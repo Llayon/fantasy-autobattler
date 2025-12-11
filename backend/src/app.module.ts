@@ -4,6 +4,7 @@ import { AuthModule } from './auth/auth.module';
 import { PlayerModule } from './player/player.module';
 import { BattleModule } from './battle/battle.module';
 import { TeamModule } from './team/team.module';
+import { MatchmakingModule } from './matchmaking/matchmaking.module';
 import { Player } from './entities/player.entity';
 import { BattleLog } from './entities/battle-log.entity';
 import { Team } from './entities/team.entity';
@@ -25,6 +26,7 @@ import { MatchmakingQueue } from './entities/matchmaking-queue.entity';
     PlayerModule,
     BattleModule,
     TeamModule,
+    MatchmakingModule,
   ],
 })
 export class AppModule {}
