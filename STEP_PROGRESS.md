@@ -3844,3 +3844,218 @@ Responsive: Mobile and desktop optimized ✅
 - Advanced team building workflows
 
 ---
+
+## Step 36: Unit List Component ✅ COMPLETED
+**Date:** December 11, 2025  
+**Duration:** ~20 minutes  
+**Status:** SUCCESS
+
+### 🎯 Objectives
+- Create comprehensive UnitList component for browsing all available units
+- Implement filtering by role, search by name, and cost range filtering
+- Add sorting by cost, name, role, HP, and attack with ascending/descending options
+- Support unit selection with disabled state for units already in team
+- Prepare drag-and-drop source functionality for team building
+- Provide both compact and full display modes
+
+### 🔧 Changes Made
+
+#### 1. Complete UnitList Component (`frontend/src/components/UnitList.tsx`)
+**Core Features:**
+- ✅ **Unit Display**: Grid layout with UnitCard integration
+- ✅ **Filtering System**: Role, search, and cost range filters
+- ✅ **Sorting System**: 5 sort options with direction control
+- ✅ **Selection Management**: Selected and disabled unit states
+- ✅ **Drag-and-Drop**: Prepared for team building workflows
+- ✅ **Responsive Design**: Adaptive grid layouts for all screen sizes
+
+#### 2. Advanced Filtering System
+**Filter Options:**
+```typescript
+interface UnitFilter {
+  role?: UnitRole | 'all';     // Filter by unit role
+  search?: string;             // Search by unit name
+  minCost?: number;            // Minimum cost filter
+  maxCost?: number;            // Maximum cost filter
+}
+```
+
+**Role Filtering:**
+- ✅ **All Roles**: Shows all 15 units
+- ✅ **Tank**: Knight, Guardian, Berserker (3 units)
+- ✅ **Melee DPS**: Rogue, Duelist, Assassin (3 units)
+- ✅ **Ranged DPS**: Archer, Crossbowman, Hunter (3 units)
+- ✅ **Mage**: Mage, Warlock, Elementalist (3 units)
+- ✅ **Support**: Priest, Bard (2 units)
+- ✅ **Control**: Enchanter (1 unit)
+
+**Search Functionality:**
+- ✅ **Name Search**: Case-insensitive unit name matching
+- ✅ **Role Search**: Search by role names in Russian
+- ✅ **Real-time**: Instant filtering as user types
+- ✅ **Partial Match**: Supports partial name matching
+
+**Cost Range Filtering:**
+- ✅ **All Costs**: No cost restriction
+- ✅ **3-4 Points**: Budget units
+- ✅ **5-6 Points**: Mid-tier units
+- ✅ **7-8 Points**: Premium units
+
+#### 3. Comprehensive Sorting System
+**Sort Options:**
+```typescript
+type SortOption = 'name' | 'cost' | 'role' | 'hp' | 'atk';
+```
+
+**Sorting Features:**
+- ✅ **By Name**: Alphabetical sorting (А-Я)
+- ✅ **By Cost**: Budget planning (3-8 points)
+- ✅ **By Role**: Group by unit roles
+- ✅ **By HP**: Health-based sorting
+- ✅ **By Attack**: Damage-based sorting
+- ✅ **Direction Control**: Ascending/descending for each option
+- ✅ **Visual Indicators**: Arrow icons showing sort direction
+
+#### 4. Selection and State Management
+**Unit States:**
+- ✅ **Available**: Normal selectable units
+- ✅ **Selected**: Currently chosen unit with visual highlight
+- ✅ **Disabled**: Units already in team (grayed out with overlay)
+- ✅ **Drag Source**: Units ready for drag-and-drop
+
+**State Indicators:**
+```typescript
+// Visual feedback for different states
+selected: Yellow ring and checkmark
+disabled: 50% opacity with "В команде" overlay
+draggable: Cursor changes to grab/grabbing
+```
+
+#### 5. Drag-and-Drop Integration
+**Drag Features:**
+- ✅ **Drag Source**: Units can be dragged to team builder
+- ✅ **Drag Data**: JSON payload with unit information
+- ✅ **Visual Feedback**: Cursor changes during drag operations
+- ✅ **Disabled Prevention**: Disabled units cannot be dragged
+- ✅ **Drop Preparation**: Ready for grid drop targets
+
+**Drag Implementation:**
+```typescript
+// Drag data structure for drop handling
+{
+  type: 'unit',
+  unit: UnitTemplate
+}
+```
+
+#### 6. Responsive Grid Layouts
+**Layout Modes:**
+- ✅ **Compact Mode**: 1-4 columns (mobile to desktop)
+- ✅ **Full Mode**: 1-3 columns (mobile to desktop)
+- ✅ **Adaptive**: Responsive breakpoints for all screen sizes
+
+**Grid Configurations:**
+```css
+Compact: grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4
+Full: grid-cols-1 md:grid-cols-2 lg:grid-cols-3
+```
+
+#### 7. User Experience Features
+**Filter Controls:**
+- ✅ **Search Input**: Real-time search with placeholder text
+- ✅ **Role Dropdown**: All roles with Russian names
+- ✅ **Cost Buttons**: Quick cost range selection
+- ✅ **Clear Filters**: One-click filter reset
+- ✅ **Results Counter**: Shows filtered vs total units
+
+**Sort Controls:**
+- ✅ **Sort Buttons**: Visual sort option selection
+- ✅ **Direction Indicators**: Up/down arrows for sort direction
+- ✅ **Active State**: Highlighted current sort option
+
+**Empty States:**
+- ✅ **No Results**: Helpful message when no units match filters
+- ✅ **Suggestions**: Guidance to modify filters
+- ✅ **Drag Hints**: Instructions for drag-and-drop usage
+
+#### 8. Technical Implementation
+**Performance Optimization:**
+- ✅ **Memoized Processing**: `useMemo` for filtering and sorting
+- ✅ **Callback Optimization**: `useCallback` for event handlers
+- ✅ **Efficient Rendering**: Minimal re-renders on state changes
+
+**Type Safety:**
+- ✅ **Strict TypeScript**: Comprehensive interfaces and types
+- ✅ **Prop Validation**: Well-defined component props
+- ✅ **Helper Functions**: Pure functions for data processing
+
+**Accessibility:**
+- ✅ **Keyboard Navigation**: Full keyboard support
+- ✅ **Screen Readers**: Proper labels and descriptions
+- ✅ **Focus Management**: Clear focus indicators
+
+### 📊 Component Features
+```
+Unit Display: All 15 units with UnitCard integration ✅
+Filtering: Role, search, cost range filters ✅
+Sorting: 5 sort options with direction control ✅
+Selection: Selected and disabled state management ✅
+Drag-Drop: Prepared drag source functionality ✅
+Responsive: Adaptive layouts for all screens ✅
+Performance: Optimized rendering and processing ✅
+Accessibility: Full keyboard and screen reader support ✅
+```
+
+### 🎨 User Interface Design
+**Filter Panel:**
+- ✅ Dark theme with gray-800 background
+- ✅ Organized sections for search, role, and cost
+- ✅ Results counter and clear filters button
+- ✅ Responsive form controls
+
+**Sort Controls:**
+- ✅ Horizontal button layout with active states
+- ✅ Direction arrows for sort feedback
+- ✅ Blue accent colors for selected options
+
+**Unit Grid:**
+- ✅ Responsive grid with proper spacing
+- ✅ Disabled overlays for unavailable units
+- ✅ Drag cursor feedback for interactive units
+- ✅ Empty state with helpful messaging
+
+### 📊 Validation Results
+```bash
+✅ TypeScript compilation - SUCCESS (no errors)
+✅ All filtering options working - SUCCESS
+✅ Sorting functionality complete - SUCCESS
+✅ Selection states implemented - SUCCESS
+✅ Drag-and-drop prepared - SUCCESS
+✅ Responsive design verified - SUCCESS
+```
+
+### 📝 Files Created
+- `frontend/src/components/UnitList.tsx` - **NEW** Comprehensive unit browsing component
+
+### 🎉 Success Criteria Met
+- [x] List of all available units with UnitCard integration
+- [x] Filtering by role (6 roles + all option)
+- [x] Sorting by cost, name, role, HP, attack with direction control
+- [x] Search by name with real-time filtering
+- [x] Drag source preparation for drag-and-drop team building
+- [x] Disabled units display (already in team)
+- [x] Selected unit highlighting
+- [x] Compact and full display modes
+- [x] Responsive grid layouts
+- [x] TypeScript strict compliance
+- [x] Performance optimized with memoization
+- [x] Accessibility features with keyboard support
+
+### 🚀 Ready For
+- Team builder UI integration with UnitList
+- Drag-and-drop team building workflows
+- Advanced filtering and search interfaces
+- Unit comparison and analysis tools
+- Complete team management system
+
+---
