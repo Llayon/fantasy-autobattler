@@ -42,6 +42,10 @@ export enum MatchmakingStatus {
 @Entity('matchmaking_queue')
 @Index('idx_matchmaking_status_joined', ['status', 'joinedAt'])
 @Index('idx_matchmaking_rating_status', ['rating', 'status'])
+@Index('idx_matchmaking_player_waiting', ['playerId', 'status'], { 
+  unique: true, 
+  where: "status = 'waiting'" 
+})
 export class MatchmakingQueue {
   /**
    * Unique identifier for the queue entry.

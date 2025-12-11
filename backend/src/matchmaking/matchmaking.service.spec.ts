@@ -271,6 +271,8 @@ describe('MatchmakingService', () => {
       expect(battleService.startBattle).toHaveBeenCalledWith('player-123');
       expect(mockQueueEntry.markAsMatched).toHaveBeenCalledWith('battle-123');
       expect(mockOpponent.markAsMatched).toHaveBeenCalledWith('battle-123');
+      expect(queueRepository.save).toHaveBeenCalledTimes(2);
+      expect(queueRepository.remove).toHaveBeenCalledTimes(2);
     });
 
     it('should return null when no suitable opponent found', async () => {

@@ -308,13 +308,20 @@ export class MatchmakingService {
       // Start battle simulation using BattleService
       const battleResult = await this.battleService.startBattle(player1.playerId);
 
-      // Mark queue entries as matched
+      // Mark queue entries as matched and remove from queue
       player1.markAsMatched(battleResult.battleId);
       player2.markAsMatched(battleResult.battleId);
 
+      // Save the matched status first, then remove from queue
       await Promise.all([
         this.queueRepository.save(player1),
         this.queueRepository.save(player2),
+      ]);
+
+      // Remove both players from the queue after successful match
+      await Promise.all([
+        this.queueRepository.remove(player1),
+        this.queueRepository.remove(player2),
       ]);
 
       this.logger.log(`Battle created successfully`, {
