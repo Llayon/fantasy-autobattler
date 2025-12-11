@@ -6,6 +6,7 @@ import { BattleModule } from './battle/battle.module';
 import { TeamModule } from './team/team.module';
 import { MatchmakingModule } from './matchmaking/matchmaking.module';
 import { UnitsModule } from './unit/units.module';
+import { HealthModule } from './health/health.module';
 import { Player } from './entities/player.entity';
 import { BattleLog } from './entities/battle-log.entity';
 import { Team } from './entities/team.entity';
@@ -29,6 +30,7 @@ import { MatchmakingQueue } from './entities/matchmaking-queue.entity';
     TeamModule,
     MatchmakingModule,
     UnitsModule,
+    HealthModule,
   ],
 })
 export class AppModule {}
