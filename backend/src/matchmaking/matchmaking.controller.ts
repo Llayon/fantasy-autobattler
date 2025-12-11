@@ -4,8 +4,10 @@
  */
 
 import { Controller, Post, Get, Body, UseGuards, Req, Logger, HttpCode, HttpStatus } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiSecurity, ApiBody } from '@nestjs/swagger';
 import { MatchmakingService, QueueEntry } from './matchmaking.service';
 import { GuestGuard } from '../auth/guest.guard';
+import { ErrorResponseDto } from '../common/dto/api-response.dto';
 
 /**
  * Interface for authenticated requests with player information.
@@ -79,6 +81,8 @@ export interface FindMatchResponse {
  * GET /matchmaking/status - Get current matchmaking status
  * POST /matchmaking/find - Find a match (polling endpoint)
  */
+@ApiTags('matchmaking')
+@ApiSecurity('guest-token')
 @Controller('matchmaking')
 @UseGuards(GuestGuard)
 export class MatchmakingController {
@@ -102,6 +106,79 @@ export class MatchmakingController {
    */
   @Post('join')
   @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Join matchmaking queue',
+    description: 'Adds player to matchmaking queue with selected team for ELO-based opponent matching',
+  })
+  @ApiBody({
+    description: 'Team selection for matchmaking',
+    schema: {
+      type: 'object',
+      properties: {
+        teamId: {
+          type: 'string',
+          format: 'uuid',
+          description: 'ID of the team to use for matchmaking',
+          example: '123e4567-e89b-12d3-a456-426614174000',
+        },
+      },
+      required: ['teamId'],
+    },
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Successfully joined matchmaking queue',
+    schema: {
+      type: 'object',
+      properties: {
+        id: {
+          type: 'string',
+          format: 'uuid',
+          description: 'Queue entry identifier',
+        },
+        playerId: {
+          type: 'string',
+          format: 'uuid',
+          description: 'Player identifier',
+        },
+        teamId: {
+          type: 'string',
+          format: 'uuid',
+          description: 'Team identifier',
+        },
+        rating: {
+          type: 'number',
+          description: 'Player ELO rating',
+          example: 1200,
+        },
+        joinedAt: {
+          type: 'string',
+          format: 'date-time',
+          description: 'Queue join timestamp',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid team or player already in queue',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - invalid guest token',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Player or team not found',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Player already in matchmaking queue',
+    type: ErrorResponseDto,
+  })
   async joinQueue(
     @Req() req: AuthenticatedRequest,
     @Body() body: JoinQueueRequest,
@@ -148,6 +225,34 @@ export class MatchmakingController {
    */
   @Post('leave')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Leave matchmaking queue',
+    description: 'Removes player from matchmaking queue if currently waiting for match',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully left matchmaking queue',
+    schema: {
+      type: 'object',
+      properties: {
+        success: {
+          type: 'boolean',
+          description: 'Operation success status',
+          example: true,
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - invalid guest token',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Player not found in queue',
+    type: ErrorResponseDto,
+  })
   async leaveQueue(@Req() req: AuthenticatedRequest): Promise<{ success: boolean }> {
     const playerId = req.player.id;
     
@@ -186,6 +291,82 @@ export class MatchmakingController {
    * Response: { "status": "queued", "queueEntry": {...} }
    */
   @Get('status')
+  @ApiOperation({
+    summary: 'Get matchmaking status',
+    description: 'Returns current matchmaking status: queued, matched, or not in queue',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Matchmaking status retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        status: {
+          type: 'string',
+          enum: ['queued', 'matched', 'not_in_queue'],
+          description: 'Current matchmaking status',
+          example: 'queued',
+        },
+        queueEntry: {
+          type: 'object',
+          description: 'Queue entry details (if status is queued)',
+          properties: {
+            id: {
+              type: 'string',
+              format: 'uuid',
+              description: 'Queue entry identifier',
+            },
+            teamId: {
+              type: 'string',
+              format: 'uuid',
+              description: 'Team identifier',
+            },
+            rating: {
+              type: 'number',
+              description: 'Player ELO rating',
+              example: 1200,
+            },
+            waitTime: {
+              type: 'number',
+              description: 'Time spent waiting in seconds',
+              example: 45,
+            },
+            joinedAt: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Queue join timestamp',
+            },
+          },
+        },
+        match: {
+          type: 'object',
+          description: 'Match details (if status is matched)',
+          properties: {
+            battleId: {
+              type: 'string',
+              format: 'uuid',
+              description: 'Battle identifier',
+            },
+            opponentId: {
+              type: 'string',
+              format: 'uuid',
+              description: 'Opponent player identifier',
+            },
+            ratingDifference: {
+              type: 'number',
+              description: 'ELO rating difference with opponent',
+              example: 50,
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - invalid guest token',
+    type: ErrorResponseDto,
+  })
   async getStatus(@Req() req: AuthenticatedRequest): Promise<MatchmakingStatusResponse> {
     const playerId = req.player.id;
     
@@ -250,6 +431,57 @@ export class MatchmakingController {
    */
   @Post('find')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Find match',
+    description: 'Searches for suitable opponent based on ELO rating and creates battle if match found',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Match search completed (may or may not have found opponent)',
+    schema: {
+      type: 'object',
+      properties: {
+        found: {
+          type: 'boolean',
+          description: 'Whether a match was found',
+          example: true,
+        },
+        match: {
+          type: 'object',
+          description: 'Match details (if found is true)',
+          properties: {
+            battleId: {
+              type: 'string',
+              format: 'uuid',
+              description: 'Created battle identifier',
+              example: '123e4567-e89b-12d3-a456-426614174000',
+            },
+            opponentId: {
+              type: 'string',
+              format: 'uuid',
+              description: 'Opponent player identifier',
+              example: '987fcdeb-51a2-43d1-9f6e-123456789abc',
+            },
+            ratingDifference: {
+              type: 'number',
+              description: 'ELO rating difference with opponent',
+              example: 50,
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - invalid guest token',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Player not found in queue',
+    type: ErrorResponseDto,
+  })
   async findMatch(@Req() req: AuthenticatedRequest): Promise<FindMatchResponse> {
     const playerId = req.player.id;
     

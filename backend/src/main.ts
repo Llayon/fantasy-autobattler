@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { Logger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 /**
  * Bootstrap the NestJS application.
@@ -12,6 +13,9 @@ async function bootstrap(): Promise<void> {
   
   try {
     const app = await NestFactory.create(AppModule);
+    
+    // Register global exception filter for unified error handling
+    app.useGlobalFilters(new HttpExceptionFilter());
     
     // Enable CORS for frontend communication
     app.enableCors({

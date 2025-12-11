@@ -3,13 +3,17 @@
  * Handles team CRUD operations, validation, and business logic.
  */
 
-import { Injectable, NotFoundException, BadRequestException, ConflictException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Team } from '../entities/team.entity';
 import { Player } from '../entities/player.entity';
 import { TeamValidator, CreateTeamRequest } from './team.validator';
 import { getUnitTemplate, UnitId } from '../unit/unit.data';
+import { 
+  InvalidTeamException, 
+  CannotDeleteActiveTeamException
+} from '../common/exceptions/game.exceptions';
 
 /**
  * Interface for team update requests.
@@ -61,7 +65,7 @@ export class TeamService {
    * @param teamData - Team configuration data
    * @returns Created team with enriched unit information
    * @throws NotFoundException if player is not found
-   * @throws BadRequestException if team validation fails
+   * @throws InvalidTeamException if team validation fails
    * @example
    * const team = await teamService.createTeam('player-123', {
    *   name: 'My Team',
@@ -85,7 +89,7 @@ export class TeamService {
         error: validation.error,
         teamName: teamData.name,
       });
-      throw new BadRequestException(`Team validation failed: ${validation.error}`);
+      throw new InvalidTeamException(validation.error);
     }
 
     // Create team entity
@@ -166,7 +170,7 @@ export class TeamService {
    * @param updateData - Updated team data
    * @returns Updated team with enriched information
    * @throws NotFoundException if team is not found or doesn't belong to player
-   * @throws BadRequestException if validation fails
+   * @throws InvalidTeamException if validation fails
    * @example
    * const team = await teamService.updateTeam('team-123', 'player-123', {
    *   name: 'Updated Team Name'
@@ -198,7 +202,7 @@ export class TeamService {
         this.logger.warn(`Team update validation failed for team ${teamId}`, {
           error: validation.error,
         });
-        throw new BadRequestException(`Team validation failed: ${validation.error}`);
+        throw new InvalidTeamException(validation.error);
       }
       team.totalCost = validation.data?.totalCost || 0;
     }
@@ -233,7 +237,7 @@ export class TeamService {
    * @param teamId - ID of the team to delete
    * @param playerId - ID of the requesting player
    * @throws NotFoundException if team is not found or doesn't belong to player
-   * @throws ConflictException if trying to delete the active team
+   * @throws CannotDeleteActiveTeamException if trying to delete the active team
    * @example
    * await teamService.deleteTeam('team-123', 'player-123');
    */
@@ -253,7 +257,7 @@ export class TeamService {
     // Prevent deletion of active team
     if (team.isActive) {
       this.logger.warn(`Team deletion failed: Cannot delete active team ${teamId}`);
-      throw new ConflictException('Cannot delete active team. Deactivate it first.');
+      throw new CannotDeleteActiveTeamException(teamId);
     }
 
     // Delete team
@@ -274,7 +278,7 @@ export class TeamService {
    * @param playerId - ID of the requesting player
    * @returns Activated team with enriched information
    * @throws NotFoundException if team is not found or doesn't belong to player
-   * @throws BadRequestException if team is not valid for battle
+   * @throws InvalidTeamException if team is not valid for battle
    * @example
    * const activeTeam = await teamService.activateTeam('team-123', 'player-123');
    */
@@ -294,7 +298,7 @@ export class TeamService {
     // Validate team is ready for battle
     if (!this.teamValidator.validateForBattle(team)) {
       this.logger.warn(`Team activation failed: Team ${teamId} is not valid for battle`);
-      throw new BadRequestException('Team is not valid for battle. Check unit configuration and budget.');
+      throw new InvalidTeamException('Team is not valid for battle. Check unit configuration and budget.');
     }
 
     // Deactivate all other teams for this player

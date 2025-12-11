@@ -6,11 +6,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
 import { TeamService } from './team.service';
 import { TeamValidator, CreateTeamRequest } from './team.validator';
 import { Team } from '../entities/team.entity';
 import { Player } from '../entities/player.entity';
+import { 
+  InvalidTeamException, 
+  CannotDeleteActiveTeamException 
+} from '../common/exceptions/game.exceptions';
 
 describe('TeamService', () => {
   let service: TeamService;
@@ -123,7 +127,7 @@ describe('TeamService', () => {
         .rejects.toThrow(NotFoundException);
     });
 
-    it('should throw BadRequestException if validation fails', async () => {
+    it('should throw InvalidTeamException if validation fails', async () => {
       playerRepo.findOne.mockResolvedValue(mockPlayer as Player);
       validator.validateTeam.mockReturnValue({
         valid: false,
@@ -131,7 +135,7 @@ describe('TeamService', () => {
       });
 
       await expect(service.createTeam('player-123', teamData))
-        .rejects.toThrow(BadRequestException);
+        .rejects.toThrow(InvalidTeamException);
     });
   });
 
@@ -202,7 +206,7 @@ describe('TeamService', () => {
         .rejects.toThrow(NotFoundException);
     });
 
-    it('should throw BadRequestException if validation fails', async () => {
+    it('should throw InvalidTeamException if validation fails', async () => {
       teamRepo.findOne.mockResolvedValue(mockTeam as Team);
       validator.validateTeam.mockReturnValue({
         valid: false,
@@ -210,7 +214,7 @@ describe('TeamService', () => {
       });
 
       await expect(service.updateTeam('team-123', 'player-123', updateData))
-        .rejects.toThrow(BadRequestException);
+        .rejects.toThrow(InvalidTeamException);
     });
   });
 
@@ -234,12 +238,12 @@ describe('TeamService', () => {
         .rejects.toThrow(NotFoundException);
     });
 
-    it('should throw ConflictException if trying to delete active team', async () => {
+    it('should throw CannotDeleteActiveTeamException if trying to delete active team', async () => {
       const activeTeam = { ...mockTeam, isActive: true };
       teamRepo.findOne.mockResolvedValue(activeTeam as Team);
 
       await expect(service.deleteTeam('team-123', 'player-123'))
-        .rejects.toThrow(ConflictException);
+        .rejects.toThrow(CannotDeleteActiveTeamException);
     });
   });
 
@@ -267,12 +271,12 @@ describe('TeamService', () => {
         .rejects.toThrow(NotFoundException);
     });
 
-    it('should throw BadRequestException if team not valid for battle', async () => {
+    it('should throw InvalidTeamException if team not valid for battle', async () => {
       teamRepo.findOne.mockResolvedValue(mockTeam as Team);
       validator.validateForBattle.mockReturnValue(false);
 
       await expect(service.activateTeam('team-123', 'player-123'))
-        .rejects.toThrow(BadRequestException);
+        .rejects.toThrow(InvalidTeamException);
     });
   });
 

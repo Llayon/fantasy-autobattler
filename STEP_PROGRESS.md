@@ -2378,3 +2378,137 @@ Total: 20 comprehensive DTO classes with @ApiProperty
 - Client SDK generation from OpenAPI specification
 - Advanced API documentation with examples and schemas
 - Production API documentation deployment
+
+---
+
+## Step 26: Error Handling ✅ COMPLETED
+**Date:** December 11, 2025  
+**Duration:** ~25 minutes  
+**Status:** SUCCESS
+
+### 🎯 Objectives
+- Create unified HTTP exception filter for consistent error formatting
+- Implement custom game exceptions with Russian error messages
+- Add structured logging with context and correlation IDs
+- Hide stack traces in production environment
+- Update existing services to use custom exceptions
+
+### 🔧 Changes Made
+
+#### 1. HTTP Exception Filter Implementation
+- ✅ **Global Filter**: Created `HttpExceptionFilter` registered in main.ts
+- ✅ **Unified Format**: Standardized error response with statusCode, message, error, timestamp, path
+- ✅ **Environment Awareness**: Stack traces hidden in production, shown in development
+- ✅ **Structured Logging**: Comprehensive logging with player ID, correlation ID, request context
+- ✅ **Error Classification**: Different log levels for 4xx (warn) vs 5xx (error) status codes
+
+#### 2. Custom Game Exceptions Created
+- ✅ **InvalidTeamException**: Team validation failures with specific error messages
+- ✅ **BudgetExceededException**: Team cost exceeds budget with actual vs max values
+- ✅ **MatchNotFoundException**: Matchmaking failures with player context
+- ✅ **BattleAlreadyViewedException**: Battle viewing restrictions with battle/player IDs
+- ✅ **PlayerNotInQueueException**: Queue operation failures with player context
+- ✅ **ActiveTeamConflictException**: Team activation conflicts with existing active teams
+- ✅ **CannotDeleteActiveTeamException**: Active team deletion prevention
+- ✅ **UnitNotFoundException**: Invalid unit ID references
+- ✅ **BattleSimulationException**: Battle creation and simulation failures
+
+#### 3. Service Integration Updates
+- ✅ **TeamService**: Updated to use `InvalidTeamException` and `CannotDeleteActiveTeamException`
+- ✅ **JSDoc Updates**: Updated documentation to reflect new exception types
+- ✅ **Test Updates**: Updated all test cases to expect custom exceptions instead of generic NestJS ones
+- ✅ **Error Messages**: All custom exceptions use Russian error messages for UI display
+
+#### 4. Technical Features
+- ✅ **Type Safety**: Strict TypeScript compliance with proper interfaces
+- ✅ **Logging Context**: Player ID, correlation ID, request metadata in all error logs
+- ✅ **HTTP Status Mapping**: Proper status codes for different error types
+- ✅ **Production Security**: Stack traces and sensitive data hidden in production
+- ✅ **Request Tracing**: Correlation ID support for debugging across services
+
+#### 5. Error Response Format
+```json
+{
+  "statusCode": 400,
+  "message": "Стоимость команды 35 превышает бюджет 30 очков",
+  "error": "Budget Exceeded",
+  "timestamp": "2025-12-11T14:30:00.000Z",
+  "path": "/team"
+}
+```
+
+### 📊 Exception Categories
+```
+Validation Errors (400):
+- InvalidTeamException
+- BudgetExceededException
+- CannotDeleteActiveTeamException
+
+Not Found Errors (404):
+- MatchNotFoundException
+- PlayerNotInQueueException
+- UnitNotFoundException
+
+Conflict Errors (409):
+- BattleAlreadyViewedException
+- ActiveTeamConflictException
+
+Server Errors (500):
+- BattleSimulationException
+```
+
+### 📊 Test Coverage
+```bash
+✅ 468/468 tests passing (100% pass rate)
+✅ HTTP Exception Filter: 17 comprehensive test cases
+✅ Custom Game Exceptions: 27 test cases covering all exception types
+✅ Team Service Integration: Updated 4 test cases to use custom exceptions
+✅ All existing functionality preserved with improved error handling
+```
+
+### 📊 Validation Results
+```bash
+✅ npm run build - SUCCESS (clean compilation)
+✅ npm test - SUCCESS (468/468 tests pass)
+✅ TypeScript strict mode compliance
+✅ Global exception filter registered and working
+✅ Custom exceptions properly integrated
+✅ Russian error messages for UI display
+✅ Structured logging with context
+✅ Production security features working
+```
+
+### 📝 Files Created
+- `backend/src/common/filters/http-exception.filter.ts` - **NEW** global exception filter
+- `backend/src/common/filters/http-exception.filter.spec.ts` - **NEW** comprehensive test suite
+- `backend/src/common/exceptions/game.exceptions.ts` - **NEW** custom game exceptions
+- `backend/src/common/exceptions/game.exceptions.spec.ts` - **NEW** complete test coverage
+
+### 📝 Files Modified
+- `backend/src/main.ts` - **UPDATED** registered global exception filter
+- `backend/src/team/team.service.ts` - **UPDATED** uses custom exceptions
+- `backend/src/team/team.service.spec.ts` - **UPDATED** tests expect custom exceptions
+
+### 🎉 Success Criteria Met
+- [x] Unified error response format across all endpoints
+- [x] Custom game exceptions with Russian error messages
+- [x] Structured logging with player and correlation context
+- [x] Stack trace hiding in production environment
+- [x] Global exception filter registered and working
+- [x] Service integration with custom exceptions
+- [x] Comprehensive test coverage with all tests passing
+- [x] TypeScript strict compliance maintained
+- [x] Production security features implemented
+- [x] Error classification by HTTP status codes
+
+### 🚀 Ready For
+- Step 27: Frontend Error Handling Integration
+- User-friendly error display components
+- API error handling in frontend store
+- Error boundary implementation
+- Advanced error tracking and monitoring
+
+---
+
+## Next Steps
+Ready to proceed to **Step 27: Frontend Integration** from the AI Development Plan.
