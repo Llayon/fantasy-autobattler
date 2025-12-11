@@ -10,9 +10,13 @@ import { TeamService } from './team.service';
 import { TeamValidator } from './team.validator';
 import { Team } from '../entities/team.entity';
 import { Player } from '../entities/player.entity';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Team, Player])],
+  imports: [
+    TypeOrmModule.forFeature([Team, Player]),
+    AuthModule, // Import AuthModule for GuestGuard
+  ],
   controllers: [TeamController],
   providers: [TeamService, TeamValidator],
   exports: [TeamService, TeamValidator],
