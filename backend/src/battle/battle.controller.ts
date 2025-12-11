@@ -44,6 +44,6 @@ export class BattleController {
    */
   @Get()
   async getMyBattles(@Req() req: AuthenticatedRequest) {
-    return this.battleService.getPlayerBattles(req.player.id);
+    return this.battleService.getBattlesForPlayer(req.player.id);
   }
 }

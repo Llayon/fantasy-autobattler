@@ -6,6 +6,7 @@ import { Player } from '../entities/player.entity';
 import { Team } from '../entities/team.entity';
 import { simulateBattle, TeamSetup } from './battle.simulator';
 import { generateRandomTeam, getUnitTemplate, UnitId } from '../unit/unit.data';
+import { generateBotTeam } from './bot-generator';
 import { GAMEPLAY_VALUES, DEPLOYMENT_ZONES, GRID_DIMENSIONS, TEAM_LIMITS } from '../config/game.constants';
 import { Position } from '../types/game.types';
 
@@ -470,30 +471,30 @@ export class BattleService {
   }
 
   /**
-   * Generate bot team based on difficulty level.
-   * Creates balanced teams with varying strength based on difficulty.
+   * Generate bot team based on difficulty level using advanced bot generator.
+   * Creates intelligent teams with role-based strategies and optimal positioning.
    * 
-   * @param difficulty - Bot difficulty level
-   * @returns TeamSetup with bot units and positions
+   * @param difficulty - Bot difficulty level affecting strategy and budget
+   * @returns TeamSetup with bot units and strategic positions
    * @example
    * const botTeam = this.generateBotTeam('hard');
    */
   private generateBotTeam(difficulty: 'easy' | 'medium' | 'hard'): TeamSetup {
-    // Adjust budget based on difficulty
-    const budgetMultipliers = {
-      easy: 0.7,    // 21 points (70% of player budget)
-      medium: 0.85, // 25.5 points (85% of player budget)
-      hard: 1.0,    // 30 points (100% of player budget)
-    };
-
-    const botBudget = Math.floor(TEAM_LIMITS.BUDGET * budgetMultipliers[difficulty]);
+    // Generate deterministic seed for bot team
+    const seed = this.generateBotSeed(difficulty);
     
-    // Generate random team within budget
-    const botUnitIds = generateRandomTeam(botBudget);
+    // Use advanced bot generator with intelligent strategies
+    const botTeamSetup = generateBotTeam(difficulty, undefined, seed);
     
-    this.logger.debug(`Generated ${difficulty} bot team with ${botBudget} budget: ${botUnitIds.join(', ')}`);
+    this.logger.debug(`Generated ${difficulty} bot team`, {
+      difficulty,
+      unitCount: botTeamSetup.units.length,
+      units: botTeamSetup.units.map(u => u.id).join(', '),
+      totalCost: botTeamSetup.units.reduce((sum, unit) => sum + unit.cost, 0),
+      seed,
+    });
     
-    return this.createTeamSetup(botUnitIds, 'bot');
+    return botTeamSetup;
   }
 
   /**
@@ -553,6 +554,30 @@ export class BattleService {
     // Create a hash from player ID and team compositions
     let hash = 0;
     const input = `${playerId}-${playerTeam.join(',')}-${botTeam.join(',')}-${Date.now()}`;
+    
+    for (let i = 0; i < input.length; i++) {
+      const char = input.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    
+    return Math.abs(hash);
+  }
+
+  /**
+   * Generate a deterministic seed for bot team generation.
+   * Creates a reproducible seed based on difficulty and current time.
+   * 
+   * @param difficulty - Bot difficulty level
+   * @returns Deterministic seed number for bot generation
+   * @example
+   * const seed = this.generateBotSeed('hard');
+   */
+  private generateBotSeed(difficulty: 'easy' | 'medium' | 'hard'): number {
+    // Create a hash from difficulty and current time (rounded to hour for some consistency)
+    let hash = 0;
+    const hourlyTimestamp = Math.floor(Date.now() / (1000 * 60 * 60)); // Round to hour
+    const input = `bot-${difficulty}-${hourlyTimestamp}`;
     
     for (let i = 0; i < input.length; i++) {
       const char = input.charCodeAt(i);
