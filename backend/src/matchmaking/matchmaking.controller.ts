@@ -3,8 +3,8 @@
  * Handles HTTP requests for player queue management and matchmaking.
  */
 
-import { Controller, Post, Delete, Get, Body, UseGuards, Req, Logger } from '@nestjs/common';
-import { MatchmakingService, QueueEntry, Match } from './matchmaking.service';
+import { Controller, Post, Get, Body, UseGuards, Req, Logger, HttpCode, HttpStatus } from '@nestjs/common';
+import { MatchmakingService, QueueEntry } from './matchmaking.service';
 import { GuestGuard } from '../auth/guest.guard';
 
 /**
@@ -29,18 +29,43 @@ export interface JoinQueueRequest {
 }
 
 /**
- * Interface for queue statistics response.
+ * Matchmaking status enumeration.
  */
-export interface QueueStatsResponse {
-  /** Number of players currently waiting */
-  waitingPlayers: number;
-  /** Average wait time in milliseconds */
-  averageWaitTime: number;
-  /** Rating distribution statistics */
-  ratingDistribution: {
-    min: number;
-    max: number;
-    average: number;
+export type MatchmakingStatusType = 'queued' | 'matched' | 'not_in_queue';
+
+/**
+ * Interface for matchmaking status response.
+ */
+export interface MatchmakingStatusResponse {
+  /** Current matchmaking status */
+  status: MatchmakingStatusType;
+  /** Queue entry details if in queue */
+  queueEntry?: {
+    id: string;
+    teamId: string;
+    rating: number;
+    waitTime: number;
+    joinedAt: Date;
+  };
+  /** Match details if matched */
+  match?: {
+    battleId: string;
+    opponentId: string;
+    ratingDifference: number;
+  };
+}
+
+/**
+ * Interface for find match response.
+ */
+export interface FindMatchResponse {
+  /** Match found status */
+  found: boolean;
+  /** Match details if found */
+  match?: {
+    battleId: string;
+    opponentId: string;
+    ratingDifference: number;
   };
 }
 
@@ -49,10 +74,10 @@ export interface QueueStatsResponse {
  * Provides REST API endpoints for joining/leaving queue and finding matches.
  * 
  * @example
- * POST /matchmaking/queue - Join matchmaking queue
- * DELETE /matchmaking/queue - Leave matchmaking queue
- * GET /matchmaking/find - Find a match for current player
- * GET /matchmaking/stats - Get queue statistics
+ * POST /matchmaking/join - Join matchmaking queue
+ * POST /matchmaking/leave - Leave matchmaking queue
+ * GET /matchmaking/status - Get current matchmaking status
+ * POST /matchmaking/find - Find a match (polling endpoint)
  */
 @Controller('matchmaking')
 @UseGuards(GuestGuard)
@@ -71,11 +96,12 @@ export class MatchmakingController {
    * @throws NotFoundException if player or team not found
    * @throws ConflictException if player already in queue
    * @example
-   * POST /matchmaking/queue
+   * POST /matchmaking/join
    * Body: { "teamId": "team-123" }
    * Response: { "id": "queue-456", "playerId": "player-123", ... }
    */
-  @Post('queue')
+  @Post('join')
+  @HttpCode(HttpStatus.OK)
   async joinQueue(
     @Req() req: AuthenticatedRequest,
     @Body() body: JoinQueueRequest,
@@ -114,13 +140,15 @@ export class MatchmakingController {
    * Removes the player from queue if they are currently waiting.
    * 
    * @param req - Authenticated request with player information
+   * @returns Success confirmation
    * @throws NotFoundException if player not in queue
    * @example
-   * DELETE /matchmaking/queue
-   * Response: 204 No Content
+   * POST /matchmaking/leave
+   * Response: { "success": true }
    */
-  @Delete('queue')
-  async leaveQueue(@Req() req: AuthenticatedRequest): Promise<void> {
+  @Post('leave')
+  @HttpCode(HttpStatus.OK)
+  async leaveQueue(@Req() req: AuthenticatedRequest): Promise<{ success: boolean }> {
     const playerId = req.player.id;
     
     this.logger.log(`Player leaving matchmaking queue`, {
@@ -135,6 +163,8 @@ export class MatchmakingController {
         playerId,
         correlationId: req.correlationId,
       });
+
+      return { success: true };
     } catch (error) {
       this.logger.error(`Failed to leave queue`, {
         playerId,
@@ -146,18 +176,81 @@ export class MatchmakingController {
   }
 
   /**
-   * Find a match for the current player.
+   * Get current matchmaking status for the player.
+   * Returns whether player is queued, matched, or not in queue.
+   * 
+   * @param req - Authenticated request with player information
+   * @returns Current matchmaking status with details
+   * @example
+   * GET /matchmaking/status
+   * Response: { "status": "queued", "queueEntry": {...} }
+   */
+  @Get('status')
+  async getStatus(@Req() req: AuthenticatedRequest): Promise<MatchmakingStatusResponse> {
+    const playerId = req.player.id;
+    
+    this.logger.debug(`Getting matchmaking status for player`, {
+      playerId,
+      correlationId: req.correlationId,
+    });
+
+    try {
+      // Check if player has an active queue entry
+      const queueEntry = await this.matchmakingService.getPlayerQueueEntry(playerId);
+      
+      if (!queueEntry) {
+        return { status: 'not_in_queue' };
+      }
+
+      // Check if player has been matched
+      if (queueEntry.status === 'matched' && queueEntry.matchId) {
+        return {
+          status: 'matched',
+          match: {
+            battleId: queueEntry.matchId,
+            opponentId: 'unknown', // Would need additional query to get opponent
+            ratingDifference: 0, // Would need additional data
+          },
+        };
+      }
+
+      // Player is waiting in queue
+      return {
+        status: 'queued',
+        queueEntry: {
+          id: queueEntry.id,
+          teamId: queueEntry.teamId,
+          rating: queueEntry.rating,
+          waitTime: queueEntry.waitTime,
+          joinedAt: queueEntry.joinedAt,
+        },
+      };
+    } catch (error) {
+      this.logger.error(`Failed to get matchmaking status`, {
+        playerId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        correlationId: req.correlationId,
+      });
+      
+      // If there's an error, assume not in queue
+      return { status: 'not_in_queue' };
+    }
+  }
+
+  /**
+   * Find a match for the current player (polling endpoint).
    * Searches for suitable opponents based on ELO rating and wait time.
    * 
    * @param req - Authenticated request with player information
-   * @returns Match information if opponent found, null otherwise
+   * @returns Match information if opponent found
    * @throws NotFoundException if player not in queue
    * @example
-   * GET /matchmaking/find
-   * Response: { "player1": {...}, "player2": {...}, "battleId": "battle-789" }
+   * POST /matchmaking/find
+   * Response: { "found": true, "match": { "battleId": "battle-789", ... } }
    */
-  @Get('find')
-  async findMatch(@Req() req: AuthenticatedRequest): Promise<Match | null> {
+  @Post('find')
+  @HttpCode(HttpStatus.OK)
+  async findMatch(@Req() req: AuthenticatedRequest): Promise<FindMatchResponse> {
     const playerId = req.player.id;
     
     this.logger.debug(`Finding match for player`, {
@@ -176,14 +269,23 @@ export class MatchmakingController {
           ratingDifference: match.ratingDifference,
           correlationId: req.correlationId,
         });
+
+        return {
+          found: true,
+          match: {
+            battleId: match.battleId,
+            opponentId: match.player2.playerId,
+            ratingDifference: match.ratingDifference,
+          },
+        };
       } else {
         this.logger.debug(`No match found for player`, {
           playerId,
           correlationId: req.correlationId,
         });
-      }
 
-      return match;
+        return { found: false };
+      }
     } catch (error) {
       this.logger.error(`Failed to find match`, {
         playerId,
@@ -194,72 +296,4 @@ export class MatchmakingController {
     }
   }
 
-  /**
-   * Get current matchmaking queue statistics.
-   * Provides information about queue size, wait times, and rating distribution.
-   * 
-   * @param req - Authenticated request with player information
-   * @returns Queue statistics
-   * @example
-   * GET /matchmaking/stats
-   * Response: { "waitingPlayers": 5, "averageWaitTime": 30000, ... }
-   */
-  @Get('stats')
-  async getQueueStats(@Req() req: AuthenticatedRequest): Promise<QueueStatsResponse> {
-    this.logger.debug(`Retrieving queue statistics`, {
-      correlationId: req.correlationId,
-    });
-
-    try {
-      const stats = await this.matchmakingService.getQueueStats();
-      
-      this.logger.debug(`Queue statistics retrieved`, {
-        waitingPlayers: stats.waitingPlayers,
-        averageWaitTime: stats.averageWaitTime,
-        correlationId: req.correlationId,
-      });
-
-      return stats;
-    } catch (error) {
-      this.logger.error(`Failed to retrieve queue statistics`, {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        correlationId: req.correlationId,
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * Clean up expired queue entries (admin endpoint).
-   * Removes entries that have been waiting longer than the timeout.
-   * 
-   * @param req - Authenticated request with player information
-   * @returns Number of entries cleaned up
-   * @example
-   * POST /matchmaking/cleanup
-   * Response: { "cleanedEntries": 3 }
-   */
-  @Post('cleanup')
-  async cleanupExpiredEntries(@Req() req: AuthenticatedRequest): Promise<{ cleanedEntries: number }> {
-    this.logger.log(`Cleaning up expired queue entries`, {
-      correlationId: req.correlationId,
-    });
-
-    try {
-      const cleanedEntries = await this.matchmakingService.cleanupExpiredEntries();
-      
-      this.logger.log(`Queue cleanup completed`, {
-        cleanedEntries,
-        correlationId: req.correlationId,
-      });
-
-      return { cleanedEntries };
-    } catch (error) {
-      this.logger.error(`Failed to cleanup expired entries`, {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        correlationId: req.correlationId,
-      });
-      throw error;
-    }
-  }
 }

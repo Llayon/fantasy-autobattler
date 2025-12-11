@@ -349,6 +349,33 @@ export class MatchmakingService {
   }
 
   /**
+   * Get player's current queue entry if they are in queue.
+   * 
+   * @param playerId - ID of the player to check
+   * @returns Queue entry with match info if player is in queue, null otherwise
+   * @example
+   * const entry = await matchmakingService.getPlayerQueueEntry('player-123');
+   * if (entry) console.log(`Player is ${entry.status}`);
+   */
+  async getPlayerQueueEntry(playerId: string): Promise<(QueueEntry & { matchId?: string }) | null> {
+    this.logger.debug(`Getting queue entry for player`, { playerId });
+
+    const queueEntry = await this.queueRepository.findOne({
+      where: { playerId },
+      order: { createdAt: 'DESC' }, // Get most recent entry
+    });
+
+    if (!queueEntry) {
+      return null;
+    }
+
+    const baseEntry = this.mapToQueueEntry(queueEntry);
+    return queueEntry.matchId 
+      ? { ...baseEntry, matchId: queueEntry.matchId }
+      : baseEntry;
+  }
+
+  /**
    * Get current queue status and statistics.
    * 
    * @returns Queue statistics
