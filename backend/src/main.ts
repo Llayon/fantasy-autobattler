@@ -3,6 +3,7 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
 /**
  * Bootstrap the NestJS application.
@@ -16,6 +17,9 @@ async function bootstrap(): Promise<void> {
     
     // Register global exception filter for unified error handling
     app.useGlobalFilters(new HttpExceptionFilter());
+    
+    // Register global logging interceptor for request tracing
+    app.useGlobalInterceptors(new LoggingInterceptor());
     
     // Enable global validation with class-validator
     app.useGlobalPipes(new ValidationPipe({
