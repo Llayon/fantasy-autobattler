@@ -337,7 +337,7 @@ describe('TeamValidator', () => {
     });
   });
 
-  describe('Integration Tests', () => {
+  describe('Edge Cases and Additional Tests', () => {
     it('should validate maximum budget team', () => {
       const team: CreateTeamDto = {
         name: 'Max Budget Team',
@@ -375,6 +375,126 @@ describe('TeamValidator', () => {
       expect(result.valid).toBe(true);
       expect(result.data?.unitCount).toBe(6);
       expect(result.data?.totalCost).toBe(28);
+    });
+
+    it('should handle position validation with null/undefined positions', () => {
+      const positions: any[] = [
+        null,
+        undefined,
+        { x: 0, y: 0 },
+      ];
+
+      const result = validator.validatePositions(positions);
+
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('числовые координаты');
+    });
+
+    it('should validate positions at exact grid boundaries', () => {
+      const positions: Position[] = [
+        { x: 0, y: 0 }, // Min valid
+        { x: 7, y: 1 }, // Max valid
+      ];
+
+      const result = validator.validatePositions(positions);
+
+      expect(result.valid).toBe(true);
+    });
+
+    it('should reject positions at invalid boundaries', () => {
+      const positions: Position[] = [
+        { x: 8, y: 0 }, // x too high (max is 7)
+      ];
+
+      const result = validator.validatePositions(positions);
+
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('за пределами поля');
+    });
+
+    it('should validate budget with single expensive unit', () => {
+      const units: UnitSelection[] = [
+        { unitId: 'elementalist', position: { x: 0, y: 0 } }, // 8 points (most expensive)
+      ];
+
+      const result = validator.validateTeamBudget(units);
+
+      expect(result.valid).toBe(true);
+      expect(result.totalCost).toBe(8);
+    });
+
+    it('should validate budget with many cheap units', () => {
+      const units: UnitSelection[] = [
+        { unitId: 'priest', position: { x: 0, y: 0 } }, // 4 points
+        { unitId: 'archer', position: { x: 1, y: 0 } }, // 4 points
+        { unitId: 'bard', position: { x: 2, y: 0 } }, // 5 points
+        { unitId: 'knight', position: { x: 3, y: 0 } }, // 5 points
+        { unitId: 'crossbowman', position: { x: 4, y: 0 } }, // 5 points
+        { unitId: 'rogue', position: { x: 5, y: 0 } }, // 5 points
+      ]; // Total: 28 points (7 units under budget)
+
+      const result = validator.validateTeamBudget(units);
+
+      expect(result.valid).toBe(true);
+      expect(result.totalCost).toBe(28);
+    });
+
+    it('should handle duplicate validation with case sensitivity', () => {
+      const unitIds = ['knight', 'Knight', 'KNIGHT']; // Different cases
+
+      const result = validator.validateNoDuplicateUnits(unitIds);
+
+      // Should be valid since unit IDs are case-sensitive
+      expect(result.valid).toBe(true);
+    });
+
+    it('should validate team name with whitespace trimming', () => {
+      const team: CreateTeamDto = {
+        name: '  Valid Team Name  ', // Leading/trailing spaces
+        units: [
+          { unitId: 'knight', position: { x: 0, y: 0 } },
+        ],
+      };
+
+      const result = validator.validateTeam(team);
+
+      expect(result.valid).toBe(true);
+    });
+
+    it('should reject team name with only whitespace', () => {
+      const team: CreateTeamDto = {
+        name: '   ', // Only spaces
+        units: [
+          { unitId: 'knight', position: { x: 0, y: 0 } },
+        ],
+      };
+
+      const result = validator.validateTeam(team);
+
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('Название команды обязательно');
+    });
+
+    it('should validate positions with floating point coordinates', () => {
+      const positions: Position[] = [
+        { x: 0.5, y: 0.5 }, // Floating point numbers
+      ];
+
+      const result = validator.validatePositions(positions);
+
+      // Should be valid since they're still numbers within bounds
+      expect(result.valid).toBe(true);
+    });
+
+    it('should handle very large position coordinates', () => {
+      const positions: Position[] = [
+        { x: 999999, y: 999999 }, // Very large numbers
+      ];
+
+      const result = validator.validatePositions(positions);
+
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('за пределами поля');
     });
   });
 });

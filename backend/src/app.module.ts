@@ -7,6 +7,7 @@ import { TeamModule } from './team/team.module';
 import { Player } from './entities/player.entity';
 import { BattleLog } from './entities/battle-log.entity';
 import { Team } from './entities/team.entity';
+import { MatchmakingQueue } from './entities/matchmaking-queue.entity';
 
 @Module({
   imports: [
@@ -17,7 +18,7 @@ import { Team } from './entities/team.entity';
       username: 'postgres',
       password: 'postgres',
       database: 'autobattler',
-      entities: [Player, BattleLog, Team],
+      entities: [Player, BattleLog, Team, MatchmakingQueue],
       synchronize: true, // Auto-create tables (dev only)
     }),
     AuthModule,

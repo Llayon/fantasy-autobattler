@@ -238,8 +238,16 @@ export const MATCHMAKING_CONSTANTS = {
   MAX_ELO: 2400,
   /** ELO K-factor for rating changes */
   ELO_K_FACTOR: 32,
-  /** Maximum matchmaking queue wait time in seconds */
-  MAX_QUEUE_TIME_SECONDS: 60,
+  /** Maximum matchmaking queue wait time in minutes */
+  MAX_QUEUE_TIME_MINUTES: 5,
+  /** Maximum rating difference for matchmaking */
+  MAX_RATING_DIFFERENCE: 200,
+  /** Rating difference expansion per minute waiting */
+  RATING_EXPANSION_PER_MINUTE: 50,
+  /** Minimum players needed for matchmaking */
+  MIN_PLAYERS_FOR_MATCH: 2,
+  /** Queue cleanup interval in minutes */
+  QUEUE_CLEANUP_INTERVAL_MINUTES: 1,
 } as const;
 
 // =============================================================================

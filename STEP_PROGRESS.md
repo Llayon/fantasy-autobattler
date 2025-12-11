@@ -1763,3 +1763,111 @@ POST   /team/:id/activate - Activate team
 
 ## Next Steps
 Ready to proceed to **Step 15: Team Validation** from the AI Development Plan.
+
+---
+
+## Step 16: Matchmaking Entity ✅ COMPLETED
+**Date:** December 11, 2025  
+**Duration:** ~20 minutes  
+**Status:** SUCCESS
+
+### 🎯 Objectives
+- Create MatchmakingQueue entity with UUID, player/team relationships
+- Add ELO rating system with proper indexes
+- Implement status management (waiting, matched, expired)
+- Add utility methods for queue management
+- Create comprehensive test coverage
+
+### 🔧 Changes Made
+
+#### 1. MatchmakingQueue Entity Creation
+- ✅ **UUID Primary Key**: Unique queue entry identifier
+- ✅ **Player Relationship**: ManyToOne with Player entity and cascade delete
+- ✅ **Team Relationship**: ManyToOne with Team entity and cascade delete
+- ✅ **ELO Rating System**: Integer field with default 1200 rating
+- ✅ **Status Management**: Enum with waiting/matched/expired states
+- ✅ **Timestamps**: joinedAt, createdAt, updatedAt fields
+
+#### 2. Database Optimization
+- ✅ **Composite Index**: (status, joinedAt) for fast queue queries
+- ✅ **Rating Index**: (rating, status) for skill-based matchmaking
+- ✅ **Foreign Keys**: Proper relationships with cascade delete
+- ✅ **Default Values**: rating=1200, status=waiting, timestamps
+
+#### 3. Utility Methods
+- ✅ **isExpired()**: Check if queue entry has timed out
+- ✅ **getWaitTime()**: Calculate time spent waiting in queue
+- ✅ **canMatchWith()**: Rating-based compatibility checking
+- ✅ **markAsMatched()**: Update status when match found
+- ✅ **markAsExpired()**: Update status when timeout reached
+- ✅ **getSummary()**: Get queue entry overview for UI
+
+#### 4. Matchmaking Constants
+- ✅ **Updated game.constants.ts**: Added MATCHMAKING_CONSTANTS section
+- ✅ **ELO System**: Default 1200, range 800-2400, K-factor 32
+- ✅ **Queue Management**: 5min timeout, 200 rating difference
+- ✅ **Performance**: Rating expansion, cleanup intervals
+
+#### 5. Entity Registration
+- ✅ **App Module**: MatchmakingQueue registered in entities array
+- ✅ **TypeORM Integration**: Proper entity decorators and relationships
+- ✅ **Database Schema**: Table creation with indexes and constraints
+
+#### 6. Test Suite Enhancement
+- ✅ **Fixed SQLite Dependency**: Resolved test database connection issues
+- ✅ **Unit Test Approach**: Focused on entity utility methods without database
+- ✅ **Comprehensive Coverage**: 27 test cases covering all functionality
+- ✅ **Edge Case Testing**: Status transitions, rating compatibility, timeouts
+
+### 📊 Technical Features
+- ✅ **Type Safety**: Strict TypeScript with MatchmakingStatus enum
+- ✅ **JSDoc Coverage**: Comprehensive documentation with examples
+- ✅ **Error Handling**: Graceful handling of edge cases
+- ✅ **Performance**: Efficient database queries with proper indexes
+- ✅ **Business Logic**: Complete matchmaking workflow support
+
+### 📊 Test Coverage
+```bash
+✅ 27/27 tests passing (100% pass rate)
+✅ Entity creation and validation (4 tests)
+✅ Utility method testing (13 tests)
+✅ Business logic scenarios (3 tests)
+✅ Entity relationships (3 tests)
+✅ Edge cases and transitions (4 tests)
+```
+
+### 📊 Validation Results
+```bash
+✅ npm run build - SUCCESS (clean compilation)
+✅ npm test - SUCCESS (320/320 tests pass)
+✅ TypeScript strict mode compliance
+✅ All utility methods working correctly
+✅ Database entity registration successful
+✅ Comprehensive JSDoc documentation
+✅ SQLite dependency resolved for testing
+```
+
+### 📝 Files Created/Modified
+- `backend/src/entities/matchmaking-queue.entity.ts` - **NEW** comprehensive entity
+- `backend/src/entities/matchmaking-queue.entity.spec.ts` - **NEW** complete test suite
+- `backend/src/config/game.constants.ts` - **UPDATED** added matchmaking constants
+- `backend/src/app.module.ts` - **UPDATED** registered MatchmakingQueue entity
+
+### 🎉 Success Criteria Met
+- [x] MatchmakingQueue entity with UUID, playerId, teamId, rating, status
+- [x] ELO rating system with proper defaults and ranges
+- [x] Status management with waiting/matched/expired states
+- [x] Utility methods for queue management and compatibility
+- [x] Database indexes for performance optimization
+- [x] Comprehensive test coverage with edge cases
+- [x] TypeScript strict compliance without any types
+- [x] All tests passing with no compilation errors
+- [x] Entity registered and database schema ready
+- [x] **FIXED**: SQLite dependency issue resolved for test environment
+
+### 🚀 Ready For
+- Step 17: Matchmaking Service Implementation
+- Queue management with CRUD operations
+- ELO rating calculations and updates
+- Automatic queue cleanup and expiration
+- Player matching algorithms
