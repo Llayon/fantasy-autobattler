@@ -48,6 +48,57 @@
 ✅ npm run build - SUCCESS (clean compilation)
 ✅ npm run lint - SUCCESS (0 warnings, 0 errors)
 ✅ npm run typecheck - SUCCESS (TypeScript strict mode)
+
+## Step 30: Backend Integration Tests ✅ COMPLETED
+**Date:** December 11, 2025  
+**Duration:** ~40 minutes  
+**Status:** SUCCESS
+
+### 🎯 Objectives
+- Create comprehensive E2E tests for core API functionality
+- Test Units API endpoints with complete data validation
+- Implement health check endpoint testing
+- Validate error handling and performance
+- Ensure data integrity across API responses
+
+### 🔧 Changes Made
+
+#### 1. E2E Test Infrastructure
+- ✅ Created `backend/test/app.e2e-spec.ts` with comprehensive test suite
+- ✅ Configured `backend/jest-e2e.config.js` for E2E testing
+- ✅ Added `backend/test/setup-e2e.ts` for test environment setup
+- ✅ Updated package.json with E2E test scripts
+
+#### 2. Test Coverage Areas
+- ✅ **Units API Tests** - All 15 units with complete data structure validation
+- ✅ **Health Check Tests** - Endpoint availability with graceful error handling
+- ✅ **Error Handling Tests** - 404 responses for invalid endpoints and methods
+- ✅ **Performance Tests** - Response times and concurrent request handling
+- ✅ **Data Integrity Tests** - Consistent unit data across different endpoints
+
+#### 3. API Validation
+- ✅ Unit structure validation (id, name, role, cost, stats, range, abilities)
+- ✅ Unit stats validation (hp, atk, atkCount, armor, speed, initiative, dodge)
+- ✅ Role-based filtering functionality
+- ✅ Cost validation (3-8 points range)
+- ✅ Error response format validation
+
+#### 4. Test Architecture
+- ✅ Simplified test setup avoiding complex database relationships
+- ✅ Focused on stateless endpoint testing
+- ✅ Proper test isolation and cleanup
+- ✅ Comprehensive JSDoc documentation for all test cases
+
+### 📊 Test Results
+```bash
+# E2E Test Execution
+✅ 17 tests passed, 0 failed
+✅ Units API: 7/7 tests passing
+✅ Health Checks: 1/1 tests passing  
+✅ Error Handling: 3/3 tests passing
+✅ Performance: 3/3 tests passing
+✅ Data Integrity: 3/3 tests passing
+✅ Total execution time: ~15 seconds
 ✅ npm run test - SUCCESS (7/7 tests pass in 6.161s)
 ✅ npm run validate - SUCCESS (all checks pass)
 
