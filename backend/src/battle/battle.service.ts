@@ -1,10 +1,10 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { BattleLog } from '../entities/battle-log.entity';
+import { BattleLog, BattleStatus } from '../entities/battle-log.entity';
 import { Player } from '../entities/player.entity';
 import { simulateBattle, TeamSetup } from './battle.simulator';
-import { UnitType, generateRandomTeam, getUnitTemplate, UnitId } from '../unit/unit.data';
+import { generateRandomTeam, getUnitTemplate, UnitId } from '../unit/unit.data';
 import { GAMEPLAY_VALUES, DEPLOYMENT_ZONES, GRID_DIMENSIONS, TEAM_LIMITS } from '../config/game.constants';
 import { Position } from '../types/game.types';
 
@@ -45,7 +45,7 @@ export class BattleService {
     }
 
     // Convert legacy player team to new format
-    const legacyPlayerTeam = player.team as UnitType[];
+    const legacyPlayerTeam = player.team as string[];
     const playerTeamSetup = this.convertLegacyTeamToSetup(legacyPlayerTeam, 'player');
     
     // Generate bot team using new system
@@ -59,6 +59,16 @@ export class BattleService {
     
     const result = simulateBattle(playerTeamSetup, botTeamSetup, seed);
 
+    // Map winner from simulation result to new format
+    let winner: 'player1' | 'player2' | 'draw' | undefined;
+    if (result.winner === 'player') {
+      winner = 'player1';
+    } else if (result.winner === 'bot') {
+      winner = 'player2';
+    } else if (result.winner === 'draw') {
+      winner = 'draw';
+    }
+
     // Update player stats
     if (result.winner === 'player') {
       await this.playerRepo.increment({ id: playerId }, 'wins', 1);
@@ -66,19 +76,112 @@ export class BattleService {
       await this.playerRepo.increment({ id: playerId }, 'losses', 1);
     }
 
-    // Store battle with legacy format for compatibility
+    // Store battle with new PvP format
     const battleLog = this.battleRepo.create({
-      playerId,
-      playerTeam: legacyPlayerTeam,
-      botTeam: botUnitIds,
+      player1Id: playerId,
+      player2Id: 'bot', // For now, bot battles use 'bot' as player2Id
+      player1TeamSnapshot: playerTeamSetup,
+      player2TeamSnapshot: botTeamSetup,
+      seed,
       events: result.events,
-      winner: result.winner,
+      ...(winner && { winner }),
+      rounds: result.metadata.totalRounds,
+      status: BattleStatus.SIMULATED,
     });
     await this.battleRepo.save(battleLog);
 
     this.logger.log(`Battle completed`, {
       battleId: battleLog.id,
       playerId,
+      winner: result.winner,
+      rounds: result.metadata.totalRounds,
+      durationMs: result.metadata.durationMs,
+    });
+
+    return { battleId: battleLog.id };
+  }
+
+  /**
+   * Start a new PvP battle between two players.
+   * Simulates the battle and stores the result.
+   * 
+   * @param player1Id - ID of the first player
+   * @param player2Id - ID of the second player
+   * @returns Object containing the battle ID
+   * @throws NotFoundException when either player is not found
+   * @example
+   * const result = await battleService.startPvPBattle('player-123', 'player-456');
+   * console.log(result.battleId); // 'battle-789'
+   */
+  async startPvPBattle(player1Id: string, player2Id: string) {
+    this.logger.log(`Starting PvP battle between ${player1Id} and ${player2Id}`);
+
+    // Fetch both players
+    const [player1, player2] = await Promise.all([
+      this.playerRepo.findOne({ where: { id: player1Id } }),
+      this.playerRepo.findOne({ where: { id: player2Id } })
+    ]);
+
+    if (!player1) {
+      this.logger.warn(`PvP battle start failed: Player1 ${player1Id} not found`);
+      throw new NotFoundException('Player1 not found');
+    }
+
+    if (!player2) {
+      this.logger.warn(`PvP battle start failed: Player2 ${player2Id} not found`);
+      throw new NotFoundException('Player2 not found');
+    }
+
+    // Convert both player teams to new format
+    const player1Team = player1.team as string[];
+    const player2Team = player2.team as string[];
+    const player1TeamSetup = this.convertLegacyTeamToSetup(player1Team, 'player');
+    const player2TeamSetup = this.convertLegacyTeamToSetup(player2Team, 'bot');
+
+    this.logger.debug(`PvP battle teams - Player1: ${player1Team.join(', ')}, Player2: ${player2Team.join(', ')}`);
+
+    // Generate deterministic seed for battle
+    const seed = this.generateBattleSeed(`${player1Id}-${player2Id}`, player1Team, player2Team);
+    
+    const result = simulateBattle(player1TeamSetup, player2TeamSetup, seed);
+
+    // Map winner from simulation result to new format
+    let winner: 'player1' | 'player2' | 'draw' | undefined;
+    if (result.winner === 'player') {
+      winner = 'player1';
+    } else if (result.winner === 'bot') {
+      winner = 'player2';
+    } else if (result.winner === 'draw') {
+      winner = 'draw';
+    }
+
+    // Update player stats
+    if (result.winner === 'player') {
+      await this.playerRepo.increment({ id: player1Id }, 'wins', 1);
+      await this.playerRepo.increment({ id: player2Id }, 'losses', 1);
+    } else if (result.winner === 'bot') {
+      await this.playerRepo.increment({ id: player1Id }, 'losses', 1);
+      await this.playerRepo.increment({ id: player2Id }, 'wins', 1);
+    }
+
+    // Store PvP battle
+    const battleLog = this.battleRepo.create({
+      player1Id,
+      player2Id,
+      player1TeamSnapshot: player1TeamSetup,
+      player2TeamSnapshot: player2TeamSetup,
+      seed,
+      events: result.events,
+      ...(winner && { winner }),
+      rounds: result.metadata.totalRounds,
+      status: BattleStatus.SIMULATED,
+    });
+    await this.battleRepo.save(battleLog);
+
+    this.logger.log(`PvP battle completed`, {
+      battleId: battleLog.id,
+      player1Id,
+      player2Id,
       winner: result.winner,
       rounds: result.metadata.totalRounds,
       durationMs: result.metadata.durationMs,
@@ -121,10 +224,42 @@ export class BattleService {
     this.logger.debug(`Retrieving battle history for player ${playerId}`);
     
     return this.battleRepo.find({
-      where: { playerId },
+      where: [
+        { player1Id: playerId },
+        { player2Id: playerId }
+      ],
       order: { createdAt: 'DESC' },
       take: GAMEPLAY_VALUES.BATTLE_HISTORY_LIMIT,
     });
+  }
+
+  /**
+   * Mark a battle as viewed by a player.
+   * Updates the viewed status for the specific player.
+   * 
+   * @param battleId - ID of the battle
+   * @param playerId - ID of the player who viewed the battle
+   * @throws NotFoundException when battle is not found or player is not a participant
+   * @example
+   * await battleService.markBattleAsViewed('battle-123', 'player-456');
+   */
+  async markBattleAsViewed(battleId: string, playerId: string) {
+    const battle = await this.battleRepo.findOne({ where: { id: battleId } });
+
+    if (!battle) {
+      this.logger.warn(`Mark viewed failed: Battle ${battleId} not found`);
+      throw new NotFoundException('Battle not found');
+    }
+
+    if (!battle.isParticipant(playerId)) {
+      this.logger.warn(`Mark viewed failed: Player ${playerId} is not a participant in battle ${battleId}`);
+      throw new NotFoundException('Player is not a participant in this battle');
+    }
+
+    battle.markAsViewed(playerId);
+    await this.battleRepo.save(battle);
+
+    this.logger.debug(`Battle ${battleId} marked as viewed by player ${playerId}`);
   }
 
   // =============================================================================
@@ -141,8 +276,8 @@ export class BattleService {
    * @example
    * const setup = this.convertLegacyTeamToSetup(['Warrior', 'Mage'], 'player');
    */
-  private convertLegacyTeamToSetup(legacyTeam: UnitType[], teamType: 'player' | 'bot'): TeamSetup {
-    const unitMapping: Record<UnitType, UnitId> = {
+  private convertLegacyTeamToSetup(legacyTeam: string[], teamType: 'player' | 'bot'): TeamSetup {
+    const unitMapping: Record<string, UnitId> = {
       'Warrior': 'knight',
       'Mage': 'mage', 
       'Healer': 'priest',
@@ -150,9 +285,12 @@ export class BattleService {
 
     const units = legacyTeam.map(legacyType => {
       const unitId = unitMapping[legacyType];
+      if (!unitId) {
+        throw new Error(`Unknown legacy unit type: ${legacyType}`);
+      }
       const template = getUnitTemplate(unitId);
       if (!template) {
-        throw new Error(`Unknown legacy unit type: ${legacyType}`);
+        throw new Error(`Unit template not found for unit ID: ${unitId}`);
       }
       return template;
     });
@@ -238,7 +376,7 @@ export class BattleService {
    * @example
    * const seed = this.generateBattleSeed('player-123', ['Warrior'], ['knight']);
    */
-  private generateBattleSeed(playerId: string, playerTeam: (UnitType | UnitId)[], botTeam: (UnitType | UnitId)[]): number {
+  private generateBattleSeed(playerId: string, playerTeam: (string | UnitId)[], botTeam: (string | UnitId)[]): number {
     // Create a hash from player ID and team compositions
     let hash = 0;
     const input = `${playerId}-${playerTeam.join(',')}-${botTeam.join(',')}-${Date.now()}`;

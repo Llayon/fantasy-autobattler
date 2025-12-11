@@ -101,7 +101,7 @@ export class MatchmakingController {
    * Response: { "id": "queue-456", "playerId": "player-123", ... }
    */
   @Post('join')
-  @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.CREATED)
   async joinQueue(
     @Req() req: AuthenticatedRequest,
     @Body() body: JoinQueueRequest,
