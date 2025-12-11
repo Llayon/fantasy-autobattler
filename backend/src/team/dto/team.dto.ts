@@ -1,14 +1,29 @@
 /**
  * Team DTOs for Fantasy Autobattler API.
- * Swagger documentation for team-related endpoints and responses.
+ * Swagger documentation for team-related endpoints and responses with validation.
  * 
- * @fileoverview DTO classes for team data with comprehensive API documentation.
+ * @fileoverview DTO classes for team data with comprehensive API documentation and class-validator decorators.
  */
 
 import { ApiProperty } from '@nestjs/swagger';
+import { 
+  IsString, 
+  IsArray, 
+  ValidateNested, 
+  IsOptional, 
+  MaxLength, 
+  MinLength,
+  ArrayMinSize,
+  ArrayMaxSize,
+  IsNumber,
+  IsInt,
+  Min,
+  Max
+} from 'class-validator';
+import { Type } from 'class-transformer';
 
 /**
- * Position DTO for unit placement on the grid.
+ * Position DTO for unit placement on the grid with validation.
  */
 export class PositionDto {
   @ApiProperty({
@@ -17,6 +32,10 @@ export class PositionDto {
     minimum: 0,
     maximum: 7,
   })
+  @IsNumber({}, { message: 'X coordinate must be a number' })
+  @IsInt({ message: 'X coordinate must be an integer' })
+  @Min(0, { message: 'X coordinate must be at least 0' })
+  @Max(7, { message: 'X coordinate must be at most 7' })
   x!: number;
 
   @ApiProperty({
@@ -25,11 +44,15 @@ export class PositionDto {
     minimum: 0,
     maximum: 1,
   })
+  @IsNumber({}, { message: 'Y coordinate must be a number' })
+  @IsInt({ message: 'Y coordinate must be an integer' })
+  @Min(0, { message: 'Y coordinate must be at least 0' })
+  @Max(1, { message: 'Y coordinate must be at most 1 (player deployment zone)' })
   y!: number;
 }
 
 /**
- * Unit selection DTO for team composition.
+ * Unit selection DTO for team composition with validation.
  */
 export class UnitSelectionDto {
   @ApiProperty({
@@ -43,56 +66,85 @@ export class UnitSelectionDto {
       'priest', 'bard', 'enchanter'
     ],
   })
+  @IsString({ message: 'Unit ID must be a string' })
   unitId!: string;
 
   @ApiProperty({
     description: 'Unit position on the battlefield',
     type: PositionDto,
   })
+  @ValidateNested()
+  @Type(() => PositionDto)
   position!: PositionDto;
 }
 
 /**
- * Create team request DTO.
+ * Create team request DTO with comprehensive validation.
  */
-export class CreateTeamRequestDto {
+export class CreateTeamDto {
   @ApiProperty({
     description: 'Team name for identification',
     example: 'My Balanced Team',
+    minLength: 1,
     maxLength: 100,
   })
+  @IsString({ message: 'Team name must be a string' })
+  @MinLength(1, { message: 'Team name cannot be empty' })
+  @MaxLength(100, { message: 'Team name cannot exceed 100 characters' })
   name!: string;
 
   @ApiProperty({
-    description: 'Array of units with their positions',
+    description: 'Array of units with their positions (1-10 units)',
     type: [UnitSelectionDto],
     minItems: 1,
     maxItems: 10,
   })
+  @IsArray({ message: 'Units must be an array' })
+  @ArrayMinSize(1, { message: 'Team must have at least 1 unit' })
+  @ArrayMaxSize(10, { message: 'Team cannot have more than 10 units' })
+  @ValidateNested({ each: true })
+  @Type(() => UnitSelectionDto)
   units!: UnitSelectionDto[];
 }
 
+// Legacy alias for backward compatibility
+export const CreateTeamRequestDto = CreateTeamDto;
+
 /**
- * Update team request DTO.
+ * Update team request DTO with optional validation.
  */
-export class UpdateTeamRequestDto {
+export class UpdateTeamDto {
   @ApiProperty({
     description: 'Updated team name',
     example: 'My Updated Team',
+    minLength: 1,
     maxLength: 100,
     required: false,
   })
+  @IsOptional()
+  @IsString({ message: 'Team name must be a string' })
+  @MinLength(1, { message: 'Team name cannot be empty' })
+  @MaxLength(100, { message: 'Team name cannot exceed 100 characters' })
   name?: string;
 
   @ApiProperty({
-    description: 'Updated unit composition and positions',
+    description: 'Updated unit composition and positions (1-10 units)',
     type: [UnitSelectionDto],
     minItems: 1,
     maxItems: 10,
     required: false,
   })
+  @IsOptional()
+  @IsArray({ message: 'Units must be an array' })
+  @ArrayMinSize(1, { message: 'Team must have at least 1 unit' })
+  @ArrayMaxSize(10, { message: 'Team cannot have more than 10 units' })
+  @ValidateNested({ each: true })
+  @Type(() => UnitSelectionDto)
   units?: UnitSelectionDto[];
 }
+
+// Legacy alias for backward compatibility
+export const UpdateTeamRequestDto = UpdateTeamDto;
 
 /**
  * Enriched unit DTO with additional information.

@@ -8,6 +8,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiSecurity, ApiBody } from '@nestj
 import { MatchmakingService, QueueEntry } from './matchmaking.service';
 import { GuestGuard } from '../auth/guest.guard';
 import { ErrorResponseDto } from '../common/dto/api-response.dto';
+import { JoinQueueDto } from './dto/matchmaking.dto';
 
 /**
  * Interface for authenticated requests with player information.
@@ -22,13 +23,7 @@ interface AuthenticatedRequest {
   correlationId?: string;
 }
 
-/**
- * Interface for join queue request body.
- */
-export interface JoinQueueRequest {
-  /** ID of the team to use for matchmaking */
-  teamId: string;
-}
+
 
 /**
  * Matchmaking status enumeration.
@@ -111,19 +106,8 @@ export class MatchmakingController {
     description: 'Adds player to matchmaking queue with selected team for ELO-based opponent matching',
   })
   @ApiBody({
+    type: JoinQueueDto,
     description: 'Team selection for matchmaking',
-    schema: {
-      type: 'object',
-      properties: {
-        teamId: {
-          type: 'string',
-          format: 'uuid',
-          description: 'ID of the team to use for matchmaking',
-          example: '123e4567-e89b-12d3-a456-426614174000',
-        },
-      },
-      required: ['teamId'],
-    },
   })
   @ApiResponse({
     status: 201,
@@ -181,7 +165,7 @@ export class MatchmakingController {
   })
   async joinQueue(
     @Req() req: AuthenticatedRequest,
-    @Body() body: JoinQueueRequest,
+    @Body() body: JoinQueueDto,
   ): Promise<QueueEntry> {
     const playerId = req.player.id;
     

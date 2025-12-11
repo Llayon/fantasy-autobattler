@@ -17,12 +17,11 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiSecurity, ApiBody } from '@nestjs/swagger';
-import { TeamService, UpdateTeamRequest } from './team.service';
-import { CreateTeamRequest } from './team.validator';
+import { TeamService } from './team.service';
 import { GuestGuard } from '../auth/guest.guard';
 import { 
-  CreateTeamRequestDto, 
-  UpdateTeamRequestDto, 
+  CreateTeamDto, 
+  UpdateTeamDto, 
   TeamResponseDto, 
   TeamListResponseDto
 } from './dto/team.dto';
@@ -66,7 +65,7 @@ export class TeamController {
     description: 'Creates a new team with unit composition and positions within budget constraints',
   })
   @ApiBody({
-    type: CreateTeamRequestDto,
+    type: CreateTeamDto,
     description: 'Team configuration data',
   })
   @ApiResponse({
@@ -86,7 +85,7 @@ export class TeamController {
   })
   async createTeam(
     @Req() req: AuthenticatedRequest,
-    @Body() teamData: CreateTeamRequest,
+    @Body() teamData: CreateTeamDto,
   ) {
     return this.teamService.createTeam(req.player.id, teamData);
   }
@@ -189,7 +188,7 @@ export class TeamController {
     example: '123e4567-e89b-12d3-a456-426614174000',
   })
   @ApiBody({
-    type: UpdateTeamRequestDto,
+    type: UpdateTeamDto,
     description: 'Updated team data',
   })
   @ApiResponse({
@@ -215,7 +214,7 @@ export class TeamController {
   async updateTeam(
     @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
-    @Body() updateData: UpdateTeamRequest,
+    @Body() updateData: UpdateTeamDto,
   ) {
     return this.teamService.updateTeam(id, req.player.id, updateData);
   }

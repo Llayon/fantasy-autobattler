@@ -1,11 +1,12 @@
 /**
  * Battle DTOs for Fantasy Autobattler API.
- * Swagger documentation for battle-related endpoints and responses.
+ * Swagger documentation for battle-related endpoints and responses with validation.
  * 
- * @fileoverview DTO classes for battle data with comprehensive API documentation.
+ * @fileoverview DTO classes for battle data with comprehensive API documentation and validation.
  */
 
 import { ApiProperty } from '@nestjs/swagger';
+import { IsOptional, IsString, IsEnum } from 'class-validator';
 
 /**
  * Battle result DTO for battle simulation responses.
@@ -176,4 +177,29 @@ export class BattleIdParamDto {
     example: '123e4567-e89b-12d3-a456-426614174000',
   })
   id!: string;
+}
+/**
+ * DTO for starting a battle.
+ * Used in POST /battle/start endpoint.
+ */
+export class StartBattleDto {
+  @ApiProperty({
+    description: 'Battle difficulty level',
+    example: 'medium',
+    enum: ['easy', 'medium', 'hard'],
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: 'Difficulty must be a string' })
+  @IsEnum(['easy', 'medium', 'hard'], { message: 'Difficulty must be easy, medium, or hard' })
+  difficulty?: string;
+
+  @ApiProperty({
+    description: 'Optional team ID to use (defaults to active team)',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: 'Team ID must be a string' })
+  teamId?: string;
 }

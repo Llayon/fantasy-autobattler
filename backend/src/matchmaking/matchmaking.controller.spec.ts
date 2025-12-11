@@ -5,7 +5,8 @@
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, ConflictException } from '@nestjs/common';
-import { MatchmakingController, JoinQueueRequest } from './matchmaking.controller';
+import { MatchmakingController } from './matchmaking.controller';
+import { JoinQueueDto } from './dto/matchmaking.dto';
 import { MatchmakingService, QueueEntry, Match } from './matchmaking.service';
 import { GuestGuard } from '../auth/guest.guard';
 import { MatchmakingStatus } from '../entities/matchmaking-queue.entity';
@@ -75,7 +76,7 @@ describe('MatchmakingController', () => {
   });
 
   describe('joinQueue', () => {
-    const joinRequest: JoinQueueRequest = { teamId: 'team-789' };
+    const joinRequest: JoinQueueDto = { teamId: 'team-789' };
 
     it('should successfully join queue', async () => {
       // Arrange

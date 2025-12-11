@@ -5,9 +5,9 @@ import { BattleLog, BattleStatus } from '../entities/battle-log.entity';
 import { Player } from '../entities/player.entity';
 import { Team } from '../entities/team.entity';
 import { simulateBattle, TeamSetup } from './battle.simulator';
-import { generateRandomTeam, getUnitTemplate, UnitId } from '../unit/unit.data';
+import { getUnitTemplate, UnitId } from '../unit/unit.data';
 import { generateBotTeam } from './bot-generator';
-import { GAMEPLAY_VALUES, DEPLOYMENT_ZONES, GRID_DIMENSIONS, TEAM_LIMITS } from '../config/game.constants';
+import { GAMEPLAY_VALUES, DEPLOYMENT_ZONES, GRID_DIMENSIONS } from '../config/game.constants';
 import { Position } from '../types/game.types';
 
 /**
@@ -33,13 +33,16 @@ export class BattleService {
    * Simulates the battle and stores the result.
    * 
    * @param playerId - ID of the player starting the battle
+   * @param difficulty - Optional bot difficulty level (easy, medium, hard)
+   * @param teamId - Optional specific team ID to use (defaults to active team)
    * @returns Object containing the battle ID
    * @throws NotFoundException when player is not found
+   * @throws BadRequestException when specified team is invalid
    * @example
-   * const result = await battleService.startBattle('player-123');
+   * const result = await battleService.startBattle('player-123', 'hard');
    * console.log(result.battleId); // 'battle-456'
    */
-  async startBattle(playerId: string) {
+  async startBattle(playerId: string, difficulty: string = 'medium', teamId?: string) {
     this.logger.log(`Starting battle for player ${playerId}`);
 
     const player = await this.playerRepo.findOne({ where: { id: playerId } });
@@ -49,18 +52,40 @@ export class BattleService {
       throw new NotFoundException('Player not found');
     }
 
-    // Convert legacy player team to new format
-    const legacyPlayerTeam = player.team as string[];
-    const playerTeamSetup = this.convertLegacyTeamToSetup(legacyPlayerTeam, 'player');
+    // Get player team (either specified or active team)
+    let playerTeamSetup: TeamSetup;
+    let legacyPlayerTeam: string[];
     
-    // Generate bot team using new system
-    const botUnitIds = generateRandomTeam(TEAM_LIMITS.BUDGET);
-    const botTeamSetup = this.createTeamSetup(botUnitIds, 'bot');
+    if (teamId) {
+      // Use specified team
+      const team = await this.teamRepo.findOne({ 
+        where: { id: teamId, playerId },
+        relations: ['units']
+      });
+      
+      if (!team) {
+        this.logger.warn(`Battle start failed: Team ${teamId} not found for player ${playerId}`);
+        throw new BadRequestException('Team not found or not owned by player');
+      }
+      
+      legacyPlayerTeam = team.units.map(unit => unit.unitId);
+      playerTeamSetup = this.convertLegacyTeamToSetup(legacyPlayerTeam, 'player');
+    } else {
+      // Use legacy player team format (for backward compatibility)
+      legacyPlayerTeam = player.team as string[];
+      playerTeamSetup = this.convertLegacyTeamToSetup(legacyPlayerTeam, 'player');
+    }
+    
+    // Generate bot team using difficulty-based system
+    const seed = this.generateBattleSeed(playerId, legacyPlayerTeam, []);
+    const botTeamSetup = generateBotTeam(difficulty as 'easy' | 'medium' | 'hard', seed);
 
-    this.logger.debug(`Battle teams - Player: ${legacyPlayerTeam.join(', ')}, Bot: ${botUnitIds.join(', ')}`);
+    // Extract bot unit IDs for logging
+    const botUnitIds = botTeamSetup.units.map(unit => unit.id);
+    
+    this.logger.debug(`Battle teams - Player: ${legacyPlayerTeam.join(', ')}, Bot: ${botUnitIds.join(', ')}, Difficulty: ${difficulty}`);
 
-    // Generate deterministic seed for battle
-    const seed = this.generateBattleSeed(playerId, legacyPlayerTeam, botUnitIds);
+    // Use the seed already generated for bot team creation
     
     const result = simulateBattle(playerTeamSetup, botTeamSetup, seed);
 
@@ -447,28 +472,7 @@ export class BattleService {
     return { units, positions };
   }
 
-  /**
-   * Create TeamSetup from unit IDs with default positions.
-   * 
-   * @param unitIds - Array of unit IDs
-   * @param teamType - Team type for position calculation
-   * @returns TeamSetup with units and positions
-   * @example
-   * const setup = this.createTeamSetup(['knight', 'mage'], 'bot');
-   */
-  private createTeamSetup(unitIds: UnitId[], teamType: 'player' | 'bot'): TeamSetup {
-    const units = unitIds.map(unitId => {
-      const template = getUnitTemplate(unitId);
-      if (!template) {
-        throw new Error(`Unknown unit ID: ${unitId}`);
-      }
-      return template;
-    });
 
-    const positions = this.generateDefaultPositions(units.length, teamType);
-
-    return { units, positions };
-  }
 
   /**
    * Generate bot team based on difficulty level using advanced bot generator.

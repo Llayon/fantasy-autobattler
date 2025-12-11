@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { Logger } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -16,6 +16,16 @@ async function bootstrap(): Promise<void> {
     
     // Register global exception filter for unified error handling
     app.useGlobalFilters(new HttpExceptionFilter());
+    
+    // Enable global validation with class-validator
+    app.useGlobalPipes(new ValidationPipe({
+      whitelist: true, // Strip properties that don't have decorators
+      forbidNonWhitelisted: true, // Throw error if non-whitelisted properties are present
+      transform: true, // Automatically transform payloads to DTO instances
+      transformOptions: {
+        enableImplicitConversion: true, // Convert string numbers to actual numbers
+      },
+    }));
     
     // Enable CORS for frontend communication
     app.enableCors({

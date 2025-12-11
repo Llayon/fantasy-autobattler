@@ -1,8 +1,8 @@
-import { Controller, Get, Post, Param, UseGuards, Req } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiSecurity } from '@nestjs/swagger';
+import { Controller, Get, Post, Param, Body, UseGuards, Req } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiSecurity, ApiBody } from '@nestjs/swagger';
 import { BattleService } from './battle.service';
 import { GuestGuard } from '../auth/guest.guard';
-import { BattleResultDto, BattleLogDto, BattleListResponseDto } from './dto/battle.dto';
+import { BattleResultDto, BattleLogDto, BattleListResponseDto, StartBattleDto } from './dto/battle.dto';
 import { ErrorResponseDto } from '../common/dto/api-response.dto';
 
 interface AuthenticatedRequest extends Request {
@@ -25,12 +25,18 @@ export class BattleController {
   /**
    * Start a new battle against a bot opponent.
    * @param req - Authenticated request containing player information
+   * @param battleData - Battle configuration (difficulty, team selection)
    * @returns Battle result with events and winner
    */
   @Post('start')
   @ApiOperation({
     summary: 'Start new battle',
-    description: 'Starts a new battle against a bot opponent using player\'s active team',
+    description: 'Starts a new battle against a bot opponent with optional difficulty and team selection',
+  })
+  @ApiBody({
+    type: StartBattleDto,
+    description: 'Battle configuration (optional)',
+    required: false,
   })
   @ApiResponse({
     status: 201,
@@ -44,11 +50,14 @@ export class BattleController {
   })
   @ApiResponse({
     status: 400,
-    description: 'Bad request - no active team or invalid team',
+    description: 'Bad request - no active team or invalid team/difficulty',
     type: ErrorResponseDto,
   })
-  async startBattle(@Req() req: AuthenticatedRequest) {
-    return this.battleService.startBattle(req.player.id);
+  async startBattle(
+    @Req() req: AuthenticatedRequest,
+    @Body() battleData: StartBattleDto = {},
+  ) {
+    return this.battleService.startBattle(req.player.id, battleData.difficulty, battleData.teamId);
   }
 
   /**
