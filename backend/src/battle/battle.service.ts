@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, Logger, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { BattleLog, BattleStatus } from '../entities/battle-log.entity';
 import { Player } from '../entities/player.entity';
 import { Team } from '../entities/team.entity';
@@ -24,6 +24,7 @@ export class BattleService {
     private playerRepo: Repository<Player>,
     @InjectRepository(Team)
     private teamRepo: Repository<Team>,
+    private dataSource: DataSource,
   ) {}
 
   /**
@@ -72,14 +73,7 @@ export class BattleService {
       winner = 'draw';
     }
 
-    // Update player stats
-    if (result.winner === 'player') {
-      await this.playerRepo.increment({ id: playerId }, 'wins', 1);
-    } else if (result.winner === 'bot') {
-      await this.playerRepo.increment({ id: playerId }, 'losses', 1);
-    }
-
-    // Store battle with new PvP format
+    // Create battle log entity
     const battleLog = this.battleRepo.create({
       player1Id: playerId,
       player2Id: 'bot', // For now, bot battles use 'bot' as player2Id
@@ -91,7 +85,19 @@ export class BattleService {
       rounds: result.metadata.totalRounds,
       status: BattleStatus.SIMULATED,
     });
-    await this.battleRepo.save(battleLog);
+
+    // Execute all database operations atomically
+    await this.dataSource.transaction(async manager => {
+      // Update player stats
+      if (result.winner === 'player') {
+        await manager.increment(Player, { id: playerId }, 'wins', 1);
+      } else if (result.winner === 'bot') {
+        await manager.increment(Player, { id: playerId }, 'losses', 1);
+      }
+
+      // Store battle
+      await manager.save(BattleLog, battleLog);
+    });
 
     this.logger.log(`Battle completed`, {
       battleId: battleLog.id,
@@ -171,16 +177,7 @@ export class BattleService {
       winner = 'draw';
     }
 
-    // Update player stats
-    if (result.winner === 'player') {
-      await this.playerRepo.increment({ id: player1Id }, 'wins', 1);
-      await this.playerRepo.increment({ id: player2Id }, 'losses', 1);
-    } else if (result.winner === 'bot') {
-      await this.playerRepo.increment({ id: player1Id }, 'losses', 1);
-      await this.playerRepo.increment({ id: player2Id }, 'wins', 1);
-    }
-
-    // Store PvP battle
+    // Create battle log entity
     const battleLog = this.battleRepo.create({
       player1Id,
       player2Id,
@@ -192,7 +189,21 @@ export class BattleService {
       rounds: result.metadata.totalRounds,
       status: BattleStatus.SIMULATED,
     });
-    await this.battleRepo.save(battleLog);
+
+    // Execute all database operations atomically
+    await this.dataSource.transaction(async manager => {
+      // Update player stats
+      if (result.winner === 'player') {
+        await manager.increment(Player, { id: player1Id }, 'wins', 1);
+        await manager.increment(Player, { id: player2Id }, 'losses', 1);
+      } else if (result.winner === 'bot') {
+        await manager.increment(Player, { id: player1Id }, 'losses', 1);
+        await manager.increment(Player, { id: player2Id }, 'wins', 1);
+      }
+
+      // Store PvP battle
+      await manager.save(BattleLog, battleLog);
+    });
 
     this.logger.log(`PvP battle completed`, {
       battleId: battleLog.id,
@@ -263,14 +274,7 @@ export class BattleService {
       winner = 'draw';
     }
 
-    // Update player stats
-    if (result.winner === 'player') {
-      await this.playerRepo.increment({ id: playerId }, 'wins', 1);
-    } else if (result.winner === 'bot') {
-      await this.playerRepo.increment({ id: playerId }, 'losses', 1);
-    }
-
-    // Store PvE battle (bot as player2Id)
+    // Create battle log entity
     const battleLog = this.battleRepo.create({
       player1Id: playerId,
       player2Id: `bot-${botDifficulty}`,
@@ -282,7 +286,19 @@ export class BattleService {
       rounds: result.metadata.totalRounds,
       status: BattleStatus.SIMULATED,
     });
-    await this.battleRepo.save(battleLog);
+
+    // Execute all database operations atomically
+    await this.dataSource.transaction(async manager => {
+      // Update player stats
+      if (result.winner === 'player') {
+        await manager.increment(Player, { id: playerId }, 'wins', 1);
+      } else if (result.winner === 'bot') {
+        await manager.increment(Player, { id: playerId }, 'losses', 1);
+      }
+
+      // Store PvE battle
+      await manager.save(BattleLog, battleLog);
+    });
 
     this.logger.log(`PvE battle completed`, {
       battleId: battleLog.id,
