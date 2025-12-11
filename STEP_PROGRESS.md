@@ -3174,3 +3174,125 @@ Legacy Support: Maintained for smooth migration ✅
 - Team validation with proper cost calculation
 
 ---
+## Step 32: API Client Update ✅ COMPLETED
+**Date:** December 11, 2025  
+**Duration:** ~25 minutes  
+**Status:** SUCCESS
+
+### 🎯 Objectives
+- Update frontend API client with all new backend endpoints
+- Add comprehensive error handling with user-friendly messages
+- Implement type-safe HTTP client with authentication
+- Support all CRUD operations for teams, units, matchmaking, and battles
+- Maintain backward compatibility with existing code
+
+### 🔧 Changes Made
+
+#### 1. Complete API Client Rewrite
+- ✅ **Enhanced Error Handling**: Custom `ApiError` class with structured error information
+- ✅ **User-Friendly Messages**: Russian error messages for common HTTP status codes
+- ✅ **Type Safety**: All endpoints use proper TypeScript types from game.ts
+- ✅ **Authentication**: Improved token management with logout functionality
+- ✅ **JSDoc Documentation**: Comprehensive documentation for all methods
+
+#### 2. New Endpoints Added
+
+##### Units API
+- ✅ `getUnits()`: Get all 15 units with role grouping
+- ✅ `getUnit(unitId)`: Get specific unit by ID
+- ✅ `getUnitsByRole(role)`: Get units filtered by role
+
+##### Teams API
+- ✅ `createTeam(team)`: Create new team with validation
+- ✅ `getTeams()`: Get all player teams
+- ✅ `getTeam(id)`: Get specific team by ID
+- ✅ `updateTeam(id, team)`: Update existing team
+- ✅ `deleteTeam(id)`: Delete team with safety checks
+- ✅ `activateTeam(id)`: Activate team for matchmaking
+
+##### Matchmaking API
+- ✅ `joinMatchmaking(teamId)`: Join queue with selected team
+- ✅ `leaveMatchmaking()`: Leave matchmaking queue
+- ✅ `getMatchmakingStatus()`: Get current queue status
+- ✅ `findMatch()`: Polling endpoint for match finding
+
+##### Battles API
+- ✅ `startBattle(difficulty?, teamId?)`: Start PvE battle
+- ✅ `getBattle(id)`: Get battle details for replay
+- ✅ `getBattles()`: Get player battle history
+
+#### 3. Error Handling System
+- ✅ **Structured Errors**: `ApiError` class with status, message, and details
+- ✅ **Network Error Handling**: Graceful handling of connection issues
+- ✅ **HTTP Status Mapping**: User-friendly messages for all common status codes
+- ✅ **JSON Parsing Safety**: Robust error response parsing
+- ✅ **204 No Content Support**: Proper handling of delete operations
+
+#### 4. Authentication Improvements
+- ✅ **Token Management**: Enhanced get/set/clear token functions
+- ✅ **Logout Functionality**: Proper token cleanup
+- ✅ **Authentication Headers**: Automatic token inclusion in requests
+- ✅ **Guest Account Creation**: Streamlined guest registration
+
+#### 5. Type Integration
+- ✅ **Complete Type Coverage**: All endpoints use types from frontend/src/types/game.ts
+- ✅ **Request/Response Types**: Proper typing for all API calls
+- ✅ **Error Type Safety**: Structured error handling with types
+- ✅ **Legacy Compatibility**: Maintained old methods with deprecation notices
+
+### 📊 API Coverage
+```
+Authentication: 3/3 endpoints ✅
+Units: 3/3 endpoints ✅
+Teams: 6/6 endpoints ✅
+Matchmaking: 4/4 endpoints ✅
+Battles: 3/3 endpoints ✅
+Total: 19/19 endpoints ✅
+```
+
+### 🔧 Technical Features
+- ✅ **Error Messages in Russian**: User-friendly localized error messages
+- ✅ **Comprehensive JSDoc**: All methods documented with examples
+- ✅ **Type Safety**: Strict TypeScript compliance, no `any` types
+- ✅ **Network Resilience**: Proper handling of network failures
+- ✅ **HTTP Standards**: Correct handling of all HTTP status codes
+- ✅ **Request/Response Logging**: Structured error information for debugging
+
+### 📊 Error Handling Coverage
+```
+HTTP Status Codes: 10 common codes mapped ✅
+Network Errors: Connection failures handled ✅
+JSON Parsing: Safe error response parsing ✅
+Authentication: Token validation and cleanup ✅
+User Messages: Russian localization ✅
+```
+
+### 📊 Validation Results
+```bash
+✅ TypeScript compilation - SUCCESS (no errors)
+✅ All endpoints typed correctly - SUCCESS
+✅ Error handling comprehensive - SUCCESS
+✅ JSDoc documentation complete - SUCCESS
+✅ Backward compatibility maintained - SUCCESS
+```
+
+### 📝 Files Modified
+- `frontend/src/lib/api.ts` - **COMPLETELY REWRITTEN** with comprehensive API client
+
+### 🎉 Success Criteria Met
+- [x] All new endpoints added (getUnits, createTeam, etc.)
+- [x] Comprehensive error handling with user-friendly messages
+- [x] Type-safe HTTP client with proper TypeScript types
+- [x] Authentication and token management improved
+- [x] JSDoc documentation for all methods
+- [x] Backward compatibility maintained
+- [x] Network resilience and proper HTTP status handling
+
+### 🚀 Ready For
+- Frontend team builder component with full API integration
+- Matchmaking UI with queue status and match finding
+- Battle history and replay functionality
+- Error handling with user-friendly notifications
+- Complete type safety across frontend-backend communication
+
+---
