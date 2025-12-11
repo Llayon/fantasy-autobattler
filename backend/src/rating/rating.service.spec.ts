@@ -23,7 +23,9 @@ describe('RatingService', () => {
     rating: 1200,
     wins: 10,
     losses: 5,
+    gamesPlayed: 15,
     team: [],
+    lastActiveAt: new Date(),
     createdAt: new Date(),
     updatedAt: new Date(),
     battlesAsPlayer1: [],
@@ -38,7 +40,9 @@ describe('RatingService', () => {
     rating: 1100,
     wins: 20,
     losses: 25,
+    gamesPlayed: 45,
     team: [],
+    lastActiveAt: new Date(),
     createdAt: new Date(),
     updatedAt: new Date(),
     battlesAsPlayer1: [],
@@ -184,6 +188,8 @@ describe('RatingService', () => {
       const lowRatedPlayer = {
         ...mockPlayer2,
         rating: 50, // Very low rating
+        gamesPlayed: 10,
+        lastActiveAt: new Date(),
       };
 
       playerRepo.findOne

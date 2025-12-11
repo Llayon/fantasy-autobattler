@@ -1,8 +1,9 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, Index } from 'typeorm';
 import { BattleLog } from './battle-log.entity';
 import { Team } from './team.entity';
 
 @Entity()
+@Index('IDX_PLAYER_RATING', ['rating'])
 export class Player {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -24,6 +25,12 @@ export class Player {
 
   @Column({ default: 1000 })
   rating!: number;
+
+  @Column({ default: 0 })
+  gamesPlayed!: number;
+
+  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  lastActiveAt!: Date;
 
   @CreateDateColumn()
   createdAt!: Date;
