@@ -142,7 +142,7 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
       }
       
       set({ loading: false });
-      return battleResult.id;
+      return battleResult.battleId;
     } catch (error) {
       const errorMessage = error instanceof ApiError 
         ? error.message 

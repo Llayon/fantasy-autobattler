@@ -9,6 +9,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { TeamResponse, UnitId, UNIT_INFO } from '@/types/game';
+import { ButtonLoader, ListSkeleton } from '@/components/LoadingStates';
 import { 
   useTeamStore, 
   selectTeams, 
@@ -130,30 +131,37 @@ function TeamCard({ team, isActive, onLoad, onDelete, onActivate }: TeamCardProp
       
       {/* Actions */}
       <div className="flex gap-2">
-        <button
+        <ButtonLoader
+          loading={false}
           onClick={onLoad}
-          className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded transition-colors"
+          variant="primary"
+          size="sm"
+          className="flex-1"
         >
           📝 Редактировать
-        </button>
+        </ButtonLoader>
         
         {!isActive && (
-          <button
+          <ButtonLoader
+            loading={false}
             onClick={onActivate}
-            className="px-3 py-2 bg-green-600 hover:bg-green-500 text-white text-sm font-medium rounded transition-colors"
+            variant="success"
+            size="sm"
           >
             ✅ Активировать
-          </button>
+          </ButtonLoader>
         )}
         
-        <button
+        <ButtonLoader
+          loading={false}
           onClick={onDelete}
-          className="px-3 py-2 bg-red-600 hover:bg-red-500 text-white text-sm font-medium rounded transition-colors"
+          variant="danger"
+          size="sm"
           disabled={isActive}
-          title={isActive ? 'Нельзя удалить активную команду' : 'Удалить команду'}
+          className={isActive ? 'opacity-50 cursor-not-allowed' : ''}
         >
           🗑️
-        </button>
+        </ButtonLoader>
       </div>
     </div>
   );
@@ -191,11 +199,7 @@ function ConfirmDialog({
     info: 'border-blue-500 bg-blue-900/20',
   };
 
-  const buttonStyles = {
-    danger: 'bg-red-600 hover:bg-red-500',
-    warning: 'bg-yellow-600 hover:bg-yellow-500',
-    info: 'bg-blue-600 hover:bg-blue-500',
-  };
+
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -207,18 +211,22 @@ function ConfirmDialog({
         <p className="text-gray-300 mb-6">{message}</p>
         
         <div className="flex gap-3 justify-end">
-          <button
+          <ButtonLoader
+            loading={false}
             onClick={onCancel}
-            className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded transition-colors"
+            variant="secondary"
+            size="md"
           >
             {cancelText}
-          </button>
-          <button
+          </ButtonLoader>
+          <ButtonLoader
+            loading={false}
             onClick={onConfirm}
-            className={`px-4 py-2 text-white rounded transition-colors ${buttonStyles[variant]}`}
+            variant={variant === 'danger' ? 'danger' : 'primary'}
+            size="md"
           >
             {confirmText}
-          </button>
+          </ButtonLoader>
         </div>
       </div>
     </div>
@@ -350,12 +358,7 @@ export function SavedTeamsModal({ isOpen, onClose, onLoadTeam }: SavedTeamsModal
           <div className="flex-1 overflow-y-auto p-6">
             {/* Loading state */}
             {loading && (
-              <div className="flex items-center justify-center py-12">
-                <div className="text-center">
-                  <div className="text-4xl mb-4">⏳</div>
-                  <div className="text-xl text-yellow-400">Загрузка команд...</div>
-                </div>
-              </div>
+              <ListSkeleton items={3} />
             )}
             
             {/* Error state */}
@@ -416,12 +419,14 @@ export function SavedTeamsModal({ isOpen, onClose, onLoadTeam }: SavedTeamsModal
                 💡 Активная команда используется для поиска боёв
               </div>
               
-              <button
+              <ButtonLoader
+                loading={false}
                 onClick={onClose}
-                className="px-6 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded transition-colors"
+                variant="secondary"
+                size="md"
               >
                 Закрыть
-              </button>
+              </ButtonLoader>
             </div>
           </div>
         </div>

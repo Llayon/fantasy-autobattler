@@ -10,7 +10,7 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { api, ApiError } from '@/lib/api';
+import { api } from '@/lib/api';
 
 // =============================================================================
 // TYPES
@@ -214,7 +214,7 @@ function MobileNavigation({ tabs }: { tabs: NavigationTab[] }) {
  * @example
  * <Navigation />
  */
-export function Navigation({ className = '', isMobile }: NavigationProps) {
+export function Navigation({ className = '' }: NavigationProps) {
   const [tabs, setTabs] = useState<NavigationTab[]>(NAVIGATION_TABS);
   const [loading, setLoading] = useState(true);
 

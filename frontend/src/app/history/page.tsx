@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation';
 import { BattleLog } from '@/types/game';
 import { api, ApiError } from '@/lib/api';
 import { Navigation, NavigationWrapper } from '@/components/Navigation';
+import { FullPageLoader, ButtonLoader, ListSkeleton } from '@/components/LoadingStates';
 
 // =============================================================================
 // TYPES
@@ -395,12 +396,14 @@ function EmptyState({ filter }: { filter: BattleFilter }) {
           : 'Продолжайте сражаться, чтобы увидеть результаты здесь.'
         }
       </p>
-      <button
+      <ButtonLoader
+        loading={false}
         onClick={() => window.location.href = '/'}
-        className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg transition-colors"
+        variant="primary"
+        size="lg"
       >
         {filter === 'all' ? 'Создать команду' : 'Новый бой'}
-      </button>
+      </ButtonLoader>
     </div>
   );
 }
@@ -533,10 +536,7 @@ export default function BattleHistoryPage() {
         
         {/* Loading state */}
         {loading && (
-          <div className="text-center py-16">
-            <div className="text-6xl mb-4">⏳</div>
-            <div className="text-xl text-gray-400">Загрузка истории боёв...</div>
-          </div>
+          <ListSkeleton items={5} />
         )}
         
         {/* Error state */}
@@ -544,12 +544,15 @@ export default function BattleHistoryPage() {
           <div className="text-center py-16">
             <div className="text-6xl mb-4">❌</div>
             <div className="text-xl text-red-400 mb-4">{error}</div>
-            <button
+            <ButtonLoader
+              loading={loading}
               onClick={loadBattles}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg transition-colors"
+              variant="primary"
+              size="lg"
+              loadingText="Загрузка..."
             >
               Попробовать снова
-            </button>
+            </ButtonLoader>
           </div>
         )}
         

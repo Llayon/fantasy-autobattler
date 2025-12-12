@@ -9,6 +9,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { ButtonLoader, Spinner } from '@/components/LoadingStates';
 import { 
   useMatchmakingStore, 
   selectMatchmakingStatus,
@@ -44,13 +45,7 @@ interface MatchmakingPanelProps {
  * Search animation component with pulsing effect.
  */
 function SearchAnimation() {
-  return (
-    <div className="flex items-center justify-center space-x-1">
-      <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-      <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-      <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-    </div>
-  );
+  return <Spinner size="sm" color="primary" />;
 }
 
 /**
@@ -327,85 +322,64 @@ export function MatchmakingPanel({ className = '' }: MatchmakingPanelProps) {
         {!isInQueue ? (
           <>
             {/* PvP Matchmaking */}
-            <button
+            <ButtonLoader
+              loading={loading}
               onClick={handleJoinQueue}
               disabled={!canFindMatch}
-              className={`
-                w-full px-4 py-3 font-medium rounded-lg transition-all transform
-                ${canFindMatch
-                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white hover:scale-105'
-                  : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                }
-              `}
+              variant="primary"
+              size="lg"
+              loadingText="Подключение..."
+              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500"
             >
-              {loading ? (
-                <div className="flex items-center justify-center space-x-2">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  <span>Подключение...</span>
-                </div>
-              ) : (
-                '🎯 Найти игрока (PvP)'
-              )}
-            </button>
+              🎯 Найти игрока (PvP)
+            </ButtonLoader>
 
             {/* Bot Battle Options */}
             <div className="grid grid-cols-3 gap-2">
-              <button
+              <ButtonLoader
+                loading={loading}
                 onClick={() => handleBotBattle('easy')}
                 disabled={!canFindMatch}
-                className={`
-                  px-3 py-2 text-sm font-medium rounded-lg transition-colors
-                  ${canFindMatch
-                    ? 'bg-green-600 hover:bg-green-500 text-white'
-                    : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                  }
-                `}
+                variant="success"
+                size="sm"
+                loadingText="..."
               >
                 🤖 Легкий бот
-              </button>
-              <button
+              </ButtonLoader>
+              <ButtonLoader
+                loading={loading}
                 onClick={() => handleBotBattle('medium')}
                 disabled={!canFindMatch}
-                className={`
-                  px-3 py-2 text-sm font-medium rounded-lg transition-colors
-                  ${canFindMatch
-                    ? 'bg-yellow-600 hover:bg-yellow-500 text-white'
-                    : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                  }
-                `}
+                variant="secondary"
+                size="sm"
+                loadingText="..."
+                className="bg-yellow-600 hover:bg-yellow-500"
               >
                 🤖 Средний бот
-              </button>
-              <button
+              </ButtonLoader>
+              <ButtonLoader
+                loading={loading}
                 onClick={() => handleBotBattle('hard')}
                 disabled={!canFindMatch}
-                className={`
-                  px-3 py-2 text-sm font-medium rounded-lg transition-colors
-                  ${canFindMatch
-                    ? 'bg-red-600 hover:bg-red-500 text-white'
-                    : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                  }
-                `}
+                variant="danger"
+                size="sm"
+                loadingText="..."
               >
                 🤖 Сложный бот
-              </button>
+              </ButtonLoader>
             </div>
           </>
         ) : (
-          <button
+          <ButtonLoader
+            loading={loading}
             onClick={handleLeaveQueue}
-            disabled={loading}
-            className="w-full px-4 py-3 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-medium rounded-lg transition-colors"
+            variant="danger"
+            size="lg"
+            loadingText="Отмена..."
+            className="w-full"
           >
-            {loading ? (
-              <div className="flex items-center justify-center space-x-2">
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                <span>Отмена...</span>
-              </div>
-            ) : (
-              '❌ Отменить поиск'
-            )}
-          </button>
+            ❌ Отменить поиск
+          </ButtonLoader>
         )}
       </div>
       

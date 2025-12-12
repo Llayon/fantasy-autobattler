@@ -8,7 +8,6 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { Position, UnitTemplate, UnitId, TeamResponse } from '@/types/game';
 import { UnitList } from '@/components/UnitList';
 import { EnhancedBattleGrid } from '@/components/EnhancedBattleGrid';
@@ -17,6 +16,7 @@ import { BudgetIndicator } from '@/components/BudgetIndicator';
 import { SavedTeamsModal } from '@/components/SavedTeamsModal';
 import { MatchmakingPanel } from '@/components/MatchmakingPanel';
 import { Navigation, NavigationWrapper } from '@/components/Navigation';
+import { FullPageLoader, ButtonLoader, LoadingOverlay } from '@/components/LoadingStates';
 import { 
   usePlayerStore, 
   useTeamStore, 
@@ -108,44 +108,56 @@ function TeamActions({
 }: TeamActionsProps) {
   return (
     <div className="flex flex-wrap gap-2">
-      <button
+      <ButtonLoader
+        loading={loading}
         onClick={onClear}
-        disabled={loading}
-        className="px-3 py-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white text-sm rounded-lg transition-colors"
+        variant="secondary"
+        size="sm"
+        loadingText="Очистка..."
       >
         🗑️ Очистить
-      </button>
+      </ButtonLoader>
       
-      <button
-        onClick={onShowTeams}
-        disabled={loading}
-        className="px-3 py-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-sm rounded-lg transition-colors relative"
-      >
-        📋 Мои команды
+      <div className="relative">
+        <ButtonLoader
+          loading={loading}
+          onClick={onShowTeams}
+          variant="secondary"
+          size="sm"
+          loadingText="Загрузка..."
+          className="bg-purple-600 hover:bg-purple-500"
+        >
+          📋 Мои команды
+        </ButtonLoader>
         {teamCount > 0 && (
           <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
             {teamCount}
           </span>
         )}
-      </button>
+      </div>
       
-
-      
-      <button
+      <ButtonLoader
+        loading={loading}
         onClick={onSave}
-        disabled={!canSave || loading}
-        className="px-3 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm rounded-lg transition-colors"
+        disabled={!canSave}
+        variant="primary"
+        size="sm"
+        loadingText="Сохранение..."
       >
         💾 Сохранить
-      </button>
+      </ButtonLoader>
       
-      <button
+      <ButtonLoader
+        loading={loading}
         onClick={onStartBattle}
-        disabled={!canBattle || loading}
-        className="px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:opacity-50 text-white font-bold text-sm rounded-lg transition-all transform hover:scale-105"
+        disabled={!canBattle}
+        variant="primary"
+        size="sm"
+        loadingText="Запуск..."
+        className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400"
       >
         ⚔️ В бой!
-      </button>
+      </ButtonLoader>
     </div>
   );
 }
@@ -217,7 +229,6 @@ function MobileUnitSheet({ isOpen, onClose, children }: MobileUnitSheetProps) {
  * }
  */
 export default function TeamBuilderPage() {
-  const router = useRouter();
   const [selectedUnit, setSelectedUnit] = useState<UnitTemplate | null>(null);
   const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
   const [showSavedTeamsModal, setShowSavedTeamsModal] = useState(false);
@@ -387,26 +398,17 @@ export default function TeamBuilderPage() {
   
   // Loading state
   if (playerLoading && !player) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-4xl mb-4">⏳</div>
-          <div className="text-xl text-yellow-400">Загрузка...</div>
-        </div>
-      </div>
-    );
+    return <FullPageLoader message="Загрузка игрока..." icon="👤" />;
   }
   
   // Error state
   if (playerError) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-4xl mb-4">❌</div>
-          <div className="text-xl text-red-400 mb-2">{playerError}</div>
-          <p className="text-gray-400">Убедитесь, что backend запущен на localhost:3001</p>
-        </div>
-      </div>
+      <FullPageLoader 
+        message={playerError} 
+        icon="❌" 
+        backdrop={false}
+      />
     );
   }
   
@@ -425,7 +427,7 @@ export default function TeamBuilderPage() {
                 </h1>
                 {player && (
                   <p className="text-gray-300 text-sm">
-                    {player.name} | Побед: {(player as Player & { wins?: number; losses?: number }).wins || 0} | Поражений: {(player as Player & { wins?: number; losses?: number }).losses || 0}
+                    {player.name} | Побед: {(player as any).wins || 0} | Поражений: {(player as any).losses || 0}
                   </p>
                 )}
               </div>

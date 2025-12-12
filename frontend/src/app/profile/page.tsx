@@ -13,6 +13,7 @@ import { usePlayerStore } from '@/store/playerStore';
 import { TeamResponse, Player } from '@/types/game';
 import { api, ApiError } from '@/lib/api';
 import { Navigation, NavigationWrapper } from '@/components/Navigation';
+import { FullPageLoader, ButtonLoader } from '@/components/LoadingStates';
 
 // =============================================================================
 // TYPES
@@ -204,13 +205,16 @@ function EditablePlayerName({
             if (e.key === 'Escape') handleCancel();
           }}
         />
-        <button
+        <ButtonLoader
+          loading={saving}
           onClick={handleSave}
-          disabled={saving || !editName.trim()}
-          className="px-3 py-1 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white rounded transition-colors"
+          disabled={!editName.trim()}
+          variant="success"
+          size="sm"
+          loadingText="💾"
         >
-          {saving ? '💾' : '✅'}
-        </button>
+          ✅
+        </ButtonLoader>
         <button
           onClick={handleCancel}
           disabled={saving}
@@ -317,12 +321,14 @@ function TeamsCard({
         <div className="text-center py-8">
           <div className="text-6xl mb-4">🏗️</div>
           <p className="text-gray-400 mb-4">У вас пока нет команд</p>
-          <button
+          <ButtonLoader
+            loading={false}
             onClick={onCreateTeam}
-            className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg transition-colors"
+            variant="primary"
+            size="lg"
           >
             Создать команду
-          </button>
+          </ButtonLoader>
         </div>
       </div>
     );
@@ -603,14 +609,7 @@ export default function ProfilePage() {
 
   // Loading state
   if (playerLoading || loading || !player) {
-    return (
-      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-6xl mb-4">⏳</div>
-          <div className="text-xl text-gray-400">Загрузка профиля...</div>
-        </div>
-      </div>
-    );
+    return <FullPageLoader message="Загрузка профиля..." icon="👤" />;
   }
 
   // Calculate stats from player data (backend returns wins/losses/rating directly)
