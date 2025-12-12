@@ -12,7 +12,8 @@ import { useRouter } from 'next/navigation';
 import { BattleLog } from '@/types/game';
 import { api, ApiError } from '@/lib/api';
 import { Navigation, NavigationWrapper } from '@/components/Navigation';
-import { FullPageLoader, ButtonLoader, ListSkeleton } from '@/components/LoadingStates';
+import { ButtonLoader, ListSkeleton } from '@/components/LoadingStates';
+import { ErrorPage, NetworkError } from '@/components/ErrorStates';
 
 // =============================================================================
 // TYPES
@@ -541,18 +542,23 @@ export default function BattleHistoryPage() {
         
         {/* Error state */}
         {error && (
-          <div className="text-center py-16">
-            <div className="text-6xl mb-4">❌</div>
-            <div className="text-xl text-red-400 mb-4">{error}</div>
-            <ButtonLoader
-              loading={loading}
-              onClick={loadBattles}
-              variant="primary"
-              size="lg"
-              loadingText="Загрузка..."
-            >
-              Попробовать снова
-            </ButtonLoader>
+          <div className="py-8">
+            {error.includes('fetch') || error.includes('network') ? (
+              <NetworkError
+                message={error}
+                showRetry
+                onRetry={loadBattles}
+              />
+            ) : (
+              <ErrorPage
+                title="Ошибка загрузки истории"
+                message={error}
+                showRetry
+                onRetry={loadBattles}
+                showHome={false}
+                icon="📚"
+              />
+            )}
           </div>
         )}
         

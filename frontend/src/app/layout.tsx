@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { RootErrorBoundary } from '@/components/RootErrorBoundary';
 
 export const metadata: Metadata = {
   title: 'Fantasy Autobattler',
@@ -13,7 +14,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="text-white min-h-screen">{children}</body>
+      <body className="text-white min-h-screen">
+        <RootErrorBoundary>
+          {children}
+        </RootErrorBoundary>
+      </body>
     </html>
   );
 }

@@ -14,6 +14,7 @@ import { TeamResponse, Player } from '@/types/game';
 import { api, ApiError } from '@/lib/api';
 import { Navigation, NavigationWrapper } from '@/components/Navigation';
 import { FullPageLoader, ButtonLoader } from '@/components/LoadingStates';
+import { useToast } from '@/components/ErrorStates';
 
 // =============================================================================
 // TYPES
@@ -475,6 +476,7 @@ function WinRateChart({ battles }: { battles: RecentBattleResult[] }) {
 export default function ProfilePage() {
   const router = useRouter();
   const { player, refreshPlayer, loading: playerLoading } = usePlayerStore();
+  const { showSuccess, showError } = useToast();
   
   // State
   const [teams, setTeams] = useState<TeamResponse[]>([]);
@@ -546,14 +548,16 @@ export default function ProfilePage() {
     try {
       await api.updatePlayerName(newName);
       await refreshPlayer();
+      showSuccess('Имя успешно обновлено!');
     } catch (err) {
       const errorMessage = err instanceof ApiError 
         ? err.message 
         : 'Не удалось обновить имя';
       setError(errorMessage);
+      showError(errorMessage);
       throw err; // Re-throw to handle in component
     }
-  }, [refreshPlayer]);
+  }, [refreshPlayer, showSuccess, showError]);
 
   /**
    * Handle team click - navigate to team builder.
@@ -572,11 +576,14 @@ export default function ProfilePage() {
       const profileUrl = generateProfileUrl(player.id);
       await copyToClipboard(profileUrl);
       setCopySuccess(true);
+      showSuccess('Ссылка скопирована в буфер обмена!');
       setTimeout(() => setCopySuccess(false), 2000);
     } catch (err) {
-      setError('Не удалось скопировать ссылку');
+      const errorMessage = 'Не удалось скопировать ссылку';
+      setError(errorMessage);
+      showError(errorMessage);
     }
-  }, [player]);
+  }, [player, showSuccess, showError]);
 
   // Load data on mount
   useEffect(() => {

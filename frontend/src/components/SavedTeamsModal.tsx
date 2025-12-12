@@ -10,6 +10,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { TeamResponse, UnitId, UNIT_INFO } from '@/types/game';
 import { ButtonLoader, ListSkeleton } from '@/components/LoadingStates';
+import { ErrorMessage, useToast } from '@/components/ErrorStates';
 import { 
   useTeamStore, 
   selectTeams, 
@@ -255,6 +256,7 @@ export function SavedTeamsModal({ isOpen, onClose, onLoadTeam }: SavedTeamsModal
     type: TeamAction;
     team: TeamResponse | null;
   }>({ type: null, team: null });
+  const { showSuccess, showError } = useToast();
 
   // Store state
   const teams = useTeamStore(selectTeams);
@@ -283,10 +285,15 @@ export function SavedTeamsModal({ isOpen, onClose, onLoadTeam }: SavedTeamsModal
    * Handle loading team into editor.
    */
   const handleLoadTeam = useCallback((team: TeamResponse) => {
-    loadTeamToDraft(team);
-    onLoadTeam?.(team);
-    onClose();
-  }, [loadTeamToDraft, onLoadTeam, onClose]);
+    try {
+      loadTeamToDraft(team);
+      onLoadTeam?.(team);
+      showSuccess(`Команда "${team.name}" загружена в редактор`);
+      onClose();
+    } catch (error) {
+      showError('Не удалось загрузить команду');
+    }
+  }, [loadTeamToDraft, onLoadTeam, onClose, showSuccess, showError]);
 
   /**
    * Handle team deletion with confirmation.
@@ -363,11 +370,14 @@ export function SavedTeamsModal({ isOpen, onClose, onLoadTeam }: SavedTeamsModal
             
             {/* Error state */}
             {error && (
-              <div className="bg-red-900/30 border border-red-500 rounded-lg p-4 mb-6">
-                <div className="text-red-300">
-                  <div className="font-medium mb-1">Ошибка:</div>
-                  <p>{error}</p>
-                </div>
+              <div className="mb-6">
+                <ErrorMessage
+                  message={error}
+                  severity="error"
+                  showRetry
+                  onRetry={loadTeams}
+                  onDismiss={clearError}
+                />
               </div>
             )}
             

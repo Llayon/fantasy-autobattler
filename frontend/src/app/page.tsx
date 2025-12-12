@@ -16,7 +16,8 @@ import { BudgetIndicator } from '@/components/BudgetIndicator';
 import { SavedTeamsModal } from '@/components/SavedTeamsModal';
 import { MatchmakingPanel } from '@/components/MatchmakingPanel';
 import { Navigation, NavigationWrapper } from '@/components/Navigation';
-import { FullPageLoader, ButtonLoader, LoadingOverlay } from '@/components/LoadingStates';
+import { FullPageLoader, ButtonLoader } from '@/components/LoadingStates';
+import { ErrorPage, useToast } from '@/components/ErrorStates';
 import { 
   usePlayerStore, 
   useTeamStore, 
@@ -229,6 +230,7 @@ function MobileUnitSheet({ isOpen, onClose, children }: MobileUnitSheetProps) {
  * }
  */
 export default function TeamBuilderPage() {
+  const { showSuccess, showError, showInfo } = useToast();
   const [selectedUnit, setSelectedUnit] = useState<UnitTemplate | null>(null);
   const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
   const [showSavedTeamsModal, setShowSavedTeamsModal] = useState(false);
@@ -353,20 +355,28 @@ export default function TeamBuilderPage() {
   
   // Handle team actions
   const handleSaveTeam = useCallback(async () => {
-    validateTeam();
-    if (currentTeam.isValid) {
-      const savedTeam = await saveTeam();
-      if (savedTeam) {
-        // Refresh teams list after successful save
-        await loadTeams();
+    try {
+      validateTeam();
+      if (currentTeam.isValid) {
+        const savedTeam = await saveTeam();
+        if (savedTeam) {
+          showSuccess('Команда успешно сохранена!');
+          // Refresh teams list after successful save
+          await loadTeams();
+        }
+      } else {
+        showError('Исправьте ошибки в команде перед сохранением');
       }
+    } catch (error) {
+      showError('Не удалось сохранить команду');
     }
-  }, [validateTeam, currentTeam.isValid, saveTeam, loadTeams]);
+  }, [validateTeam, currentTeam.isValid, saveTeam, loadTeams, showSuccess, showError]);
   
   const handleClearTeam = useCallback(() => {
     createNewTeam('Новая команда');
     setSelectedUnit(null);
-  }, [createNewTeam]);
+    showInfo('Команда очищена');
+  }, [createNewTeam, showInfo]);
   
   const handleStartBattle = useCallback(() => {
     // TODO: Implement battle start logic
@@ -404,10 +414,12 @@ export default function TeamBuilderPage() {
   // Error state
   if (playerError) {
     return (
-      <FullPageLoader 
-        message={playerError} 
-        icon="❌" 
-        backdrop={false}
+      <ErrorPage
+        title="Ошибка загрузки игрока"
+        message={playerError}
+        showRetry
+        onRetry={() => window.location.reload()}
+        icon="👤"
       />
     );
   }

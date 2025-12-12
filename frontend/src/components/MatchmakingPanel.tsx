@@ -10,6 +10,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { ButtonLoader, Spinner } from '@/components/LoadingStates';
+import { ErrorMessage, NetworkError, useToast } from '@/components/ErrorStates';
 import { 
   useMatchmakingStore, 
   selectMatchmakingStatus,
@@ -107,6 +108,7 @@ function formatWaitTime(seconds: number): string {
 export function MatchmakingPanel({ className = '' }: MatchmakingPanelProps) {
   const router = useRouter();
   const [waitTime, setWaitTime] = useState(0);
+  const { showSuccess, showError } = useToast();
   
   // Store state
   const status = useMatchmakingStore(selectMatchmakingStatus);
@@ -177,10 +179,12 @@ export function MatchmakingPanel({ className = '' }: MatchmakingPanelProps) {
     
     try {
       await joinQueue(activeTeam.id);
+      showSuccess('Поиск противника начат!');
     } catch (error) {
       // Error is handled by the store
+      showError('Не удалось присоединиться к очереди');
     }
-  }, [activeTeam, joinQueue]);
+  }, [activeTeam, joinQueue, showSuccess, showError]);
 
   /**
    * Handle starting bot battle.
@@ -192,10 +196,12 @@ export function MatchmakingPanel({ className = '' }: MatchmakingPanelProps) {
     
     try {
       await startBotBattle(activeTeam.id, difficulty);
+      showSuccess(`Бой с ${difficulty === 'easy' ? 'легким' : difficulty === 'medium' ? 'средним' : 'сложным'} ботом начат!`);
     } catch (error) {
       // Error is handled by the store
+      showError('Не удалось начать бой с ботом');
     }
-  }, [activeTeam, startBotBattle]);
+  }, [activeTeam, startBotBattle, showSuccess, showError]);
   
   /**
    * Handle leaving matchmaking queue.
@@ -249,19 +255,33 @@ export function MatchmakingPanel({ className = '' }: MatchmakingPanelProps) {
       
       {/* Error display */}
       {error && (
-        <div className="mb-4 p-3 bg-red-900/30 border border-red-500 rounded-lg">
-          <div className="flex items-start justify-between">
-            <div className="text-red-300 text-sm">
-              <div className="font-medium mb-1">Ошибка:</div>
-              <p>{error}</p>
-            </div>
-            <button
-              onClick={handleClearError}
-              className="text-red-400 hover:text-red-300 ml-2"
-            >
-              ✕
-            </button>
-          </div>
+        <div className="mb-4">
+          {error.includes('fetch') || error.includes('network') ? (
+            <NetworkError
+              message={error}
+              showRetry
+              onRetry={() => {
+                handleClearError();
+                // Retry last action based on current state
+                if (isInQueue) {
+                  handleLeaveQueue();
+                } else {
+                  handleJoinQueue();
+                }
+              }}
+            />
+          ) : (
+            <ErrorMessage
+              message={error}
+              severity="error"
+              showRetry
+              onRetry={() => {
+                handleClearError();
+                showError('Попробуйте выполнить действие снова');
+              }}
+              onDismiss={handleClearError}
+            />
+          )}
         </div>
       )}
       
