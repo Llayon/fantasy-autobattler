@@ -88,6 +88,7 @@ interface TeamActionsProps {
   onClear: () => void;
   onStartBattle: () => void;
   onShowTeams: () => void;
+  onShowHistory: () => void;
   canSave: boolean;
   canBattle: boolean;
   loading: boolean;
@@ -99,6 +100,7 @@ function TeamActions({
   onClear, 
   onStartBattle, 
   onShowTeams, 
+  onShowHistory,
   canSave, 
   canBattle, 
   loading,
@@ -125,6 +127,14 @@ function TeamActions({
             {teamCount}
           </span>
         )}
+      </button>
+      
+      <button
+        onClick={onShowHistory}
+        disabled={loading}
+        className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm rounded-lg transition-colors"
+      >
+        📚 История боёв
       </button>
       
       <button
@@ -437,6 +447,7 @@ export default function TeamBuilderPage() {
                 onClear={handleClearTeam}
                 onStartBattle={handleStartBattle}
                 onShowTeams={handleShowTeams}
+                onShowHistory={() => window.location.href = '/history'}
                 canSave={currentTeam.isValid && currentTeam.units.length > 0}
                 canBattle={currentTeam.isValid && currentTeam.units.length > 0}
                 loading={teamLoading}
