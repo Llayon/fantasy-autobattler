@@ -16,6 +16,7 @@ import {
   DeathAnimation, 
   HealAnimation 
 } from './BattleAnimations';
+import { BattleResult } from './BattleResult';
 
 // =============================================================================
 // TYPES
@@ -615,6 +616,9 @@ export function BattleReplay({ battle }: BattleReplayProps) {
     currentRound: 1,
   });
   
+  // Battle result display state
+  const [showBattleResult, setShowBattleResult] = useState(false);
+  
   // Current unit states
   const [units, setUnits] = useState<ReplayUnit[]>(initialUnits);
   
@@ -845,7 +849,32 @@ export function BattleReplay({ battle }: BattleReplayProps) {
     const lastIndex = events.length - 1;
     setReplayState(prev => ({ ...prev, currentEventIndex: lastIndex, isPlaying: false }));
     applyEventsUpTo(lastIndex);
+    // Show battle result immediately when skipping to end
+    setTimeout(() => {
+      setShowBattleResult(true);
+    }, 500);
   }, [events.length, applyEventsUpTo]);
+
+  /**
+   * Handle battle result actions.
+   */
+  const handleWatchReplay = useCallback(() => {
+    setShowBattleResult(false);
+    setReplayState(prev => ({ ...prev, currentEventIndex: -1, isPlaying: false }));
+    applyEventsUpTo(-1);
+  }, [applyEventsUpTo]);
+
+  const handleNewBattle = useCallback(() => {
+    setShowBattleResult(false);
+    // In real app: navigate to matchmaking
+    window.history.back();
+  }, []);
+
+  const handleEditTeam = useCallback(() => {
+    setShowBattleResult(false);
+    // In real app: navigate to team builder
+    window.history.back();
+  }, []);
 
   /**
    * Step to previous event.
@@ -874,6 +903,10 @@ export function BattleReplay({ battle }: BattleReplayProps) {
       // Check if we've reached the end of events (allow processing of the last event)
       if (replayState.currentEventIndex >= events.length - 1) {
         setReplayState(prev => ({ ...prev, isPlaying: false }));
+        // Show battle result after a short delay
+        setTimeout(() => {
+          setShowBattleResult(true);
+        }, 1500);
         return;
       }
       
@@ -1123,6 +1156,21 @@ export function BattleReplay({ battle }: BattleReplayProps) {
           />
         </div>
       </div>
+      
+      {/* Battle Result Screen */}
+      <BattleResult
+        battle={battle}
+        playerId={battle.player1Id} // TODO: Get actual current player ID
+        ratingChange={{
+          oldRating: 1200,
+          newRating: battle.winner === 'player1' ? 1215 : 1185,
+          change: battle.winner === 'player1' ? 15 : -15,
+        }}
+        onWatchReplay={handleWatchReplay}
+        onNewBattle={handleNewBattle}
+        onEditTeam={handleEditTeam}
+        show={showBattleResult}
+      />
     </div>
   );
 }

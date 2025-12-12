@@ -150,3 +150,77 @@ body {
   border: 2px solid #1e40af;
   box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
 }
+/* Battle Result Animations */
+@keyframes resultEntrance {
+  0% {
+    transform: scale(0.8) translateY(50px);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.05) translateY(-10px);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes victoryGlow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(34, 197, 94, 0.6);
+  }
+}
+
+@keyframes defeatGlow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(239, 68, 68, 0.6);
+  }
+}
+
+@keyframes drawGlow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(251, 191, 36, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(251, 191, 36, 0.6);
+  }
+}
+
+@keyframes ratingChange {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.result-entrance {
+  animation: resultEntrance 0.8s ease-out forwards;
+}
+
+.victory-glow {
+  animation: victoryGlow 2s ease-in-out infinite;
+}
+
+.defeat-glow {
+  animation: defeatGlow 2s ease-in-out infinite;
+}
+
+.draw-glow {
+  animation: drawGlow 2s ease-in-out infinite;
+}
+
+.rating-change {
+  animation: ratingChange 0.6s ease-out;
+}
