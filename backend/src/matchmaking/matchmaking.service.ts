@@ -236,8 +236,10 @@ export class MatchmakingService implements OnModuleInit {
     });
 
     if (!playerEntry) {
-      this.logger.warn(`Player not found in queue for match`, { playerId });
-      throw new NotFoundException(`Игрок не найден в очереди`);
+      this.logger.debug(`Player not found in queue for match`, { playerId });
+      // Return null instead of throwing error to handle race conditions gracefully
+      // This allows the frontend to continue polling without showing errors
+      return null;
     }
 
     // Calculate expanded rating range based on wait time
@@ -347,21 +349,42 @@ export class MatchmakingService implements OnModuleInit {
       // Start PvP battle simulation using BattleService
       const battleLog = await this.battleService.startPvPBattle(player1.playerId, player2.playerId);
 
-      // Mark queue entries as matched and remove from queue
+      // Mark queue entries as matched but keep them for notification
       player1.markAsMatched(battleLog.id);
       player2.markAsMatched(battleLog.id);
 
-      // Save the matched status first, then remove from queue
+      // Save the matched status - keep entries for notifications
       await Promise.all([
         this.queueRepository.save(player1),
         this.queueRepository.save(player2),
       ]);
 
-      // Remove both players from the queue after successful match
-      await Promise.all([
-        this.queueRepository.remove(player1),
-        this.queueRepository.remove(player2),
-      ]);
+      this.logger.log(`Players marked as matched, keeping entries for notifications`, {
+        battleId: battleLog.id,
+        player1Id: player1.playerId,
+        player2Id: player2.playerId,
+      });
+
+      // Schedule cleanup of matched entries after 5 minutes
+      setTimeout(async () => {
+        try {
+          await Promise.all([
+            this.queueRepository.remove(player1),
+            this.queueRepository.remove(player2),
+          ]);
+          
+          this.logger.debug(`Cleaned up matched queue entries`, {
+            battleId: battleLog.id,
+            player1Id: player1.playerId,
+            player2Id: player2.playerId,
+          });
+        } catch (error) {
+          this.logger.warn(`Failed to cleanup matched queue entries`, {
+            battleId: battleLog.id,
+            error: error instanceof Error ? error.message : 'Unknown error',
+          });
+        }
+      }, 5 * 60 * 1000); // 5 minutes
 
       this.logger.log(`Battle created successfully`, {
         battleId: battleLog.id,
@@ -489,6 +512,51 @@ export class MatchmakingService implements OnModuleInit {
     });
 
     return expiredEntries.length;
+  }
+
+  /**
+   * Get recent match for player (within last 5 minutes).
+   * Used to detect matches for players who were removed from queue.
+   * 
+   * @param playerId - ID of the player to check
+   * @returns Recent match information if found
+   * @example
+   * const recentMatch = await matchmakingService.getRecentMatchForPlayer('player-123');
+   */
+  async getRecentMatchForPlayer(playerId: string): Promise<{ battleId: string; opponentId: string } | null> {
+    try {
+      // Check for battles created in the last 5 minutes where this player participated
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+      
+      const recentBattle = await this.battleService.getRecentBattleForPlayer(playerId, fiveMinutesAgo);
+      
+      if (recentBattle) {
+        // Determine opponent ID
+        const opponentId = recentBattle.player1Id === playerId 
+          ? recentBattle.player2Id 
+          : recentBattle.player1Id;
+
+        this.logger.log(`Found recent match for player`, {
+          playerId,
+          battleId: recentBattle.id,
+          opponentId,
+          createdAt: recentBattle.createdAt,
+        });
+
+        return {
+          battleId: recentBattle.id,
+          opponentId,
+        };
+      }
+
+      return null;
+    } catch (error) {
+      this.logger.error(`Failed to get recent match for player`, {
+        playerId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      return null;
+    }
   }
 
   /**

@@ -5382,6 +5382,20 @@ interface BattleReplayProps {
    - State properly rebuilt from initial conditions
    - Full replay capability maintained
 
+### 🔧 Auto-Play Fix Applied
+
+**Issue Resolved:** Auto-play was getting stuck at 99% (event 141 out of 142)
+
+**Root Cause:** The auto-play stopping condition `currentEventIndex >= events.length - 1` was preventing the last event from being processed.
+
+**Solution Applied:**
+- Fixed `stepForward()` function to properly handle the last event
+- Updated progress calculation to handle negative initial index (-1)
+- Corrected range slider bounds to match event indexing
+- Fixed step button disable condition
+
+**Verification:** Created test script confirming 100% completion is now reached.
+
 ### 🚀 Impact
 
 This implementation transforms raw battle events into an engaging, interactive replay experience with:
@@ -5389,5 +5403,130 @@ This implementation transforms raw battle events into an engaging, interactive r
 - Intuitive controls for both casual viewing and detailed analysis
 - Smooth animations that enhance understanding of battle flow
 - Complete accessibility for reviewing any part of the battle
+- **Fixed auto-play reaching 100% completion**
 
 The BattleReplay component is now production-ready and provides a comprehensive solution for battle visualization in the Fantasy Autobattler game.
+
+---
+
+## Step 43: Battle Animations ✅ COMPLETED
+**Date:** December 12, 2025  
+**Duration:** ~40 minutes  
+**Status:** SUCCESS
+
+### 🎯 Objectives
+- Create smooth CSS animations for all battle events
+- Implement MoveAnimation for unit movement
+- Add AttackAnimation with direction and impact effects
+- Create DamageNumber floating animations
+- Implement DeathAnimation with particles
+- Add HealAnimation with green particles
+- Integrate animations into BattleReplay component
+
+### 🔧 Changes Made
+
+#### 1. BattleAnimations Component Created
+- ✅ **MoveAnimation**: Smooth unit movement from position to position
+- ✅ **AttackAnimation**: Attack line with windup/strike phases and impact effects
+- ✅ **DamageNumber**: Floating damage numbers with fade-out animation
+- ✅ **DeathAnimation**: Unit death with collapse, fade, and particle effects
+- ✅ **HealAnimation**: Green healing particles with floating numbers
+
+#### 2. Animation System Features
+- ✅ **Pure CSS Transitions**: Smooth 800ms animations with cubic-bezier easing
+- ✅ **Position Calculations**: Grid position to pixel coordinate conversion
+- ✅ **Particle Systems**: Death particles (6) and heal particles (8) with unique trajectories
+- ✅ **Visual Effects**: Attack lines, impact explosions, glowing effects
+- ✅ **Animation Phases**: Multi-stage animations (windup → strike → complete)
+
+#### 3. Integration with BattleReplay
+- ✅ **Animation State Management**: Active animations tracking for all types
+- ✅ **Event Triggering**: Automatic animation triggering based on battle events
+- ✅ **Animation Overlay**: Positioned overlay system on top of battle grid
+- ✅ **Completion Handling**: Proper cleanup when animations finish
+- ✅ **Performance Optimized**: Efficient rendering with minimal re-renders
+
+#### 4. CSS Keyframes Added
+- ✅ **Attack Effects**: Flash animations for attack impacts
+- ✅ **Floating Numbers**: Damage and heal number animations with scale and fade
+- ✅ **Particle Trajectories**: 6 death particles + 8 heal particles with unique paths
+- ✅ **Slider Styling**: Enhanced progress slider with better visibility
+- ✅ **Global Animations**: Added to `frontend/src/app/globals.css`
+
+#### 5. Enhanced User Experience
+- ✅ **Keyboard Shortcuts**: Added full keyboard navigation support
+  - **Spacebar**: Play/Pause toggle
+  - **← →**: Step backward/forward
+  - **Home/End**: Jump to start/end
+  - **1-4**: Change playback speed (0.5x, 1x, 2x, 4x)
+- ✅ **Visual Indicators**: Progress indicators for beginning/end of battle
+- ✅ **Interactive Slider**: Enhanced slider with hover effects and tooltips
+- ✅ **Button Tooltips**: All controls show keyboard shortcuts in tooltips
+
+### 📊 Animation Components
+```
+MoveAnimation: Unit movement with yellow trail effect
+AttackAnimation: Attack line + impact explosion + attacker highlight
+DamageNumber: Red floating damage numbers (-15)
+DeathAnimation: Collapse + fade + 6 particle explosion
+HealAnimation: Green glow + floating numbers (+10) + 8 particles
+```
+
+### 🔧 Technical Implementation
+- ✅ **TypeScript Interfaces**: Comprehensive animation prop interfaces
+- ✅ **Pure Components**: All animation components are pure functions
+- ✅ **CSS Transitions**: Hardware-accelerated animations
+- ✅ **Position System**: Grid-to-pixel coordinate conversion (48px cells)
+- ✅ **Animation Lifecycle**: Proper start/complete event handling
+- ✅ **Performance**: Efficient particle systems with CSS keyframes
+
+### 📊 Animation Features
+```
+Duration: 800ms default (configurable)
+Easing: cubic-bezier(0.4, 0, 0.2, 1)
+Cell Size: 48px (3rem)
+Particle Count: 6 (death) + 8 (heal)
+Animation Types: 5 (move, attack, damage, death, heal)
+Keyboard Shortcuts: 8 total shortcuts
+```
+
+### 📊 Validation Results
+```bash
+✅ npm run build - SUCCESS (clean compilation)
+✅ TypeScript strict mode compliance
+✅ No diagnostic errors in components
+✅ CSS animations added to global styles
+✅ Animation overlay properly positioned
+✅ Keyboard shortcuts working
+✅ All animation types integrated
+```
+
+### 📝 Files Created/Modified
+- `frontend/src/components/BattleAnimations.tsx` - **NEW** comprehensive animation system
+- `frontend/src/app/globals.css` - **UPDATED** added CSS keyframes for animations
+- `frontend/src/components/BattleReplay.tsx` - **UPDATED** integrated animation system
+
+### 🎉 Success Criteria Met
+- [x] MoveAnimation: Smooth unit movement between positions
+- [x] AttackAnimation: Attack direction with impact effects
+- [x] DamageNumber: Floating damage numbers with fade-out
+- [x] DeathAnimation: Unit death with particle explosion
+- [x] HealAnimation: Green healing particles and numbers
+- [x] CSS transitions for smooth animations
+- [x] Integration with BattleReplay component
+- [x] Keyboard shortcuts for enhanced navigation
+- [x] Build and TypeScript compliance
+
+### 🚀 Animation System Features
+1. **Comprehensive Coverage**: All battle events have visual animations
+2. **Smooth Performance**: Hardware-accelerated CSS transitions
+3. **Visual Polish**: Particle effects, glowing, and impact animations
+4. **User Control**: Full keyboard navigation with visual feedback
+5. **Professional Quality**: Modern game-like animation system
+
+### 🎯 Ready For
+- Battle replay with full visual effects
+- Enhanced user experience during battle viewing
+- Professional-grade battle visualization
+- Mobile-friendly animation performance
+- Future animation enhancements and effects

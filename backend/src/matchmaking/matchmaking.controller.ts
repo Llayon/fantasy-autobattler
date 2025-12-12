@@ -267,6 +267,7 @@ export class MatchmakingController {
   /**
    * Get current matchmaking status for the player.
    * Returns whether player is queued, matched, or not in queue.
+   * Also checks for recent battles to detect matches.
    * 
    * @param req - Authenticated request with player information
    * @returns Current matchmaking status with details
@@ -360,36 +361,64 @@ export class MatchmakingController {
     });
 
     try {
-      // Check if player has an active queue entry
+      // First check if player has an active queue entry
       const queueEntry = await this.matchmakingService.getPlayerQueueEntry(playerId);
       
-      if (!queueEntry) {
-        return { status: 'not_in_queue' };
+      if (queueEntry) {
+        // Check if player has been matched
+        if (queueEntry.status === 'matched' && queueEntry.matchId) {
+          return {
+            status: 'matched',
+            match: {
+              battleId: queueEntry.matchId,
+              opponentId: 'unknown', // Would need additional query to get opponent
+              ratingDifference: 0, // Would need additional data
+            },
+          };
+        }
+
+        // Player is waiting in queue
+        return {
+          status: 'queued',
+          queueEntry: {
+            id: queueEntry.id,
+            teamId: queueEntry.teamId,
+            rating: queueEntry.rating,
+            waitTime: queueEntry.waitTime,
+            joinedAt: queueEntry.joinedAt,
+          },
+        };
       }
 
-      // Check if player has been matched
-      if (queueEntry.status === 'matched' && queueEntry.matchId) {
+      // If no queue entry, check for recent battles (last 5 minutes)
+      // This handles the case where a player was matched but removed from queue
+      const recentMatch = await this.matchmakingService.getRecentMatchForPlayer(playerId);
+      
+      if (recentMatch) {
+        this.logger.log(`Found recent match for player`, {
+          playerId,
+          battleId: recentMatch.battleId,
+          opponentId: recentMatch.opponentId,
+          correlationId: req.correlationId,
+        });
+
         return {
           status: 'matched',
           match: {
-            battleId: queueEntry.matchId,
-            opponentId: 'unknown', // Would need additional query to get opponent
+            battleId: recentMatch.battleId,
+            opponentId: recentMatch.opponentId,
             ratingDifference: 0, // Would need additional data
           },
         };
       }
 
-      // Player is waiting in queue
-      return {
-        status: 'queued',
-        queueEntry: {
-          id: queueEntry.id,
-          teamId: queueEntry.teamId,
-          rating: queueEntry.rating,
-          waitTime: queueEntry.waitTime,
-          joinedAt: queueEntry.joinedAt,
-        },
-      };
+      this.logger.debug(`No queue entry or recent match found for player`, {
+        playerId,
+        correlationId: req.correlationId,
+      });
+
+      // Player is not in queue and has no recent matches
+      return { status: 'not_in_queue' };
     } catch (error) {
       this.logger.error(`Failed to get matchmaking status`, {
         playerId,

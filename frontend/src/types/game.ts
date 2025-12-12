@@ -224,13 +224,13 @@ export interface UnitSelection {
 }
 
 /**
- * Team setup for battle.
+ * Team setup for battle (matches backend TeamSetup structure).
  */
 export interface TeamSetup {
-  /** Team name */
-  name: string;
-  /** Array of units with positions */
-  units: UnitSelection[];
+  /** Array of unit templates */
+  units: UnitTemplate[];
+  /** Array of positions corresponding to each unit */
+  positions: Position[];
 }
 
 /**
@@ -302,14 +302,20 @@ export type MatchmakingStatus = 'queued' | 'matched' | 'not_in_queue';
  * Matchmaking queue entry.
  */
 export interface MatchmakingEntry {
+  /** Unique queue entry ID */
+  id: string;
   /** Player identifier */
   playerId: string;
   /** Team identifier */
   teamId: string;
-  /** Queue entry timestamp */
-  queuedAt: string;
-  /** Current status */
+  /** Player's ELO rating */
+  rating: number;
+  /** Current queue status */
   status: MatchmakingStatus;
+  /** When the player joined the queue */
+  joinedAt: Date;
+  /** Time spent waiting in seconds */
+  waitTime: number;
 }
 
 // =============================================================================
@@ -368,21 +374,25 @@ export interface BattleLog {
   /** Player 2 identifier (or bot) */
   player2Id: string;
   /** Battle winner identifier */
-  winnerId: string;
+  winnerId?: string;
   /** Player 1 team snapshot */
-  player1Team: object;
+  player1TeamSnapshot: TeamSetup;
   /** Player 2 team snapshot */
-  player2Team: object;
+  player2TeamSnapshot: TeamSetup;
   /** Complete battle events for replay */
   events: BattleEvent[];
   /** Random seed used for battle simulation */
   seed: number;
   /** Battle status */
-  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled' | 'simulated';
   /** Battle creation timestamp */
   createdAt: string;
   /** Battle completion timestamp */
   updatedAt: string;
+  /** Winner of the battle */
+  winner?: 'player1' | 'player2' | 'draw';
+  /** Number of rounds */
+  rounds?: number;
 }
 
 // =============================================================================

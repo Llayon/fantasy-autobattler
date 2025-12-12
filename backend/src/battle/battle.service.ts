@@ -8,7 +8,7 @@ import { simulateBattle, TeamSetup } from './battle.simulator';
 import { getUnitTemplate, UnitId } from '../unit/unit.data';
 import { generateBotTeam } from './bot-generator';
 import { GAMEPLAY_VALUES, DEPLOYMENT_ZONES, GRID_DIMENSIONS } from '../config/game.constants';
-import { Position } from '../types/game.types';
+import { Position, UnitTemplate } from '../types/game.types';
 
 /**
  * Service handling battle simulation and storage.
@@ -54,13 +54,12 @@ export class BattleService {
 
     // Get player team (either specified or active team)
     let playerTeamSetup: TeamSetup;
-    let legacyPlayerTeam: string[];
+    let legacyPlayerTeam: string[] = [];
     
     if (teamId) {
       // Use specified team
       const team = await this.teamRepo.findOne({ 
-        where: { id: teamId, playerId },
-        relations: ['units']
+        where: { id: teamId, playerId }
       });
       
       if (!team) {
@@ -68,8 +67,9 @@ export class BattleService {
         throw new BadRequestException('Team not found or not owned by player');
       }
       
+      // Extract unit IDs for legacy compatibility
       legacyPlayerTeam = team.units.map(unit => unit.unitId);
-      playerTeamSetup = this.convertLegacyTeamToSetup(legacyPlayerTeam, 'player');
+      playerTeamSetup = this.convertTeamEntityToSetup(team);
     } else {
       // Use legacy player team format (for backward compatibility)
       legacyPlayerTeam = player.team as string[];
@@ -99,10 +99,13 @@ export class BattleService {
       winner = 'draw';
     }
 
+    // Get or create bot player for database consistency
+    const botPlayer = await this.getOrCreateBotPlayer();
+
     // Create battle log entity
     const battleLog = this.battleRepo.create({
       player1Id: playerId,
-      player2Id: 'bot', // For now, bot battles use 'bot' as player2Id
+      player2Id: botPlayer.id,
       player1TeamSnapshot: playerTeamSetup,
       player2TeamSnapshot: botTeamSetup,
       seed,
@@ -466,6 +469,82 @@ export class BattleService {
   }
 
   /**
+   * Get or create a bot player for database consistency.
+   * Creates a special "bot" player entity to satisfy foreign key constraints.
+   * 
+   * @returns Bot player entity
+   * @example
+   * const botPlayer = await this.getOrCreateBotPlayer();
+   */
+  private async getOrCreateBotPlayer(): Promise<Player> {
+    const botGuestId = 'bot-system';
+    
+    // Try to find existing bot player
+    let botPlayer = await this.playerRepo.findOne({
+      where: { guestId: botGuestId }
+    });
+
+    if (!botPlayer) {
+      // Create bot player if it doesn't exist
+      botPlayer = this.playerRepo.create({
+        guestId: botGuestId,
+        name: 'Бот',
+        team: [], // Empty team for bot
+        wins: 0,
+        losses: 0,
+        rating: 1200,
+      });
+
+      botPlayer = await this.playerRepo.save(botPlayer);
+      
+      this.logger.log(`Created bot player`, {
+        botPlayerId: botPlayer.id,
+        guestId: botGuestId,
+      });
+    }
+
+    return botPlayer;
+  }
+
+  /**
+   * Convert Team entity to TeamSetup structure.
+   * Extracts unit templates and positions from Team entity format.
+   * 
+   * @param team - Team entity with units and positions
+   * @returns TeamSetup with unit templates and positions
+   * @throws BadRequestException if unit templates not found
+   * @example
+   * const setup = this.convertTeamEntityToSetup(team);
+   */
+  private convertTeamEntityToSetup(team: Team): TeamSetup {
+    const units: UnitTemplate[] = [];
+    const positions: Position[] = [];
+
+    for (const teamUnit of team.units) {
+      const template = getUnitTemplate(teamUnit.unitId as UnitId);
+      if (!template) {
+        this.logger.error(`Unit template not found`, {
+          unitId: teamUnit.unitId,
+          teamId: team.id,
+        });
+        throw new BadRequestException(`Unit template not found for unit ID: ${teamUnit.unitId}`);
+      }
+      
+      units.push(template);
+      positions.push(teamUnit.position);
+    }
+
+    this.logger.debug(`Converted team entity to setup`, {
+      teamId: team.id,
+      unitCount: units.length,
+      units: units.map(u => u.id),
+      positions,
+    });
+
+    return { units, positions };
+  }
+
+  /**
    * Convert legacy unit type array to new TeamSetup format.
    * Maps old MVP units to new unit system with default positions.
    * 
@@ -617,5 +696,59 @@ export class BattleService {
     }
     
     return Math.abs(hash);
+  }
+
+  /**
+   * Get recent battle for player within specified time window.
+   * Used by matchmaking service to detect recent matches for players.
+   * 
+   * @param playerId - ID of the player to check
+   * @param since - Timestamp to search from (battles created after this time)
+   * @returns Recent battle log if found, null otherwise
+   * @throws Error if database query fails
+   * @example
+   * const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+   * const recentBattle = await battleService.getRecentBattleForPlayer('player-123', fiveMinutesAgo);
+   */
+  async getRecentBattleForPlayer(playerId: string, since: Date): Promise<BattleLog | null> {
+    this.logger.debug(`Searching for recent battles for player`, {
+      playerId,
+      since: since.toISOString(),
+    });
+
+    try {
+      const recentBattle = await this.battleRepo
+        .createQueryBuilder('battle')
+        .where('(battle.player1Id = :playerId OR battle.player2Id = :playerId)', { playerId })
+        .andWhere('battle.createdAt >= :since', { since })
+        .andWhere('battle.status = :status', { status: BattleStatus.SIMULATED })
+        .orderBy('battle.createdAt', 'DESC')
+        .limit(1)
+        .getOne();
+
+      if (recentBattle) {
+        this.logger.debug(`Found recent battle for player`, {
+          playerId,
+          battleId: recentBattle.id,
+          createdAt: recentBattle.createdAt,
+          opponent: recentBattle.player1Id === playerId ? recentBattle.player2Id : recentBattle.player1Id,
+        });
+      } else {
+        this.logger.debug(`No recent battles found for player`, {
+          playerId,
+          since: since.toISOString(),
+        });
+      }
+
+      return recentBattle;
+    } catch (error) {
+      this.logger.error(`Failed to get recent battle for player`, {
+        playerId,
+        since: since.toISOString(),
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      throw error;
+    }
   }
 }

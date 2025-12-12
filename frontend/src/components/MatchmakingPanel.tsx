@@ -73,8 +73,13 @@ function MatchFoundAnimation() {
  * @returns Formatted time string
  */
 function formatWaitTime(seconds: number): string {
+  // Handle NaN or invalid values
+  if (!seconds || isNaN(seconds) || seconds < 0) {
+    return '0s';
+  }
+  
   const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
+  const remainingSeconds = Math.floor(seconds % 60);
   
   if (minutes > 0) {
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
@@ -120,18 +125,25 @@ export function MatchmakingPanel({ className = '' }: MatchmakingPanelProps) {
   const activeTeam = useTeamStore(selectActiveTeam);
   
   // Store actions
-  const { joinQueue, leaveQueue, clearError, clearMatch } = useMatchmakingStore();
+  const { joinQueue, leaveQueue, startBotBattle, clearError, clearMatch } = useMatchmakingStore();
   
   // Update wait time every second when in queue
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
     
-    if (isInQueue && queueEntry) {
+    if (isInQueue && queueEntry?.joinedAt) {
       interval = setInterval(() => {
         const now = new Date();
         const joinedAt = new Date(queueEntry.joinedAt);
+        
+        // Validate dates to prevent NaN
+        if (isNaN(now.getTime()) || isNaN(joinedAt.getTime())) {
+          setWaitTime(0);
+          return;
+        }
+        
         const elapsed = Math.floor((now.getTime() - joinedAt.getTime()) / 1000);
-        setWaitTime(elapsed);
+        setWaitTime(Math.max(0, elapsed)); // Ensure non-negative
       }, 1000);
     } else {
       setWaitTime(0);
@@ -158,7 +170,7 @@ export function MatchmakingPanel({ className = '' }: MatchmakingPanelProps) {
     
     // Return empty cleanup function for other code paths
     return () => {};
-  }, [hasMatch, match, clearMatch, router]);
+  }, [hasMatch, match, status, clearMatch, router]);
   
   /**
    * Handle joining matchmaking queue.
@@ -174,6 +186,21 @@ export function MatchmakingPanel({ className = '' }: MatchmakingPanelProps) {
       // Error is handled by the store
     }
   }, [activeTeam, joinQueue]);
+
+  /**
+   * Handle starting bot battle.
+   */
+  const handleBotBattle = useCallback(async (difficulty: 'easy' | 'medium' | 'hard') => {
+    if (!activeTeam) {
+      return; // Should not happen due to button disabled state
+    }
+    
+    try {
+      await startBotBattle(activeTeam.id, difficulty);
+    } catch (error) {
+      // Error is handled by the store
+    }
+  }, [activeTeam, startBotBattle]);
   
   /**
    * Handle leaving matchmaking queue.
@@ -296,33 +323,79 @@ export function MatchmakingPanel({ className = '' }: MatchmakingPanelProps) {
       )}
       
       {/* Action buttons */}
-      <div className="flex gap-3">
+      <div className="space-y-3">
         {!isInQueue ? (
-          <button
-            onClick={handleJoinQueue}
-            disabled={!canFindMatch}
-            className={`
-              flex-1 px-4 py-3 font-medium rounded-lg transition-all transform
-              ${canFindMatch
-                ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white hover:scale-105'
-                : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-              }
-            `}
-          >
-            {loading ? (
-              <div className="flex items-center justify-center space-x-2">
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                <span>Подключение...</span>
-              </div>
-            ) : (
-              '🎯 Найти матч'
-            )}
-          </button>
+          <>
+            {/* PvP Matchmaking */}
+            <button
+              onClick={handleJoinQueue}
+              disabled={!canFindMatch}
+              className={`
+                w-full px-4 py-3 font-medium rounded-lg transition-all transform
+                ${canFindMatch
+                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white hover:scale-105'
+                  : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                }
+              `}
+            >
+              {loading ? (
+                <div className="flex items-center justify-center space-x-2">
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>Подключение...</span>
+                </div>
+              ) : (
+                '🎯 Найти игрока (PvP)'
+              )}
+            </button>
+
+            {/* Bot Battle Options */}
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                onClick={() => handleBotBattle('easy')}
+                disabled={!canFindMatch}
+                className={`
+                  px-3 py-2 text-sm font-medium rounded-lg transition-colors
+                  ${canFindMatch
+                    ? 'bg-green-600 hover:bg-green-500 text-white'
+                    : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                  }
+                `}
+              >
+                🤖 Легкий бот
+              </button>
+              <button
+                onClick={() => handleBotBattle('medium')}
+                disabled={!canFindMatch}
+                className={`
+                  px-3 py-2 text-sm font-medium rounded-lg transition-colors
+                  ${canFindMatch
+                    ? 'bg-yellow-600 hover:bg-yellow-500 text-white'
+                    : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                  }
+                `}
+              >
+                🤖 Средний бот
+              </button>
+              <button
+                onClick={() => handleBotBattle('hard')}
+                disabled={!canFindMatch}
+                className={`
+                  px-3 py-2 text-sm font-medium rounded-lg transition-colors
+                  ${canFindMatch
+                    ? 'bg-red-600 hover:bg-red-500 text-white'
+                    : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                  }
+                `}
+              >
+                🤖 Сложный бот
+              </button>
+            </div>
+          </>
         ) : (
           <button
             onClick={handleLeaveQueue}
             disabled={loading}
-            className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-medium rounded-lg transition-colors"
+            className="w-full px-4 py-3 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-medium rounded-lg transition-colors"
           >
             {loading ? (
               <div className="flex items-center justify-center space-x-2">
@@ -339,11 +412,14 @@ export function MatchmakingPanel({ className = '' }: MatchmakingPanelProps) {
       {/* Help text */}
       <div className="mt-4 text-center text-sm text-gray-400">
         {!activeTeam ? (
-          <p>💡 Создайте и активируйте команду для поиска матчей</p>
+          <p>💡 Создайте и активируйте команду для начала боёв</p>
         ) : isInQueue ? (
-          <p>⏱️ Среднее время поиска: 30-60 секунд</p>
+          <p>⏱️ Поиск игрока... Среднее время: 30-60 секунд</p>
         ) : (
-          <p>🎮 Найдите противника для PvP боя</p>
+          <div className="space-y-1">
+            <p>🎯 <strong>PvP</strong> - бой с живым игроком (рейтинговый)</p>
+            <p>🤖 <strong>Боты</strong> - тренировка против ИИ</p>
+          </div>
         )}
       </div>
     </div>

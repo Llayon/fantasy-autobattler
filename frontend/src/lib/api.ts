@@ -466,26 +466,14 @@ export const api = {
    * const battle = await api.startBattle('medium', 'team-123');
    */
   async startBattle(difficulty?: string, teamId?: string): Promise<{
-    id: string;
-    winner: string;
-    rounds: number;
-    events: object[];
-    playerTeam: string[];
-    botTeam: string[];
-    createdAt: string;
+    battleId: string;
   }> {
     const body: { difficulty?: string; teamId?: string } = {};
     if (difficulty) body.difficulty = difficulty;
     if (teamId) body.teamId = teamId;
 
     return fetchApi<{
-      id: string;
-      winner: string;
-      rounds: number;
-      events: object[];
-      playerTeam: string[];
-      botTeam: string[];
-      createdAt: string;
+      battleId: string;
     }>('/battle/start', {
       method: 'POST',
       body: Object.keys(body).length > 0 ? JSON.stringify(body) : undefined,

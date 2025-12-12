@@ -75,6 +75,8 @@ interface MatchmakingActions {
   stopPolling: () => void;
   /** Find match (manual polling) */
   findMatch: () => Promise<void>;
+  /** Start bot battle */
+  startBotBattle: (teamId: string, difficulty?: 'easy' | 'medium' | 'hard') => Promise<void>;
   /** Clear match result */
   clearMatch: () => void;
   /** Reset matchmaking state */
@@ -133,6 +135,7 @@ export const useMatchmakingStore = create<MatchmakingStore>((set, get) => ({
 
   /**
    * Join matchmaking queue with selected team.
+   * Starts real PvP matchmaking process.
    * 
    * @param teamId - Team ID to use for matchmaking
    * @throws ApiError if cannot join queue
@@ -143,21 +146,22 @@ export const useMatchmakingStore = create<MatchmakingStore>((set, get) => ({
     set({ loading: true, error: null });
     
     try {
+      // Join real PvP matchmaking queue
       const queueEntry = await api.joinMatchmaking(teamId);
       
       set({ 
         status: 'queued',
         queueEntry: {
-          id: queueEntry.playerId,
-          teamId,
-          rating: 1200, // Default rating, will be updated from status
-          waitTime: 0,
-          joinedAt: new Date(queueEntry.queuedAt),
+          id: queueEntry.id,
+          teamId: queueEntry.teamId,
+          rating: queueEntry.rating,
+          waitTime: queueEntry.waitTime,
+          joinedAt: queueEntry.joinedAt,
         },
         loading: false 
       });
-      
-      // Start polling for status updates
+
+      // Start polling for matches
       get().startPolling();
     } catch (error) {
       const errorMessage = error instanceof ApiError 
@@ -210,6 +214,7 @@ export const useMatchmakingStore = create<MatchmakingStore>((set, get) => ({
     try {
       const statusResponse = await api.getMatchmakingStatus();
       
+      // Update state with server response
       set({ 
         status: statusResponse.status,
         queueEntry: statusResponse.queueEntry || null,
@@ -217,18 +222,12 @@ export const useMatchmakingStore = create<MatchmakingStore>((set, get) => ({
         error: null 
       });
       
-      // If matched, stop polling
-      if (statusResponse.status === 'matched') {
-        get().stopPolling();
-      }
+      // Don't stop polling here - let the polling interval handle it
+      // This ensures both players get the match notification
     } catch (error) {
       // Don't show error for status checks - they happen frequently
-      // Just log it silently and assume not in queue
-      set({ 
-        status: 'not_in_queue',
-        queueEntry: null,
-        match: null 
-      });
+      // Just log it silently and continue polling
+      // Don't change status to avoid disrupting user experience
     }
   },
 
@@ -247,17 +246,28 @@ export const useMatchmakingStore = create<MatchmakingStore>((set, get) => ({
     }
     
     // Start new polling interval
-    const newInterval = setInterval(() => {
+    const newInterval = setInterval(async () => {
       const { status } = get();
       
-      // Only poll if we're queued
+      // Continue polling while queued
       if (status === 'queued') {
-        // Use findMatch instead of getStatus for active matchmaking
-        get().findMatch();
-      } else {
-        // Stop polling if not searching
+        try {
+          // Check status first (handles recent matches)
+          await get().getStatus();
+          
+          // If still queued after status check, try findMatch
+          const currentStatus = get().status;
+          if (currentStatus === 'queued') {
+            await get().findMatch();
+          }
+        } catch (error) {
+          // Ignore errors during polling to prevent spam
+        }
+      } else if (status === 'matched') {
+        // Stop polling when matched
         get().stopPolling();
       }
+      // Continue polling for 'not_in_queue' to catch late notifications
     }, POLLING_INTERVAL);
     
     set({ pollingInterval: newInterval });
@@ -303,8 +313,7 @@ export const useMatchmakingStore = create<MatchmakingStore>((set, get) => ({
           error: null 
         });
         
-        // Stop polling since match is found
-        get().stopPolling();
+        // Don't stop polling here - let the polling interval handle it
       }
     } catch (error) {
       const errorMessage = error instanceof ApiError 
@@ -349,6 +358,41 @@ export const useMatchmakingStore = create<MatchmakingStore>((set, get) => ({
       error: null,
       pollingInterval: null 
     });
+  },
+
+  /**
+   * Start a bot battle with selected team.
+   * Creates immediate battle against AI opponent.
+   * 
+   * @param teamId - Team ID to use for bot battle
+   * @param difficulty - Bot difficulty level
+   * @throws ApiError if cannot create bot battle
+   * @example
+   * await startBotBattle('team-123', 'medium');
+   */
+  startBotBattle: async (teamId: string, difficulty: 'easy' | 'medium' | 'hard' = 'medium') => {
+    set({ loading: true, error: null });
+    
+    try {
+      const battle = await api.startBattle(difficulty, teamId);
+      
+      // Simulate match found for bot battle
+      set({ 
+        status: 'matched',
+        match: {
+          battleId: battle.battleId,
+          opponentId: 'bot',
+          ratingDifference: 0,
+        },
+        loading: false 
+      });
+    } catch (error) {
+      const errorMessage = error instanceof ApiError 
+        ? error.message 
+        : 'Не удалось создать бой с ботом';
+      
+      set({ error: errorMessage, loading: false });
+    }
   },
 
   /**

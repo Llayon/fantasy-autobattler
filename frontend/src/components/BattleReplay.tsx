@@ -8,7 +8,14 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { BattleLog, BattleEvent, Position, UnitTemplate, UNIT_INFO, UnitId } from '@/types/game';
+import { BattleLog, BattleEvent, Position, UnitTemplate, UNIT_INFO } from '@/types/game';
+import { 
+  MoveAnimation, 
+  AttackAnimation, 
+  DamageNumber, 
+  DeathAnimation, 
+  HealAnimation 
+} from './BattleAnimations';
 
 // =============================================================================
 // TYPES
@@ -98,6 +105,7 @@ const EVENT_TYPE_NAMES: Record<string, string> = {
 
 /**
  * Extract initial unit states from battle log.
+ * Handles TeamSetup structure from backend with UnitTemplate[] and Position[].
  * 
  * @param battle - Battle log data
  * @returns Array of initial unit states
@@ -105,82 +113,64 @@ const EVENT_TYPE_NAMES: Record<string, string> = {
 function extractInitialUnits(battle: BattleLog): ReplayUnit[] {
   const units: ReplayUnit[] = [];
   
-  // Extract player1 team
-  if (battle.player1Team && typeof battle.player1Team === 'object') {
-    const team1 = battle.player1Team as any;
-    if (team1.units && Array.isArray(team1.units)) {
-      team1.units.forEach((unit: any, index: number) => {
-        if (unit.unitId && unit.position) {
-          // Create mock unit template - in real implementation, fetch from unit data
-          const template: UnitTemplate = {
-            id: unit.unitId as UnitId,
-            name: unit.unitId,
-            role: 'tank', // Default role
-            cost: 5, // Default cost
-            stats: {
-              hp: 100,
-              atk: 20,
-              atkCount: 1,
-              armor: 5,
-              speed: 2,
-              initiative: 10,
-              dodge: 0,
-            },
-            range: 1,
-            abilities: [],
-          };
+  try {
+    // Extract player1 team (TeamSetup structure: { units: UnitTemplate[], positions: Position[] })
+    if (battle.player1TeamSnapshot?.units && battle.player1TeamSnapshot?.positions) {
+      const team1 = battle.player1TeamSnapshot;
+      
+      // Ensure arrays have same length
+      const unitCount = Math.min(team1.units.length, team1.positions.length);
+      
+      for (let i = 0; i < unitCount; i++) {
+        const unitTemplate = team1.units[i];
+        const position = team1.positions[i];
+        
+        if (unitTemplate?.id && position) {
+          // Generate instanceId that matches battle events: ${teamType}_${unitTemplate.id}_${index}
+          const instanceId = `player_${unitTemplate.id}_${i}`;
           
           units.push({
-            instanceId: `p1_${index}`,
-            template,
-            position: unit.position,
-            currentHp: template.stats.hp,
-            maxHp: template.stats.hp,
+            instanceId,
+            template: unitTemplate,
+            position: position,
+            currentHp: unitTemplate.stats.hp,
+            maxHp: unitTemplate.stats.hp,
             team: 'player1',
             alive: true,
           });
         }
-      });
+      }
     }
-  }
-  
-  // Extract player2 team
-  if (battle.player2Team && typeof battle.player2Team === 'object') {
-    const team2 = battle.player2Team as any;
-    if (team2.units && Array.isArray(team2.units)) {
-      team2.units.forEach((unit: any, index: number) => {
-        if (unit.unitId && unit.position) {
-          // Create mock unit template
-          const template: UnitTemplate = {
-            id: unit.unitId as UnitId,
-            name: unit.unitId,
-            role: 'tank',
-            cost: 5,
-            stats: {
-              hp: 100,
-              atk: 20,
-              atkCount: 1,
-              armor: 5,
-              speed: 2,
-              initiative: 10,
-              dodge: 0,
-            },
-            range: 1,
-            abilities: [],
-          };
+    
+    // Extract player2 team (TeamSetup structure: { units: UnitTemplate[], positions: Position[] })
+    if (battle.player2TeamSnapshot?.units && battle.player2TeamSnapshot?.positions) {
+      const team2 = battle.player2TeamSnapshot;
+      
+      // Ensure arrays have same length
+      const unitCount = Math.min(team2.units.length, team2.positions.length);
+      
+      for (let i = 0; i < unitCount; i++) {
+        const unitTemplate = team2.units[i];
+        const position = team2.positions[i];
+        
+        if (unitTemplate?.id && position) {
+          // Generate instanceId that matches battle events: ${teamType}_${unitTemplate.id}_${index}
+          const instanceId = `bot_${unitTemplate.id}_${i}`;
           
           units.push({
-            instanceId: `p2_${index}`,
-            template,
-            position: unit.position,
-            currentHp: template.stats.hp,
-            maxHp: template.stats.hp,
+            instanceId,
+            template: unitTemplate,
+            position: position,
+            currentHp: unitTemplate.stats.hp,
+            maxHp: unitTemplate.stats.hp,
             team: 'player2',
             alive: true,
           });
         }
-      });
+      }
     }
+  } catch (error) {
+    // Error will be visible in debug panel below
   }
   
   return units;
@@ -257,11 +247,15 @@ function applyEventToUnits(units: ReplayUnit[], event: BattleEvent): ReplayUnit[
 function ReplayGridCell({ 
   position, 
   unit, 
-  onClick 
+  onClick,
+  isMovementSource = false,
+  isMovementTarget = false
 }: { 
   position: Position; 
   unit?: ReplayUnit; 
   onClick?: () => void;
+  isMovementSource?: boolean;
+  isMovementTarget?: boolean;
 }) {
   const isPlayerZone = position.y <= 1;
   const isEnemyZone = position.y >= 8;
@@ -270,6 +264,8 @@ function ReplayGridCell({
     'relative w-12 h-12 border border-gray-600 transition-all duration-300',
     isPlayerZone ? 'bg-blue-900/20' : isEnemyZone ? 'bg-red-900/20' : 'bg-gray-800/50',
     onClick ? 'cursor-pointer hover:bg-white/10' : '',
+    isMovementSource ? 'bg-yellow-500/30 border-yellow-400' : '',
+    isMovementTarget ? 'bg-green-500/30 border-green-400' : '',
   ].join(' ');
   
   return (
@@ -279,6 +275,19 @@ function ReplayGridCell({
         {position.x},{position.y}
       </div>
       
+      {/* Movement indicators */}
+      {isMovementSource && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="text-yellow-400 text-2xl animate-pulse">📍</div>
+        </div>
+      )}
+      
+      {isMovementTarget && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="text-green-400 text-2xl animate-bounce">🎯</div>
+        </div>
+      )}
+      
       {/* Unit display */}
       {unit && (
         <div className={`
@@ -286,22 +295,39 @@ function ReplayGridCell({
           ${unit.team === 'player1' ? 'bg-blue-600' : 'bg-red-600'}
           ${!unit.alive ? 'opacity-30 grayscale' : ''}
           ${unit.animation?.type === 'damage' ? 'animate-pulse bg-red-400' : ''}
-          ${unit.animation?.type === 'death' ? 'animate-bounce' : ''}
+          ${unit.animation?.type === 'death' ? 'animate-bounce opacity-50' : ''}
+          ${unit.animation?.type === 'move' ? 'ring-2 ring-yellow-400 ring-opacity-75 animate-pulse scale-110' : ''}
+          ${unit.animation?.type === 'attack' ? 'animate-ping bg-orange-500' : ''}
+          transition-all duration-300
         `}>
           {UNIT_INFO[unit.template.id]?.emoji || '❓'}
           
           {/* HP bar */}
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-700">
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-700 rounded-b">
             <div 
-              className="h-full bg-green-500 transition-all duration-300"
+              className="h-full bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 rounded-b transition-all duration-500"
               style={{ width: `${(unit.currentHp / unit.maxHp) * 100}%` }}
             />
           </div>
           
           {/* Damage indicator */}
           {unit.animation?.type === 'damage' && unit.animation.damage && (
-            <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 text-red-400 font-bold animate-bounce">
+            <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 text-red-400 font-bold text-sm animate-bounce bg-black/50 px-1 rounded">
               -{unit.animation.damage}
+            </div>
+          )}
+          
+          {/* Movement indicator */}
+          {unit.animation?.type === 'move' && unit.animation.fromPosition && unit.animation.toPosition && (
+            <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 text-yellow-400 font-bold text-xs animate-pulse bg-black/50 px-1 rounded">
+              ({unit.animation.fromPosition.x},{unit.animation.fromPosition.y}) → ({unit.animation.toPosition.x},{unit.animation.toPosition.y})
+            </div>
+          )}
+          
+          {/* Attack indicator */}
+          {unit.animation?.type === 'attack' && (
+            <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 text-orange-400 font-bold animate-bounce">
+              ⚔️
             </div>
           )}
         </div>
@@ -353,8 +379,10 @@ function ReplayControls({
   onPlay,
   onPause,
   onStep,
+  onStepBack,
   onSpeedChange,
   onSeek,
+  onSkipToStart,
   onSkipToEnd,
 }: {
   replayState: ReplayState;
@@ -362,65 +390,110 @@ function ReplayControls({
   onPlay: () => void;
   onPause: () => void;
   onStep: () => void;
+  onStepBack: () => void;
   onSpeedChange: (speed: PlaybackSpeed) => void;
   onSeek: (eventIndex: number) => void;
+  onSkipToStart: () => void;
   onSkipToEnd: () => void;
 }) {
-  const progress = totalEvents > 0 ? (replayState.currentEventIndex / totalEvents) * 100 : 0;
+  const progress = totalEvents > 0 ? (Math.max(0, replayState.currentEventIndex + 1) / totalEvents) * 100 : 0;
   
   return (
     <div className="bg-gray-800 rounded-lg p-4">
-      <div className="flex items-center gap-4 mb-4">
+      <div className="flex items-center gap-2 mb-4">
+        {/* Skip to start */}
+        <button
+          onClick={onSkipToStart}
+          disabled={replayState.currentEventIndex <= -1}
+          className="px-3 py-2 bg-gray-600 hover:bg-gray-500 disabled:opacity-50 text-white rounded-lg transition-colors"
+          title="В начало (Home)"
+        >
+          ⏮️
+        </button>
+
+        {/* Step back */}
+        <button
+          onClick={onStepBack}
+          disabled={replayState.currentEventIndex <= -1}
+          className="px-3 py-2 bg-gray-600 hover:bg-gray-500 disabled:opacity-50 text-white rounded-lg transition-colors"
+          title="Шаг назад (←)"
+        >
+          ⏪
+        </button>
+        
         {/* Play/Pause */}
         <button
           onClick={replayState.isPlaying ? onPause : onPlay}
           className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors"
+          title={replayState.isPlaying ? "Пауза (Пробел)" : "Играть (Пробел)"}
         >
           {replayState.isPlaying ? '⏸️ Пауза' : '▶️ Играть'}
         </button>
         
-        {/* Step */}
+        {/* Step forward */}
         <button
           onClick={onStep}
-          disabled={replayState.currentEventIndex >= totalEvents}
-          className="px-4 py-2 bg-gray-600 hover:bg-gray-500 disabled:opacity-50 text-white rounded-lg transition-colors"
+          disabled={replayState.currentEventIndex >= totalEvents - 1}
+          className="px-3 py-2 bg-gray-600 hover:bg-gray-500 disabled:opacity-50 text-white rounded-lg transition-colors"
+          title="Шаг вперед (→)"
         >
-          ⏭️ Шаг
+          ⏩
+        </button>
+
+        {/* Skip to end */}
+        <button
+          onClick={onSkipToEnd}
+          disabled={replayState.currentEventIndex >= totalEvents - 1}
+          className="px-3 py-2 bg-gray-600 hover:bg-gray-500 disabled:opacity-50 text-white rounded-lg transition-colors"
+          title="В конец (End)"
+        >
+          ⏭️
         </button>
         
         {/* Speed control */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 ml-4">
           <span className="text-sm text-gray-400">Скорость:</span>
-          {[0.5, 1, 2, 4].map(speed => (
+          {[0.5, 1, 2, 4].map((speed, index) => (
             <button
               key={speed}
               onClick={() => onSpeedChange(speed as PlaybackSpeed)}
               className={`
-                px-3 py-1 rounded text-sm transition-colors
+                px-3 py-1 rounded text-sm transition-colors relative
                 ${replayState.speed === speed 
                   ? 'bg-blue-600 text-white' 
                   : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                 }
               `}
+              title={`Скорость ${speed}x (клавиша ${index + 1})`}
             >
               {speed}x
             </button>
           ))}
         </div>
-        
-        {/* Skip to end */}
-        <button
-          onClick={onSkipToEnd}
-          className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors"
-        >
-          ⏭️ В конец
-        </button>
+
+        {/* Keyboard shortcuts help */}
+        <div className="flex items-center gap-2 ml-4">
+          <button
+            className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg transition-colors text-sm"
+            title="Горячие клавиши: Пробел (играть/пауза), ← → (шаги), Home/End (начало/конец), 1-4 (скорость)"
+          >
+            ⌨️ Клавиши
+          </button>
+        </div>
       </div>
       
       {/* Progress bar */}
       <div className="mb-2">
         <div className="flex justify-between text-sm text-gray-400 mb-1">
-          <span>Событие {replayState.currentEventIndex} из {totalEvents}</span>
+          <span>
+            Событие {Math.max(0, replayState.currentEventIndex + 1)} из {totalEvents}
+            {replayState.currentEventIndex === -1 && (
+              <span className="text-blue-400 ml-2">🏁 Начало</span>
+            )}
+            {replayState.currentEventIndex === totalEvents - 1 && totalEvents > 0 && (
+              <span className="text-green-400 ml-2">🏁 Конец</span>
+            )}
+          </span>
           <span>{Math.round(progress)}%</span>
         </div>
         <div className="w-full bg-gray-700 rounded-full h-2">
@@ -431,11 +504,15 @@ function ReplayControls({
         </div>
         <input
           type="range"
-          min="0"
-          max={totalEvents}
+          min="-1"
+          max={totalEvents - 1}
           value={replayState.currentEventIndex}
           onChange={(e) => onSeek(parseInt(e.target.value))}
-          className="w-full mt-2 opacity-0 absolute"
+          className="w-full mt-2 h-3 bg-gray-700 rounded-lg appearance-none cursor-pointer slider hover:h-4 transition-all duration-200"
+          style={{
+            background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${progress}%, #374151 ${progress}%, #374151 100%)`
+          }}
+          title={`Событие ${Math.max(0, replayState.currentEventIndex + 1)} из ${totalEvents}`}
         />
       </div>
     </div>
@@ -469,19 +546,34 @@ function EventLog({
             `}
           >
             <div className="flex items-center gap-2">
-              <span className="text-gray-400">R{event.round}</span>
-              <span>{EVENT_TYPE_NAMES[event.type] || event.type}</span>
+              <span className="text-gray-400 text-xs">R{event.round}</span>
+              <span className="font-medium">{EVENT_TYPE_NAMES[event.type] || event.type}</span>
+              {event.actorId && (
+                <span className="text-xs text-gray-500">({event.actorId})</span>
+              )}
             </div>
             
             {event.damage && (
-              <div className="text-red-400 text-xs">
-                Урон: {event.damage}
+              <div className="text-red-400 text-xs font-medium">
+                💥 Урон: {event.damage}
+              </div>
+            )}
+            
+            {event.healing && (
+              <div className="text-green-400 text-xs font-medium">
+                💚 Лечение: {event.healing}
               </div>
             )}
             
             {event.fromPosition && event.toPosition && (
-              <div className="text-blue-400 text-xs">
-                Движение: ({event.fromPosition.x},{event.fromPosition.y}) → ({event.toPosition.x},{event.toPosition.y})
+              <div className="text-yellow-400 text-xs font-medium">
+                🚶 Движение: ({event.fromPosition.x},{event.fromPosition.y}) → ({event.toPosition.x},{event.toPosition.y})
+              </div>
+            )}
+            
+            {event.targetId && event.type === 'attack' && (
+              <div className="text-orange-400 text-xs">
+                🎯 Цель: {event.targetId}
               </div>
             )}
           </div>
@@ -506,7 +598,14 @@ function EventLog({
  */
 export function BattleReplay({ battle }: BattleReplayProps) {
   // Initialize units from battle log
-  const initialUnits = useMemo(() => extractInitialUnits(battle), [battle]);
+  const initialUnits = useMemo(() => {
+    try {
+      return extractInitialUnits(battle);
+    } catch (error) {
+      // Error will be visible in battle validation below
+      return [];
+    }
+  }, [battle]);
   
   // Replay state
   const [replayState, setReplayState] = useState<ReplayState>({
@@ -519,15 +618,57 @@ export function BattleReplay({ battle }: BattleReplayProps) {
   // Current unit states
   const [units, setUnits] = useState<ReplayUnit[]>(initialUnits);
   
+  // Active animations state
+  const [activeAnimations, setActiveAnimations] = useState<{
+    moves: Array<{ id: string; fromPosition: Position; toPosition: Position }>;
+    attacks: Array<{ id: string; attackerPosition: Position; targetPosition: Position }>;
+    damages: Array<{ id: string; damage: number; position: Position }>;
+    deaths: Array<{ id: string; position: Position }>;
+    heals: Array<{ id: string; healing: number; position: Position }>;
+  }>({
+    moves: [],
+    attacks: [],
+    damages: [],
+    deaths: [],
+    heals: [],
+  });
+  
   // Battle events
   const events = battle.events || [];
   
+  // Safety check for required battle data
+  if (!battle || !battle.id) {
+    return (
+      <div className="max-w-7xl mx-auto p-6 bg-gray-900 text-white">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold text-red-400 mb-4">❌ Invalid Battle Data</h1>
+          <p className="text-gray-300 mb-4">The battle data is missing or corrupted.</p>
+          <button
+            onClick={() => window.history.back()}
+            className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors"
+          >
+            ← Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+  
   /**
-   * Apply events up to specified index.
+   * Apply events up to specified index and trigger animations for current event.
    */
   const applyEventsUpTo = useCallback((eventIndex: number) => {
     let currentUnits = [...initialUnits];
     let currentRound = 1;
+    
+    // Clear previous animations
+    setActiveAnimations({
+      moves: [],
+      attacks: [],
+      damages: [],
+      deaths: [],
+      heals: [],
+    });
     
     for (let i = 0; i <= eventIndex && i < events.length; i++) {
       const event = events[i];
@@ -538,19 +679,142 @@ export function BattleReplay({ battle }: BattleReplayProps) {
       if (event.type === 'round_start') {
         currentRound = event.round;
       }
+      
+      // Trigger animations for the current event (last one being processed)
+      if (i === eventIndex) {
+        triggerEventAnimation(event, currentUnits);
+      }
     }
     
     setUnits(currentUnits);
     setReplayState(prev => ({ ...prev, currentRound }));
   }, [initialUnits, events]);
+
+  /**
+   * Trigger animation for a specific battle event.
+   * 
+   * @param event - Battle event to animate
+   * @param currentUnits - Current unit states
+   */
+  const triggerEventAnimation = useCallback((event: BattleEvent, currentUnits: ReplayUnit[]) => {
+    const animationId = `${event.type}-${Date.now()}-${Math.random()}`;
+    
+    switch (event.type) {
+      case 'move':
+        if (event.fromPosition && event.toPosition) {
+          setActiveAnimations(prev => ({
+            ...prev,
+            moves: [...prev.moves, {
+              id: animationId,
+              fromPosition: event.fromPosition!,
+              toPosition: event.toPosition!,
+            }],
+          }));
+        }
+        break;
+        
+      case 'attack':
+        if (event.actorId && event.targetId) {
+          const attacker = currentUnits.find(u => u.instanceId === event.actorId);
+          const target = currentUnits.find(u => u.instanceId === event.targetId);
+          
+          if (attacker && target) {
+            setActiveAnimations(prev => ({
+              ...prev,
+              attacks: [...prev.attacks, {
+                id: animationId,
+                attackerPosition: attacker.position,
+                targetPosition: target.position,
+              }],
+            }));
+          }
+        }
+        break;
+        
+      case 'damage':
+        if (event.targetId && event.damage) {
+          const target = currentUnits.find(u => u.instanceId === event.targetId);
+          
+          if (target) {
+            setActiveAnimations(prev => ({
+              ...prev,
+              damages: [...prev.damages, {
+                id: animationId,
+                damage: event.damage!,
+                position: target.position,
+              }],
+            }));
+          }
+        }
+        break;
+        
+      case 'death':
+        if (event.targetId || event.killedUnits) {
+          const killedIds = event.killedUnits || [event.targetId!];
+          
+          killedIds.forEach((killedId, index) => {
+            const killedUnit = currentUnits.find(u => u.instanceId === killedId);
+            
+            if (killedUnit) {
+              setActiveAnimations(prev => ({
+                ...prev,
+                deaths: [...prev.deaths, {
+                  id: `${animationId}-${index}`,
+                  position: killedUnit.position,
+                }],
+              }));
+            }
+          });
+        }
+        break;
+        
+      case 'heal':
+        if (event.targetId && event.healing) {
+          const target = currentUnits.find(u => u.instanceId === event.targetId);
+          
+          if (target) {
+            setActiveAnimations(prev => ({
+              ...prev,
+              heals: [...prev.heals, {
+                id: animationId,
+                healing: event.healing!,
+                position: target.position,
+              }],
+            }));
+          }
+        }
+        break;
+    }
+  }, []);
+
+  /**
+   * Handle animation completion by removing it from active animations.
+   * 
+   * @param animationType - Type of animation that completed
+   * @param animationId - ID of the completed animation
+   */
+  const handleAnimationComplete = useCallback((
+    animationType: 'moves' | 'attacks' | 'damages' | 'deaths' | 'heals',
+    animationId: string
+  ) => {
+    setActiveAnimations(prev => ({
+      ...prev,
+      [animationType]: prev[animationType].filter(anim => anim.id !== animationId),
+    }));
+  }, []);
   
   /**
    * Step to next event.
    */
   const stepForward = useCallback(() => {
-    const nextIndex = Math.min(replayState.currentEventIndex + 1, events.length - 1);
-    setReplayState(prev => ({ ...prev, currentEventIndex: nextIndex }));
-    applyEventsUpTo(nextIndex);
+    const nextIndex = replayState.currentEventIndex + 1;
+    if (nextIndex < events.length) {
+      setReplayState(prev => ({ ...prev, currentEventIndex: nextIndex }));
+      applyEventsUpTo(nextIndex);
+    } else if (nextIndex === events.length) {
+      // Reached the end, stop playing
+      setReplayState(prev => ({ ...prev, isPlaying: false }));
+    }
   }, [replayState.currentEventIndex, events.length, applyEventsUpTo]);
   
   /**
@@ -582,12 +846,32 @@ export function BattleReplay({ battle }: BattleReplayProps) {
     setReplayState(prev => ({ ...prev, currentEventIndex: lastIndex, isPlaying: false }));
     applyEventsUpTo(lastIndex);
   }, [events.length, applyEventsUpTo]);
+
+  /**
+   * Step to previous event.
+   */
+  const handleStepBack = useCallback(() => {
+    const prevIndex = replayState.currentEventIndex - 1;
+    if (prevIndex >= -1) {
+      setReplayState(prev => ({ ...prev, currentEventIndex: prevIndex, isPlaying: false }));
+      applyEventsUpTo(prevIndex);
+    }
+  }, [replayState.currentEventIndex, applyEventsUpTo]);
+
+  /**
+   * Skip to beginning of battle.
+   */
+  const handleSkipToStart = useCallback(() => {
+    setReplayState(prev => ({ ...prev, currentEventIndex: -1, isPlaying: false }));
+    applyEventsUpTo(-1);
+  }, [applyEventsUpTo]);
   
   // Auto-play effect
   useEffect(() => {
     if (!replayState.isPlaying) return;
     
     const interval = setInterval(() => {
+      // Check if we've reached the end of events (allow processing of the last event)
       if (replayState.currentEventIndex >= events.length - 1) {
         setReplayState(prev => ({ ...prev, isPlaying: false }));
         return;
@@ -598,28 +882,102 @@ export function BattleReplay({ battle }: BattleReplayProps) {
     
     return () => clearInterval(interval);
   }, [replayState.isPlaying, replayState.speed, replayState.currentEventIndex, events.length, stepForward]);
+
+  // Keyboard shortcuts effect
+  useEffect(() => {
+    /**
+     * Handle keyboard shortcuts for battle replay navigation.
+     * 
+     * @param event - Keyboard event
+     */
+    const handleKeyPress = (event: KeyboardEvent) => {
+      // Ignore if user is typing in an input field
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      switch (event.key) {
+        case ' ': // Spacebar - Play/Pause
+          event.preventDefault();
+          if (replayState.isPlaying) {
+            handlePause();
+          } else {
+            handlePlay();
+          }
+          break;
+        case 'ArrowLeft': // Left arrow - Step back
+          event.preventDefault();
+          handleStepBack();
+          break;
+        case 'ArrowRight': // Right arrow - Step forward
+          event.preventDefault();
+          handleStep();
+          break;
+        case 'Home': // Home - Skip to start
+          event.preventDefault();
+          handleSkipToStart();
+          break;
+        case 'End': // End - Skip to end
+          event.preventDefault();
+          handleSkipToEnd();
+          break;
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+          // Speed shortcuts
+          event.preventDefault();
+          const speeds: PlaybackSpeed[] = [0.5, 1, 2, 4];
+          const speedIndex = parseInt(event.key) - 1;
+          if (speedIndex >= 0 && speedIndex < speeds.length) {
+            const selectedSpeed = speeds[speedIndex];
+            if (selectedSpeed) {
+              handleSpeedChange(selectedSpeed);
+            }
+          }
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [replayState.isPlaying, handlePlay, handlePause, handleStep, handleStepBack, handleSkipToStart, handleSkipToEnd, handleSpeedChange]);
   
-  // Create grid with units
+  // Create grid with units and movement indicators
   const grid = useMemo(() => {
     const cells: JSX.Element[] = [];
+    
+    // Get current event for movement indicators
+    const currentEvent = events[replayState.currentEventIndex];
     
     for (let y = 0; y < GRID_HEIGHT; y++) {
       for (let x = 0; x < GRID_WIDTH; x++) {
         const position = { x, y };
         const unit = units.find(u => u.position.x === x && u.position.y === y);
         
+        // Check if this position is involved in current movement
+        let isMovementSource = false;
+        let isMovementTarget = false;
+        
+        if (currentEvent?.type === 'move') {
+          isMovementSource = currentEvent.fromPosition?.x === x && currentEvent.fromPosition?.y === y;
+          isMovementTarget = currentEvent.toPosition?.x === x && currentEvent.toPosition?.y === y;
+        }
+        
         cells.push(
           <ReplayGridCell
             key={`${x}-${y}`}
             position={position}
             unit={unit}
+            isMovementSource={isMovementSource}
+            isMovementTarget={isMovementTarget}
           />
         );
       }
     }
     
     return cells;
-  }, [units]);
+  }, [units, events, replayState.currentEventIndex]);
   
   return (
     <div className="max-w-7xl mx-auto p-6 bg-gray-900 text-white">
@@ -655,6 +1013,8 @@ export function BattleReplay({ battle }: BattleReplayProps) {
         </div>
       </div>
       
+
+
       {/* Turn order bar */}
       <TurnOrderBar units={units} currentRound={replayState.currentRound} />
       
@@ -664,14 +1024,77 @@ export function BattleReplay({ battle }: BattleReplayProps) {
         <div className="lg:col-span-2">
           <div className="bg-gray-800 rounded-lg p-4">
             <h3 className="text-lg font-medium mb-4">Поле боя (8×10)</h3>
-            <div 
-              className="grid gap-1 mx-auto"
-              style={{ 
-                gridTemplateColumns: `repeat(${GRID_WIDTH}, minmax(0, 1fr))`,
-                maxWidth: `${GRID_WIDTH * 3.5}rem`
-              }}
-            >
-              {grid}
+            <div className="relative">
+              <div 
+                className="grid gap-1 mx-auto"
+                style={{ 
+                  gridTemplateColumns: `repeat(${GRID_WIDTH}, minmax(0, 1fr))`,
+                  maxWidth: `${GRID_WIDTH * 3.5}rem`
+                }}
+              >
+                {grid}
+              </div>
+              
+              {/* Animation Overlay */}
+              <div 
+                className="absolute top-0 left-0 pointer-events-none"
+                style={{ 
+                  width: `${GRID_WIDTH * 3.5}rem`,
+                  height: `${GRID_HEIGHT * 3.5}rem`,
+                  margin: '0 auto',
+                  left: '50%',
+                  transform: 'translateX(-50%)'
+                }}
+              >
+                {/* Move Animations */}
+                {activeAnimations.moves.map(moveAnim => (
+                  <MoveAnimation
+                    key={moveAnim.id}
+                    fromPosition={moveAnim.fromPosition}
+                    toPosition={moveAnim.toPosition}
+                    onComplete={() => handleAnimationComplete('moves', moveAnim.id)}
+                  />
+                ))}
+                
+                {/* Attack Animations */}
+                {activeAnimations.attacks.map(attackAnim => (
+                  <AttackAnimation
+                    key={attackAnim.id}
+                    attackerPosition={attackAnim.attackerPosition}
+                    targetPosition={attackAnim.targetPosition}
+                    onComplete={() => handleAnimationComplete('attacks', attackAnim.id)}
+                  />
+                ))}
+                
+                {/* Damage Numbers */}
+                {activeAnimations.damages.map(damageAnim => (
+                  <DamageNumber
+                    key={damageAnim.id}
+                    damage={damageAnim.damage}
+                    position={damageAnim.position}
+                    onComplete={() => handleAnimationComplete('damages', damageAnim.id)}
+                  />
+                ))}
+                
+                {/* Death Animations */}
+                {activeAnimations.deaths.map(deathAnim => (
+                  <DeathAnimation
+                    key={deathAnim.id}
+                    position={deathAnim.position}
+                    onComplete={() => handleAnimationComplete('deaths', deathAnim.id)}
+                  />
+                ))}
+                
+                {/* Heal Animations */}
+                {activeAnimations.heals.map(healAnim => (
+                  <HealAnimation
+                    key={healAnim.id}
+                    healing={healAnim.healing}
+                    position={healAnim.position}
+                    onComplete={() => handleAnimationComplete('heals', healAnim.id)}
+                  />
+                ))}
+              </div>
             </div>
           </div>
           
@@ -683,8 +1106,10 @@ export function BattleReplay({ battle }: BattleReplayProps) {
               onPlay={handlePlay}
               onPause={handlePause}
               onStep={handleStep}
+              onStepBack={handleStepBack}
               onSpeedChange={handleSpeedChange}
               onSeek={handleSeek}
+              onSkipToStart={handleSkipToStart}
               onSkipToEnd={handleSkipToEnd}
             />
           </div>
