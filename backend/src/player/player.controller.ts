@@ -15,6 +15,10 @@ interface UpdateTeamDto {
   team: UnitType[];
 }
 
+interface UpdatePlayerNameDto {
+  name: string;
+}
+
 /**
  * Controller handling player-related HTTP endpoints.
  * All endpoints require guest authentication.
@@ -196,5 +200,74 @@ export class PlayerController {
   })
   async updateTeam(@Req() req: AuthenticatedRequest, @Body() body: UpdateTeamDto) {
     return this.playerService.updateTeam(req.player.id, body.team);
+  }
+
+  /**
+   * Update player's display name.
+   * Updates the player's display name with validation.
+   * 
+   * @param req - Authenticated request containing player information
+   * @param body - Request body containing new player name
+   * @returns Updated player entity
+   * @example
+   * PUT /player/name
+   * Body: { "name": "New Player Name" }
+   */
+  @Put('name')
+  @ApiOperation({
+    summary: 'Update player name',
+    description: 'Updates player display name with validation for length and content',
+  })
+  @ApiBody({
+    description: 'New player name',
+    schema: {
+      type: 'object',
+      properties: {
+        name: {
+          type: 'string',
+          description: 'New display name for the player',
+          example: 'Epic Warrior',
+          minLength: 1,
+          maxLength: 20,
+        },
+      },
+      required: ['name'],
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Player name updated successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        id: {
+          type: 'string',
+          format: 'uuid',
+          description: 'Player unique identifier',
+        },
+        name: {
+          type: 'string',
+          description: 'Updated player name',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid name - too long, too short, or contains invalid characters',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - invalid guest token',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Player not found',
+    type: ErrorResponseDto,
+  })
+  async updatePlayerName(@Req() req: AuthenticatedRequest, @Body() body: UpdatePlayerNameDto) {
+    return this.playerService.updatePlayerName(req.player.id, body.name);
   }
 }

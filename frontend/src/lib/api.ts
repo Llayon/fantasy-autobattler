@@ -510,6 +510,22 @@ export const api = {
   // ===========================================================================
 
   /**
+   * Update player display name.
+   * 
+   * @param name - New display name for the player
+   * @returns Updated player profile
+   * @throws ApiError if name is invalid or update fails
+   * @example
+   * const player = await api.updatePlayerName('Epic Warrior');
+   */
+  async updatePlayerName(name: string): Promise<Player> {
+    return fetchApi<Player>('/player/name', {
+      method: 'PUT',
+      body: JSON.stringify({ name }),
+    });
+  },
+
+  /**
    * Legacy method for updating player team (deprecated).
    * @deprecated Use createTeam() or updateTeam() instead
    */

@@ -89,6 +89,7 @@ interface TeamActionsProps {
   onStartBattle: () => void;
   onShowTeams: () => void;
   onShowHistory: () => void;
+  onShowProfile: () => void;
   canSave: boolean;
   canBattle: boolean;
   loading: boolean;
@@ -101,6 +102,7 @@ function TeamActions({
   onStartBattle, 
   onShowTeams, 
   onShowHistory,
+  onShowProfile,
   canSave, 
   canBattle, 
   loading,
@@ -135,6 +137,14 @@ function TeamActions({
         className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm rounded-lg transition-colors"
       >
         📚 История боёв
+      </button>
+      
+      <button
+        onClick={onShowProfile}
+        disabled={loading}
+        className="px-3 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-sm rounded-lg transition-colors"
+      >
+        👤 Профиль
       </button>
       
       <button
@@ -448,6 +458,7 @@ export default function TeamBuilderPage() {
                 onStartBattle={handleStartBattle}
                 onShowTeams={handleShowTeams}
                 onShowHistory={() => window.location.href = '/history'}
+                onShowProfile={() => window.location.href = '/profile'}
                 canSave={currentTeam.isValid && currentTeam.units.length > 0}
                 canBattle={currentTeam.isValid && currentTeam.units.length > 0}
                 loading={teamLoading}

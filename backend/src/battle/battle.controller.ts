@@ -97,7 +97,7 @@ export class BattleController {
   /**
    * Get all battles for the authenticated player.
    * @param req - Authenticated request containing player information
-   * @returns Array of player's battle logs
+   * @returns Object with battles array and total count
    */
   @Get()
   @ApiOperation({
@@ -115,6 +115,10 @@ export class BattleController {
     type: ErrorResponseDto,
   })
   async getMyBattles(@Req() req: AuthenticatedRequest) {
-    return this.battleService.getBattlesForPlayer(req.player.id);
+    const battles = await this.battleService.getBattlesForPlayer(req.player.id);
+    return {
+      battles,
+      total: battles.length,
+    };
   }
 }
