@@ -11,6 +11,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { BattleLog } from '@/types/game';
 import { api, ApiError } from '@/lib/api';
+import { Navigation, NavigationWrapper } from '@/components/Navigation';
 
 // =============================================================================
 // TYPES
@@ -507,16 +508,10 @@ export default function BattleHistoryPage() {
   
   return (
     <div className="min-h-screen bg-gray-900 text-white">
-      <div className="max-w-4xl mx-auto p-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-4xl font-bold mb-2">📚 История боёв</h1>
-            <p className="text-gray-400">
-              Просмотрите свои прошлые сражения и анализируйте результаты
-            </p>
-          </div>
-          
+      {/* Navigation */}
+      <div className="p-4 border-b border-gray-700">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <Navigation />
           <button
             onClick={() => router.push('/')}
             className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
@@ -524,6 +519,17 @@ export default function BattleHistoryPage() {
             ← Назад
           </button>
         </div>
+      </div>
+      
+      <NavigationWrapper>
+        <div className="max-w-4xl mx-auto p-6">
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-4xl font-bold mb-2">📚 История боёв</h1>
+            <p className="text-gray-400">
+              Просмотрите свои прошлые сражения и анализируйте результаты
+            </p>
+          </div>
         
         {/* Loading state */}
         {loading && (
@@ -587,7 +593,8 @@ export default function BattleHistoryPage() {
             )}
           </>
         )}
-      </div>
+        </div>
+      </NavigationWrapper>
     </div>
   );
 }

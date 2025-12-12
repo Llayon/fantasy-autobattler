@@ -10,8 +10,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePlayerStore } from '@/store/playerStore';
-import { TeamResponse } from '@/types/game';
+import { TeamResponse, Player } from '@/types/game';
 import { api, ApiError } from '@/lib/api';
+import { Navigation, NavigationWrapper } from '@/components/Navigation';
 
 // =============================================================================
 // TYPES
@@ -629,9 +630,17 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
-      <div className="max-w-6xl mx-auto p-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+      {/* Navigation */}
+      <div className="p-4 border-b border-gray-700">
+        <div className="max-w-6xl mx-auto">
+          <Navigation />
+        </div>
+      </div>
+      
+      <NavigationWrapper>
+        <div className="max-w-6xl mx-auto p-6">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-8">
           <div>
             <EditablePlayerName 
               name={player.name} 
@@ -698,7 +707,8 @@ export default function ProfilePage() {
             />
           </div>
         </div>
-      </div>
+        </div>
+      </NavigationWrapper>
     </div>
   );
 }

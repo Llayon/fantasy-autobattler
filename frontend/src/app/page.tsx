@@ -16,6 +16,7 @@ import { DragDropProvider, DragDropHandlers } from '@/components/DragDropProvide
 import { BudgetIndicator } from '@/components/BudgetIndicator';
 import { SavedTeamsModal } from '@/components/SavedTeamsModal';
 import { MatchmakingPanel } from '@/components/MatchmakingPanel';
+import { Navigation, NavigationWrapper } from '@/components/Navigation';
 import { 
   usePlayerStore, 
   useTeamStore, 
@@ -89,8 +90,6 @@ interface TeamActionsProps {
   onClear: () => void;
   onStartBattle: () => void;
   onShowTeams: () => void;
-  onShowHistory: () => void;
-  onShowProfile: () => void;
   canSave: boolean;
   canBattle: boolean;
   loading: boolean;
@@ -102,8 +101,6 @@ function TeamActions({
   onClear, 
   onStartBattle, 
   onShowTeams, 
-  onShowHistory,
-  onShowProfile,
   canSave, 
   canBattle, 
   loading,
@@ -132,21 +129,7 @@ function TeamActions({
         )}
       </button>
       
-      <button
-        onClick={onShowHistory}
-        disabled={loading}
-        className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm rounded-lg transition-colors"
-      >
-        📚 История боёв
-      </button>
-      
-      <button
-        onClick={onShowProfile}
-        disabled={loading}
-        className="px-3 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-sm rounded-lg transition-colors"
-      >
-        👤 Профиль
-      </button>
+
       
       <button
         onClick={onSave}
@@ -434,16 +417,20 @@ export default function TeamBuilderPage() {
       <header className="bg-gray-800/50 border-b border-gray-700 p-4">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            {/* Title and player info */}
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-yellow-400 mb-1">
-                ⚔️ Конструктор команды
-              </h1>
-              {player && (
-                <p className="text-gray-300 text-sm">
-                  {player.name} | Побед: {player.stats?.wins || 0} | Поражений: {player.stats?.losses || 0}
-                </p>
-              )}
+            {/* Title and Navigation */}
+            <div className="flex flex-col md:flex-row md:items-center gap-4">
+              <div>
+                <h1 className="text-2xl md:text-3xl font-bold text-yellow-400 mb-1">
+                  ⚔️ Конструктор команды
+                </h1>
+                {player && (
+                  <p className="text-gray-300 text-sm">
+                    {player.name} | Побед: {(player as Player & { wins?: number; losses?: number }).wins || 0} | Поражений: {(player as Player & { wins?: number; losses?: number }).losses || 0}
+                  </p>
+                )}
+              </div>
+              
+              <Navigation />
             </div>
             
             {/* Budget and actions */}
@@ -459,8 +446,6 @@ export default function TeamBuilderPage() {
                 onClear={handleClearTeam}
                 onStartBattle={handleStartBattle}
                 onShowTeams={handleShowTeams}
-                onShowHistory={() => router.push('/history')}
-                onShowProfile={() => router.push('/profile')}
                 canSave={currentTeam.isValid && currentTeam.units.length > 0}
                 canBattle={currentTeam.isValid && currentTeam.units.length > 0}
                 loading={teamLoading}
@@ -486,7 +471,8 @@ export default function TeamBuilderPage() {
       </header>
       
       {/* Main content */}
-      <main className="max-w-7xl mx-auto p-4">
+      <NavigationWrapper>
+        <main className="max-w-7xl mx-auto p-4">
         {/* Desktop layout */}
         <div className="hidden md:grid md:grid-cols-12 gap-6 h-[calc(100vh-200px)]">
           {/* Unit list - Left side */}
@@ -591,7 +577,8 @@ export default function TeamBuilderPage() {
             </div>
           </div>
         )}
-      </main>
+        </main>
+      </NavigationWrapper>
       
       {/* Saved Teams Modal */}
       <SavedTeamsModal
