@@ -612,14 +612,19 @@ export default function ProfilePage() {
     );
   }
 
-  // Calculate stats
+  // Calculate stats from player data (backend returns wins/losses/rating directly)
+  const playerData = player as Player & { wins?: number; losses?: number; rating?: number };
+  const playerWins = playerData.wins || 0;
+  const playerLosses = playerData.losses || 0;
+  const playerRating = playerData.rating || 1200;
+  
   const stats: PlayerStats = {
-    gamesPlayed: (player.stats?.wins || 0) + (player.stats?.losses || 0),
-    wins: player.stats?.wins || 0,
-    losses: player.stats?.losses || 0,
-    winRate: calculateWinRate(player.stats?.wins || 0, player.stats?.losses || 0),
-    rating: 1200, // TODO: Get from player entity when rating field is added to frontend type
-    rank: getRankFromRating(1200).name,
+    gamesPlayed: playerWins + playerLosses,
+    wins: playerWins,
+    losses: playerLosses,
+    winRate: calculateWinRate(playerWins, playerLosses),
+    rating: playerRating,
+    rank: getRankFromRating(playerRating).name,
   };
 
   return (
