@@ -210,7 +210,7 @@ const DEFAULT_TOAST_DURATION = 5000;
  * const id = generateId();
  */
 function generateId(): string {
-  return Math.random().toString(36).substr(2, 9);
+  return Math.random().toString(36).substring(2, 11);
 }
 
 /**

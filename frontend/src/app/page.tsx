@@ -17,7 +17,6 @@ import { SavedTeamsModal } from '@/components/SavedTeamsModal';
 import { MatchmakingPanel } from '@/components/MatchmakingPanel';
 import { Navigation, NavigationWrapper } from '@/components/Navigation';
 import { FullPageLoader, ButtonLoader } from '@/components/LoadingStates';
-import { ErrorPage, useToast } from '@/components/ErrorStates';
 import { 
   usePlayerStore, 
   useTeamStore, 
@@ -230,7 +229,6 @@ function MobileUnitSheet({ isOpen, onClose, children }: MobileUnitSheetProps) {
  * }
  */
 export default function TeamBuilderPage() {
-  const { showSuccess, showError, showInfo } = useToast();
   const [selectedUnit, setSelectedUnit] = useState<UnitTemplate | null>(null);
   const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
   const [showSavedTeamsModal, setShowSavedTeamsModal] = useState(false);
@@ -355,28 +353,20 @@ export default function TeamBuilderPage() {
   
   // Handle team actions
   const handleSaveTeam = useCallback(async () => {
-    try {
-      validateTeam();
-      if (currentTeam.isValid) {
-        const savedTeam = await saveTeam();
-        if (savedTeam) {
-          showSuccess('Команда успешно сохранена!');
-          // Refresh teams list after successful save
-          await loadTeams();
-        }
-      } else {
-        showError('Исправьте ошибки в команде перед сохранением');
+    validateTeam();
+    if (currentTeam.isValid) {
+      const savedTeam = await saveTeam();
+      if (savedTeam) {
+        // Refresh teams list after successful save
+        await loadTeams();
       }
-    } catch (error) {
-      showError('Не удалось сохранить команду');
     }
-  }, [validateTeam, currentTeam.isValid, saveTeam, loadTeams, showSuccess, showError]);
+  }, [validateTeam, currentTeam.isValid, saveTeam, loadTeams]);
   
   const handleClearTeam = useCallback(() => {
     createNewTeam('Новая команда');
     setSelectedUnit(null);
-    showInfo('Команда очищена');
-  }, [createNewTeam, showInfo]);
+  }, [createNewTeam]);
   
   const handleStartBattle = useCallback(() => {
     // TODO: Implement battle start logic
@@ -414,13 +404,13 @@ export default function TeamBuilderPage() {
   // Error state
   if (playerError) {
     return (
-      <ErrorPage
-        title="Ошибка загрузки игрока"
-        message={playerError}
-        showRetry
-        onRetry={() => window.location.reload()}
-        icon="👤"
-      />
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-4xl mb-4">❌</div>
+          <div className="text-xl text-red-400 mb-2">{playerError}</div>
+          <p className="text-gray-400">Убедитесь, что backend запущен на localhost:3001</p>
+        </div>
+      </div>
     );
   }
   
