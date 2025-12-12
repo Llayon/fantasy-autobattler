@@ -8,6 +8,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { Position, UnitTemplate, UnitId, TeamResponse } from '@/types/game';
 import { UnitList } from '@/components/UnitList';
 import { EnhancedBattleGrid } from '@/components/EnhancedBattleGrid';
@@ -233,6 +234,7 @@ function MobileUnitSheet({ isOpen, onClose, children }: MobileUnitSheetProps) {
  * }
  */
 export default function TeamBuilderPage() {
+  const router = useRouter();
   const [selectedUnit, setSelectedUnit] = useState<UnitTemplate | null>(null);
   const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
   const [showSavedTeamsModal, setShowSavedTeamsModal] = useState(false);
@@ -457,8 +459,8 @@ export default function TeamBuilderPage() {
                 onClear={handleClearTeam}
                 onStartBattle={handleStartBattle}
                 onShowTeams={handleShowTeams}
-                onShowHistory={() => window.location.href = '/history'}
-                onShowProfile={() => window.location.href = '/profile'}
+                onShowHistory={() => router.push('/history')}
+                onShowProfile={() => router.push('/profile')}
                 canSave={currentTeam.isValid && currentTeam.units.length > 0}
                 canBattle={currentTeam.isValid && currentTeam.units.length > 0}
                 loading={teamLoading}

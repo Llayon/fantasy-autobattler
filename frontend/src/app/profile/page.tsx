@@ -300,10 +300,12 @@ function StatsCard({ stats }: { stats: PlayerStats }) {
  */
 function TeamsCard({ 
   teams, 
-  onTeamClick 
+  onTeamClick,
+  onCreateTeam
 }: { 
   teams: TeamResponse[];
   onTeamClick: (teamId: string) => void;
+  onCreateTeam: () => void;
 }) {
   if (teams.length === 0) {
     return (
@@ -315,7 +317,7 @@ function TeamsCard({
           <div className="text-6xl mb-4">🏗️</div>
           <p className="text-gray-400 mb-4">У вас пока нет команд</p>
           <button
-            onClick={() => window.location.href = '/'}
+            onClick={onCreateTeam}
             className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg transition-colors"
           >
             Создать команду
@@ -372,7 +374,7 @@ function TeamsCard({
       </div>
       
       <button
-        onClick={() => window.location.href = '/'}
+        onClick={onCreateTeam}
         className="w-full mt-4 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
       >
         + Создать новую команду
@@ -684,7 +686,11 @@ export default function ProfilePage() {
           
           {/* Right column */}
           <div className="space-y-6">
-            <TeamsCard teams={teams} onTeamClick={handleTeamClick} />
+            <TeamsCard 
+              teams={teams} 
+              onTeamClick={handleTeamClick}
+              onCreateTeam={() => router.push('/')}
+            />
           </div>
         </div>
       </div>
