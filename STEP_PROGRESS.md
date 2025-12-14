@@ -6657,3 +6657,136 @@ All UI enhancement and responsive design steps successfully implemented:
 - **Step 50**: Responsive design across all breakpoints ✅
 
 **Fantasy Autobattler is now fully responsive and ready for production deployment!**
+
+---
+
+## Step 51: Ability System Types ✅ COMPLETED
+**Date:** December 14, 2025  
+**Duration:** ~20 minutes  
+**Status:** SUCCESS
+
+### 🎯 Objectives
+- Create comprehensive ability system types for fantasy autobattler
+- Define AbilityType: 'active' | 'passive'
+- Implement TargetType with multiple targeting options
+- Create EffectType for all ability effects
+- Add runtime state interfaces for battle system
+- Ensure all types cover GDD abilities with no `any` types
+
+### 🔧 Changes Made
+
+#### 1. Core Ability Types
+- ✅ **AbilityType**: 'active' | 'passive' for ability activation
+- ✅ **TargetType**: 10 targeting options (self, ally, enemy, area, all_enemies, all_allies, random_enemy, random_ally, lowest_hp_ally, lowest_hp_enemy)
+- ✅ **EffectType**: 12 effect types (damage, heal, buff, debuff, stun, taunt, summon, shield, dot, hot, cleanse, dispel)
+- ✅ **DamageType**: 'physical' | 'magical' | 'true' for damage classification
+- ✅ **ModifiableStat**: All stats that can be modified by buffs/debuffs
+- ✅ **PassiveTrigger**: 9 trigger conditions for passive abilities
+
+#### 2. Effect Interfaces
+- ✅ **BaseAbilityEffect**: Common interface for all effects
+- ✅ **DamageEffect**: Damage with type, scaling, and attack integration
+- ✅ **HealEffect**: Healing with scaling and overheal support
+- ✅ **BuffEffect**: Stat modifications with stacking and duration
+- ✅ **DebuffEffect**: Negative stat modifications with stacking
+- ✅ **StunEffect**: Prevents unit actions for duration
+- ✅ **TauntEffect**: Forces enemy targeting for duration
+- ✅ **SummonEffect**: Creates new units on battlefield
+- ✅ **ShieldEffect**: Absorbs damage with scaling and duration
+- ✅ **DotEffect**: Damage over time with type specification
+- ✅ **HotEffect**: Heal over time effects
+- ✅ **CleanseEffect**: Removes debuffs from targets
+- ✅ **DispelEffect**: Removes buffs from enemies
+
+#### 3. Ability Interfaces
+- ✅ **ActiveAbility**: Manually triggered abilities with cooldown and mana cost
+- ✅ **PassiveAbility**: Automatically triggered abilities with conditions
+- ✅ **Ability**: Union type of all ability types
+- ✅ **AbilityId**: Unique identifier type for abilities
+
+#### 4. Runtime State Interfaces
+- ✅ **ActiveAbilityState**: Runtime state for active abilities during battle
+- ✅ **PassiveAbilityState**: Runtime state for passive abilities during battle
+- ✅ **StatusEffect**: Active status effects on units
+- ✅ **ShieldInstance**: Shield instances with remaining values
+
+#### 5. Type Guards and Utilities
+- ✅ **isActiveAbility()**: Type guard for active abilities
+- ✅ **isPassiveAbility()**: Type guard for passive abilities
+- ✅ **isDamageEffect()**: Type guard for damage effects
+- ✅ **isHealEffect()**: Type guard for heal effects
+- ✅ **isBuffEffect()**: Type guard for buff effects
+- ✅ **isDebuffEffect()**: Type guard for debuff effects
+
+### 📊 Ability System Features
+```
+Ability Types: Active (manual) and Passive (automatic)
+Target Types: 10 different targeting strategies
+Effect Types: 12 comprehensive effect categories
+Damage Types: Physical, magical, and true damage
+Runtime State: Complete battle state management
+Type Safety: No 'any' types, comprehensive interfaces
+Documentation: Full JSDoc with examples for all types
+```
+
+### 🔧 Technical Implementation
+- ✅ **Type Safety**: Strict TypeScript with no `any` types used
+- ✅ **JSDoc Coverage**: Comprehensive documentation with examples for all interfaces
+- ✅ **Optional Fields**: Properly marked with `?` for optional parameters
+- ✅ **Union Types**: Proper use of union types for effect discrimination
+- ✅ **Generic Support**: Extensible design for future ability additions
+- ✅ **GDD Compliance**: All types cover abilities specified in Game Design Document
+
+### 📊 GDD Coverage Verification
+- ✅ **All Unit Abilities**: Types support all 15 units' abilities from GDD
+- ✅ **Damage Systems**: Physical, magical, and true damage types
+- ✅ **Status Effects**: Buffs, debuffs, stuns, taunts, shields
+- ✅ **Targeting Options**: All targeting patterns from GDD abilities
+- ✅ **Passive Triggers**: All trigger conditions for passive abilities
+- ✅ **Runtime Support**: Complete battle state management interfaces
+
+### 📊 Validation Results
+```bash
+✅ TypeScript compilation - SUCCESS (no errors)
+✅ All types exported - SUCCESS (comprehensive exports)
+✅ No 'any' types used - SUCCESS (strict type safety)
+✅ Optional fields marked - SUCCESS (proper '?' usage)
+✅ JSDoc documentation - SUCCESS (all interfaces documented)
+✅ GDD coverage - SUCCESS (all abilities supported)
+```
+
+### 📝 Files Created
+- `backend/src/types/ability.types.ts` - **NEW** comprehensive ability system types
+
+### 🎉 Success Criteria Met
+- [x] AbilityType: 'active' | 'passive' implemented
+- [x] TargetType with 10 targeting options created
+- [x] EffectType with 12 effect types implemented
+- [x] All GDD abilities covered by type system
+- [x] No `any` types used anywhere
+- [x] Optional fields properly marked with `?`
+- [x] All types exported for use in other modules
+- [x] Comprehensive JSDoc documentation with examples
+- [x] Type guards for runtime type checking
+- [x] Runtime state interfaces for battle system
+
+### 🚀 Ready For
+- Step 52: Unit Ability Definitions
+- Ability effect implementation in battle system
+- Active ability execution system
+- Passive ability trigger system
+- Status effect management in battles
+- Advanced ability combinations and interactions
+
+---
+
+## PHASE 4: ABILITIES & ADVANCED MECHANICS - STARTED
+**Date:** December 14, 2025  
+**Status:** Step 51 completed, ready for Step 52
+
+### 🎯 Phase 4 Progress
+- **Step 51**: Ability System Types ✅ COMPLETED
+- **Step 52**: Unit Ability Definitions (Next)
+- **Steps 53-65**: Advanced mechanics implementation (Planned)
+
+**Ability system foundation is now complete and ready for implementation!**
