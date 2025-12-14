@@ -560,7 +560,11 @@ function EmptyState({ filter }: { filter: BattleFilter }) {
         <div className="space-y-4">
           <ButtonLoader
             loading={false}
-            onClick={() => window.location.href = '/'}
+            onClick={() => {
+              if (typeof window !== 'undefined') {
+                window.location.href = '/';
+              }
+            }}
             variant="primary"
             size="lg"
           >
@@ -575,7 +579,11 @@ function EmptyState({ filter }: { filter: BattleFilter }) {
       {filter !== 'all' && (
         <ButtonLoader
           loading={false}
-          onClick={() => window.location.href = '/'}
+          onClick={() => {
+            if (typeof window !== 'undefined') {
+              window.location.href = '/';
+            }
+          }}
           variant="secondary"
           size="lg"
         >

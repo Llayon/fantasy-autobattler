@@ -236,7 +236,11 @@ export default function TestErrorsPage() {
         <section>
           <ButtonLoader
             loading={false}
-            onClick={() => window.location.href = '/'}
+            onClick={() => {
+              if (typeof window !== 'undefined') {
+                window.location.href = '/';
+              }
+            }}
             variant="secondary"
             size="lg"
           >

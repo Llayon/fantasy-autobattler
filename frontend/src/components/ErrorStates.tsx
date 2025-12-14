@@ -459,7 +459,7 @@ export function ErrorPage({
   const handleHome = useCallback(() => {
     if (onHome) {
       onHome();
-    } else {
+    } else if (typeof window !== 'undefined') {
       window.location.href = '/';
     }
   }, [onHome]);
@@ -614,7 +614,7 @@ export function NetworkError({
   showOffline = true,
   className = ''
 }: NetworkErrorProps) {
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
   
   // Monitor online status
   useEffect(() => {

@@ -12,10 +12,17 @@ import { useParams, useRouter } from 'next/navigation';
 import { Navigation, NavigationWrapper } from '@/components/Navigation';
 import { FullPageLoader } from '@/components/LoadingStates';
 import { ErrorMessage, NetworkError, useToast } from '@/components/ErrorStates';
-import { BattleReplay } from '@/components/BattleReplay';
 import { useBattleStore } from '@/store/battleStore';
 import { useMatchmakingStore } from '@/store/matchmakingStore';
 import { BattleLog } from '@/types/game';
+
+// Lazy import BattleReplay to avoid build issues
+import dynamic from 'next/dynamic';
+
+const BattleReplay = dynamic(() => import('@/components/BattleReplay').then(mod => ({ default: mod.BattleReplay })), {
+  loading: () => <FullPageLoader message="Загрузка компонента боя..." icon="⚔️" />,
+  ssr: false
+});
 
 /**
  * Battle page props from Next.js routing.
@@ -79,7 +86,7 @@ export default function BattlePage({ params }: BattlePageProps) {
     };
 
     fetchBattle();
-  }, [battleId, loadBattle]);
+  }, [battleId, loadBattle, showError]);
 
   /**
    * Update local battle state when store state changes.

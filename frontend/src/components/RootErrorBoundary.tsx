@@ -84,7 +84,11 @@ export function RootErrorBoundary({ children }: RootErrorBoundaryProps) {
         showRetry
         onRetry={retry}
         showHome
-        onHome={() => window.location.href = '/'}
+        onHome={() => {
+          if (typeof window !== 'undefined') {
+            window.location.href = '/';
+          }
+        }}
         icon={isNetworkError ? '🌐' : '🐛'}
       />
     );
