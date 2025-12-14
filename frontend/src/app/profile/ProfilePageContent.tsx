@@ -236,9 +236,14 @@ function calculateWinRate(wins: number, losses: number): number {
  * const url = generateProfileUrl('player-123');
  */
 function generateProfileUrl(playerId: string): string {
-  // Check if we're on the client side
-  if (typeof window !== 'undefined') {
-    return `${window.location.origin}/profile/${playerId}`;
+  // Only generate full URL on client side
+  if (typeof window !== 'undefined' && window.location && window.location.origin) {
+    try {
+      return `${window.location.origin}/profile/${playerId}`;
+    } catch (error) {
+      // Fallback if window.location access fails
+      return `/profile/${playerId}`;
+    }
   }
   // Fallback for server-side rendering
   return `/profile/${playerId}`;
