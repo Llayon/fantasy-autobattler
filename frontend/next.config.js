@@ -9,10 +9,8 @@ const nextConfig = {
   // Performance optimizations
   swcMinify: true,
   
-  // Experimental features for better performance
-  experimental: {
-    optimizeCss: true,
-  },
+  // Experimental features disabled - optimizeCss requires critters module
+  // which causes build failures in CI environments
   
   // Webpack optimizations
   webpack: (config, { dev, isServer }) => {
