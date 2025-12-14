@@ -6790,3 +6790,138 @@ Documentation: Full JSDoc with examples for all types
 - **Steps 53-65**: Advanced mechanics implementation (Planned)
 
 **Ability system foundation is now complete and ready for implementation!**
+
+
+---
+
+## Step 52: Ability Definitions ✅ COMPLETED
+**Date:** December 14, 2025  
+**Duration:** ~35 minutes  
+**Status:** SUCCESS
+
+### 🎯 Objectives
+- Create comprehensive ability definitions for all 15 units from GDD
+- Define each ability with complete parameters (effects, targeting, cooldowns)
+- Implement utility functions for ability lookup and filtering
+- Create unit-ability mapping for easy access
+- Ensure all abilities match GDD specifications
+
+### 🔧 Changes Made
+
+#### 1. Tank Abilities (3)
+- ✅ **shield_wall** (Knight): +50% armor for 2 turns, cooldown 3
+- ✅ **taunt** (Guardian): Forces enemies to attack this unit for 2 turns, cooldown 4
+- ✅ **rage** (Berserker): Passive +50% attack when HP < 50%
+
+#### 2. Melee DPS Abilities (3)
+- ✅ **backstab** (Rogue): Passive +100% damage when attacking from behind
+- ✅ **riposte** (Duelist): Passive 30% chance to counter-attack when hit
+- ✅ **execute** (Assassin): Passive +100% damage to targets below 30% HP
+
+#### 3. Ranged DPS Abilities (3)
+- ✅ **volley** (Archer): AoE damage in 2-cell radius, cooldown 3
+- ✅ **piercing_shot** (Crossbowman): Ignores 50% armor, cooldown 2
+- ✅ **trap** (Hunter): Places trap that stuns for 1 turn, cooldown 4
+
+#### 4. Mage Abilities (3)
+- ✅ **fireball** (Mage): 30 magic damage in 1-cell radius, cooldown 2
+- ✅ **drain_life** (Warlock): Damage + heal 50% of damage dealt, cooldown 3
+- ✅ **chain_lightning** (Elementalist): Chains to 2 nearby enemies, cooldown 3
+
+#### 5. Support Abilities (2)
+- ✅ **heal** (Priest): Restores 25 HP to lowest HP ally, cooldown 2
+- ✅ **inspire** (Bard): +20% attack to all allies for 2 turns, cooldown 4
+
+#### 6. Control Abilities (1)
+- ✅ **stun** (Enchanter): Target skips next turn, cooldown 3
+
+#### 7. Utility Functions
+- ✅ `getAbility()` - Get ability by ID
+- ✅ `getActiveAbilities()` - Get all active abilities (11 total)
+- ✅ `getPassiveAbilities()` - Get all passive abilities (4 total)
+- ✅ `getAllAbilityIds()` - Get all ability IDs
+- ✅ `hasAbility()` - Check if ability exists (type guard)
+- ✅ `getAbilitiesByEffectType()` - Filter by effect type
+- ✅ `getAbilitiesByTargetType()` - Filter by target type
+- ✅ `calculateCooldownReduction()` - Calculate reduced cooldowns
+- ✅ `isInAbilityRange()` - Check if target is in ability range
+- ✅ `getUnitAbility()` - Get ability for specific unit
+- ✅ `unitHasActiveAbility()` - Check if unit has active ability
+- ✅ `unitHasPassiveAbility()` - Check if unit has passive ability
+
+### 📊 Ability Distribution
+```
+Active Abilities: 11 (shield_wall, taunt, volley, piercing_shot, trap, 
+                     fireball, drain_life, chain_lightning, heal, inspire, stun)
+Passive Abilities: 4 (rage, backstab, riposte, execute)
+Total Abilities: 15 (one per unit)
+```
+
+### 🔧 Technical Implementation
+- ✅ **Type Safety**: All abilities use typed interfaces from ability.types.ts
+- ✅ **JSDoc Coverage**: Comprehensive documentation with examples
+- ✅ **GDD Compliance**: All abilities match GDD section 6.1 specifications
+- ✅ **Effect System**: Uses typed effect interfaces (DamageEffect, HealEffect, etc.)
+- ✅ **Targeting System**: Proper target types for each ability
+- ✅ **Cooldown System**: Appropriate cooldowns based on ability power
+
+### 📊 Ability Categories by Effect Type
+```
+Damage: fireball, chain_lightning, volley, piercing_shot, trap, 
+        backstab, riposte, execute, drain_life
+Heal: heal, drain_life
+Buff: shield_wall, rage, inspire
+Debuff: piercing_shot (armor reduction)
+Stun: stun, trap
+Taunt: taunt
+```
+
+### 📊 Validation Results
+```bash
+✅ TypeScript compilation - SUCCESS (no errors)
+✅ All 496 backend tests - PASS
+✅ Ability types match ability.types.ts interfaces
+✅ All 15 units have exactly one ability
+✅ GDD specifications followed for all abilities
+✅ JSDoc documentation complete
+```
+
+### 📝 Files Created
+- `backend/src/abilities/ability.data.ts` - **NEW** complete ability database
+
+### 🎉 Success Criteria Met
+- [x] All 15 unit abilities defined with complete parameters
+- [x] shield_wall: +50% armor for 2 turns
+- [x] taunt: Forces enemy targeting for 2 turns
+- [x] rage: +ATK when HP < 50% (passive)
+- [x] backstab: +100% damage from behind (passive)
+- [x] fireball: AoE magic damage in radius 1
+- [x] heal: Restore 25 HP to ally
+- [x] stun: Target skips turn
+- [x] All other abilities implemented per GDD
+- [x] Utility functions for ability management
+- [x] Unit-ability mapping complete
+- [x] TypeScript compilation passes
+- [x] All tests pass
+
+### 🚀 Ready For
+- Step 53: Ability Execution System
+- Integration with battle simulator
+- Ability cooldown management in battles
+- Passive ability trigger system
+- Active ability AI decision making
+- Ability effects application in combat
+
+---
+
+## PHASE 4: ABILITIES & ADVANCED MECHANICS - Progress Update
+**Date:** December 14, 2025  
+**Status:** Steps 51-52 completed, ready for Step 53
+
+### 🎯 Phase 4 Progress
+- **Step 51**: Ability System Types ✅ COMPLETED
+- **Step 52**: Ability Definitions ✅ COMPLETED
+- **Step 53**: Ability Execution System (Next)
+- **Steps 54-65**: Advanced mechanics implementation (Planned)
+
+**Ability system foundation complete with types and definitions!**
