@@ -7028,3 +7028,106 @@ Total: 19 pure functions ✅
 - **Steps 54-65**: Advanced mechanics implementation (Planned)
 
 **Ability system complete with types, definitions, and execution!**
+
+
+---
+
+## Step 54: Buff/Debuff System ✅ COMPLETED
+**Date:** December 14, 2025  
+**Duration:** ~30 minutes  
+**Status:** SUCCESS
+
+### 🎯 Objectives
+- Create status effects system for buffs and debuffs
+- Implement stat modifications (+armor, +atk, +speed, -armor, -atk)
+- Add duration tracking and effect expiration
+- Support stun (skip turn) and taunt mechanics
+- Implement effect stacking with max stacks limit
+
+### 🔧 Changes Made
+
+#### 1. Core Types Created
+- ✅ `BattleUnitWithEffects` - Extended unit with status effects tracking
+- ✅ `ApplyEffectResult` - Result of applying a status effect
+- ✅ `TickEffectsResult` - Result of ticking effects at turn end
+- ✅ `ModifiedStatsResult` - Modified stats after applying all effects
+
+#### 2. Core Status Effect Functions
+- ✅ `createStatusEffect()` - Create effect instance from ability effect
+- ✅ `applyStatusEffect()` - Apply effect with stacking and duration refresh
+- ✅ `removeStatusEffect()` - Remove specific effect by ID
+- ✅ `tickStatusEffects()` - Tick all effects, process DoT/HoT, expire effects
+- ✅ `getModifiedStats()` - Calculate modified stats with all active effects
+
+#### 3. Convenience Functions
+- ✅ `initializeUnitEffects()` - Convert BattleUnit to BattleUnitWithEffects
+- ✅ `clearAllEffects()` - Remove all or specific types of effects (cleanse)
+- ✅ `hasEffectType()` - Check if unit has specific effect type
+- ✅ `getEffectsByType()` - Get all effects of specific type
+- ✅ `getStatModifier()` - Calculate total modifier for specific stat
+
+#### 4. Effect Features Implemented
+- ✅ **Buff stat modifications**: +armor, +atk, +speed, +initiative, +dodge
+- ✅ **Debuff stat modifications**: -armor, -atk, -speed, -initiative, -dodge
+- ✅ **Percentage modifiers**: Support for +50% ATK style buffs
+- ✅ **Flat value modifiers**: Support for +5 armor style buffs
+- ✅ **Effect stacking**: Stackable effects with maxStacks limit
+- ✅ **Duration tracking**: Remaining duration decremented each tick
+- ✅ **Effect expiration**: Effects removed when duration reaches 0
+- ✅ **Stun tracking**: `isStunned` flag for turn skipping
+- ✅ **Taunt tracking**: `hasTaunt` flag for targeting priority
+- ✅ **DoT processing**: Damage over time applied during tick
+- ✅ **HoT processing**: Heal over time applied during tick
+
+### 📊 Test Coverage
+```bash
+✅ 32 tests passing
+✅ createStatusEffect: 3 tests
+✅ applyStatusEffect: 6 tests
+✅ removeStatusEffect: 2 tests
+✅ tickStatusEffects: 7 tests
+✅ getModifiedStats: 8 tests
+✅ Utility functions: 6 tests
+```
+
+### 📊 Review Checklist Verification
+1. ✅ **Баффы корректно модифицируют статы** - Flat and percentage buffs work
+2. ✅ **Duration уменьшается каждый ход** - tickStatusEffects reduces duration by 1
+3. ✅ **Эффекты удаляются по истечении** - Effects removed when duration reaches 0
+4. ✅ **Stun правильно пропускает ход** - isStunned flag tracked for battle simulator
+5. ✅ **Несколько эффектов стакаются корректно** - Stacking with maxStacks limit
+
+### 📝 Files Created
+- `backend/src/battle/status-effects.ts` - **NEW** status effects system (~450 lines)
+- `backend/src/battle/status-effects.spec.ts` - **NEW** comprehensive tests (32 tests)
+
+### 🎉 Success Criteria Met
+- [x] StatusEffect interface with id, type, value, duration, source
+- [x] applyStatusEffect() handles stacking and duration refresh
+- [x] tickStatusEffects() reduces duration and expires effects
+- [x] getModifiedStats() applies all active buffs/debuffs to stats
+- [x] Stun tracked via isStunned flag
+- [x] All functions are pure (no side effects)
+- [x] TypeScript compilation passes
+- [x] All 32 tests pass
+
+### 🚀 Ready For
+- Step 55: AI Decision Making integration
+- Step 56: Battle Simulator with Abilities integration
+- Status effect visualization in frontend
+- Buff/debuff icons and duration display
+
+---
+
+## PHASE 4: ABILITIES & ADVANCED MECHANICS - Progress Update
+**Date:** December 14, 2025
+**Status:** Steps 51-54 completed, ready for Step 55
+
+### 🎯 Phase 4 Progress
+- **Step 51**: Ability System Types ✅ COMPLETED
+- **Step 52**: Ability Definitions ✅ COMPLETED
+- **Step 53**: Ability Executor ✅ COMPLETED
+- **Step 54**: Buff/Debuff System ✅ COMPLETED
+- **Steps 55-65**: Advanced mechanics implementation (Planned)
+
+**Ability system with status effects complete!**
