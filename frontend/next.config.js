@@ -9,8 +9,11 @@ const nextConfig = {
   // Performance optimizations
   swcMinify: true,
   
-  // Experimental features disabled - optimizeCss requires critters module
-  // which causes build failures in CI environments
+  // Experimental features for better performance
+  // optimizeCss inlines critical CSS for faster First Contentful Paint
+  experimental: {
+    optimizeCss: true,
+  },
   
   // Webpack optimizations
   webpack: (config, { dev, isServer }) => {
