@@ -8,7 +8,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { UnitTemplate, UnitId } from '@/types/game';
+import { UnitTemplate, UnitId, UnitRole } from '@/types/game';
 import { getRoleIcon } from '@/lib/roleColors';
 
 // =============================================================================

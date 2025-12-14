@@ -34,7 +34,7 @@ const AUTOSAVE_DELAY = 1000;
  * @param delay - Delay in milliseconds
  * @returns Debounced function
  */
-function debounce<T extends (...args: unknown[]) => void>(func: T, delay: number): T {
+function debounce<T extends (...args: any[]) => void>(func: T, delay: number): T {
   let timeoutId: NodeJS.Timeout;
   return ((...args: Parameters<T>) => {
     clearTimeout(timeoutId);

@@ -185,7 +185,7 @@ function calculateContrastRatio(color1: string, color2: string): number {
       c = c / 255;
       return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
     });
-    const [rs, gs, bs] = values;
+    const [rs = 0, gs = 0, bs = 0] = values;
     return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
   };
 

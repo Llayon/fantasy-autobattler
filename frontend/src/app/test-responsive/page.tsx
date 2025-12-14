@@ -91,7 +91,7 @@ export default function TestResponsivePage() {
     teamCount: 3,
   };
 
-  const handleUnitSelect = (unit: UnitTemplate) => {
+  const handleUnitSelect = (unit: UnitTemplate | null) => {
     setSelectedUnit(unit);
   };
 

@@ -8,7 +8,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { UnitRole } from '@/types/game';
+import { UnitRole, UnitTemplate } from '@/types/game';
 import { 
   ROLE_COLORS, 
   getRoleColor, 
@@ -180,14 +180,14 @@ function UnitCardTest() {
       <h2 className="text-xl font-bold text-white mb-4">🃏 UnitCard Integration Test</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {roles.map((role) => {
-          const unit = TEST_UNITS[role];
+          const unit = TEST_UNITS[role] as UnitTemplate;
           return (
             <UnitCard
               key={role}
               unit={unit}
               selected={selectedRole === role}
               onClick={() => setSelectedRole(selectedRole === role ? null : role)}
-              size="compact"
+              variant="compact"
             />
           );
         })}

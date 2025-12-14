@@ -8,7 +8,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { TeamResponse, UnitId, UNIT_INFO } from '@/types/game';
+import { TeamResponse, UnitId, UnitRole, UNIT_INFO } from '@/types/game';
 import { ButtonLoader, ListSkeleton } from '@/components/LoadingStates';
 import { ErrorMessage, useToast } from '@/components/ErrorStates';
 import { BudgetIndicator } from '@/components/BudgetIndicator';

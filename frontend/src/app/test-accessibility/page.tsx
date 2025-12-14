@@ -23,7 +23,6 @@ import { UnitTemplate } from '@/types/game';
 const mockUnit: UnitTemplate = {
   id: 'knight',
   name: 'Knight',
-  emoji: '🛡️',
   role: 'tank',
   cost: 5,
   stats: {
@@ -35,6 +34,7 @@ const mockUnit: UnitTemplate = {
     initiative: 3,
     dodge: 5,
   },
+  range: 1,
   abilities: [
     'Shield Bash',
   ],

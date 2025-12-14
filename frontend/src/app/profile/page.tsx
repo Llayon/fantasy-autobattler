@@ -102,7 +102,7 @@ const ACHIEVEMENTS = {
     name: 'Стратег',
     description: 'Собрать 5 команд',
     emoji: '🧠',
-    requirement: (stats: PlayerStats, teamCount: number) => teamCount >= 5,
+    requirement: (_stats: PlayerStats, teamCount: number) => teamCount >= 5,
   },
 } as const;
 
@@ -128,8 +128,8 @@ function getRankFromRating(rating: number): {
   nextRank?: string;
   pointsToNext?: number;
 } {
-  let currentRank = RANK_INFO.BRONZE;
-  let nextThreshold = RANK_THRESHOLDS.SILVER;
+  let currentRank: typeof RANK_INFO[keyof typeof RANK_INFO] = RANK_INFO.BRONZE;
+  let nextThreshold: number = RANK_THRESHOLDS.SILVER;
   let nextRankName = 'Серебро';
 
   if (rating >= RANK_THRESHOLDS.DIAMOND) {

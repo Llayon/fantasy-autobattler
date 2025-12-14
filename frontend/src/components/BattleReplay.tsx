@@ -994,6 +994,103 @@ export function BattleReplay({ battle }: BattleReplayProps) {
   const events = useMemo(() => battle?.events || [], [battle?.events]);
   
   /**
+   * Trigger animation for a specific battle event.
+   * 
+   * @param event - Battle event to animate
+   * @param currentUnits - Current unit states
+   */
+  const triggerEventAnimation = useCallback((event: BattleEvent, currentUnits: ReplayUnit[]) => {
+    const animationId = `${event.type}-${Date.now()}-${Math.random()}`;
+    
+    switch (event.type) {
+      case 'move':
+        if (event.fromPosition && event.toPosition) {
+          setActiveAnimations(prev => ({
+            ...prev,
+            moves: [...prev.moves, {
+              id: animationId,
+              fromPosition: event.fromPosition as Position,
+              toPosition: event.toPosition as Position,
+            }],
+          }));
+        }
+        break;
+        
+      case 'attack':
+        if (event.actorId && event.targetId) {
+          const attacker = currentUnits.find(u => u.instanceId === event.actorId);
+          const target = currentUnits.find(u => u.instanceId === event.targetId);
+          
+          if (attacker && target) {
+            setActiveAnimations(prev => ({
+              ...prev,
+              attacks: [...prev.attacks, {
+                id: animationId,
+                attackerPosition: attacker.position,
+                targetPosition: target.position,
+              }],
+            }));
+          }
+        }
+        break;
+        
+      case 'damage':
+        if (event.targetId && typeof event.damage === 'number') {
+          const target = currentUnits.find(u => u.instanceId === event.targetId);
+          
+          if (target) {
+            setActiveAnimations(prev => ({
+              ...prev,
+              damages: [...prev.damages, {
+                id: animationId,
+                damage: event.damage as number,
+                position: target.position,
+              }],
+            }));
+          }
+        }
+        break;
+        
+      case 'death':
+        if (event.targetId || event.killedUnits) {
+          const killedIds = event.killedUnits || (event.targetId ? [event.targetId] : []);
+          
+          killedIds.forEach((killedId, index) => {
+            const killedUnit = currentUnits.find(u => u.instanceId === killedId);
+            
+            if (killedUnit) {
+              setActiveAnimations(prev => ({
+                ...prev,
+                deaths: [...prev.deaths, {
+                  id: `${animationId}-${index}`,
+                  position: killedUnit.position,
+                }],
+              }));
+            }
+          });
+        }
+        break;
+        
+      case 'heal':
+        if (event.targetId && typeof event.healing === 'number') {
+          const target = currentUnits.find(u => u.instanceId === event.targetId);
+          
+          if (target) {
+            setActiveAnimations(prev => ({
+              ...prev,
+              heals: [...prev.heals, {
+                id: animationId,
+                healing: event.healing as number,
+                position: target.position,
+              }],
+            }));
+          }
+        }
+        break;
+    }
+  }, []);
+
+  /**
    * Apply events up to specified index and trigger animations for current event.
    */
   const applyEventsUpTo = useCallback((eventIndex: number) => {
@@ -1028,103 +1125,6 @@ export function BattleReplay({ battle }: BattleReplayProps) {
     setUnits(currentUnits);
     setReplayState(prev => ({ ...prev, currentRound }));
   }, [initialUnits, events, triggerEventAnimation]);
-
-  /**
-   * Trigger animation for a specific battle event.
-   * 
-   * @param event - Battle event to animate
-   * @param currentUnits - Current unit states
-   */
-  const triggerEventAnimation = useCallback((event: BattleEvent, currentUnits: ReplayUnit[]) => {
-    const animationId = `${event.type}-${Date.now()}-${Math.random()}`;
-    
-    switch (event.type) {
-      case 'move':
-        if (event.fromPosition && event.toPosition) {
-          setActiveAnimations(prev => ({
-            ...prev,
-            moves: [...prev.moves, {
-              id: animationId,
-              fromPosition: event.fromPosition,
-              toPosition: event.toPosition,
-            }],
-          }));
-        }
-        break;
-        
-      case 'attack':
-        if (event.actorId && event.targetId) {
-          const attacker = currentUnits.find(u => u.instanceId === event.actorId);
-          const target = currentUnits.find(u => u.instanceId === event.targetId);
-          
-          if (attacker && target) {
-            setActiveAnimations(prev => ({
-              ...prev,
-              attacks: [...prev.attacks, {
-                id: animationId,
-                attackerPosition: attacker.position,
-                targetPosition: target.position,
-              }],
-            }));
-          }
-        }
-        break;
-        
-      case 'damage':
-        if (event.targetId && event.damage) {
-          const target = currentUnits.find(u => u.instanceId === event.targetId);
-          
-          if (target) {
-            setActiveAnimations(prev => ({
-              ...prev,
-              damages: [...prev.damages, {
-                id: animationId,
-                damage: event.damage,
-                position: target.position,
-              }],
-            }));
-          }
-        }
-        break;
-        
-      case 'death':
-        if (event.targetId || event.killedUnits) {
-          const killedIds = event.killedUnits || (event.targetId ? [event.targetId] : []);
-          
-          killedIds.forEach((killedId, index) => {
-            const killedUnit = currentUnits.find(u => u.instanceId === killedId);
-            
-            if (killedUnit) {
-              setActiveAnimations(prev => ({
-                ...prev,
-                deaths: [...prev.deaths, {
-                  id: `${animationId}-${index}`,
-                  position: killedUnit.position,
-                }],
-              }));
-            }
-          });
-        }
-        break;
-        
-      case 'heal':
-        if (event.targetId && event.healing) {
-          const target = currentUnits.find(u => u.instanceId === event.targetId);
-          
-          if (target) {
-            setActiveAnimations(prev => ({
-              ...prev,
-              heals: [...prev.heals, {
-                id: animationId,
-                healing: event.healing,
-                position: target.position,
-              }],
-            }));
-          }
-        }
-        break;
-    }
-  }, []);
 
   /**
    * Handle animation completion by removing it from active animations.

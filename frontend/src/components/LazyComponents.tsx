@@ -8,7 +8,7 @@
 'use client';
 
 import { lazy, Suspense, ComponentType } from 'react';
-import { LoadingStates } from './LoadingStates';
+import LoadingStates from './LoadingStates';
 
 // =============================================================================
 // LAZY COMPONENT DEFINITIONS
@@ -18,7 +18,7 @@ import { LoadingStates } from './LoadingStates';
  * Lazy-loaded BattleReplay component.
  * Heavy component with complex battle simulation rendering.
  */
-export const LazyBattleReplay = lazy(() => 
+const LazyBattleReplay = lazy(() => 
   import('./BattleReplay').then(module => ({ default: module.BattleReplay }))
 );
 
@@ -26,15 +26,15 @@ export const LazyBattleReplay = lazy(() =>
  * Lazy-loaded UnitDetailModal component.
  * Modal with detailed unit information and stats.
  */
-export const LazyUnitDetailModal = lazy(() => 
-  import('./UnitDetailModal').then(module => ({ default: module.UnitDetailModal }))
+const LazyUnitDetailModal = lazy(() => 
+  import('./UnitDetailModal').then(module => ({ default: module.default }))
 );
 
 /**
  * Lazy-loaded SavedTeamsPanel component.
  * Panel with team management functionality.
  */
-export const LazySavedTeamsPanel = lazy(() => 
+const LazySavedTeamsPanel = lazy(() => 
   import('./SavedTeamsPanel').then(module => ({ default: module.SavedTeamsPanel }))
 );
 
@@ -42,7 +42,7 @@ export const LazySavedTeamsPanel = lazy(() =>
  * Lazy-loaded VirtualizedUnitList component.
  * Virtualized list for large unit collections.
  */
-export const LazyVirtualizedUnitList = lazy(() => 
+const LazyVirtualizedUnitList = lazy(() => 
   import('./VirtualizedUnitList').then(module => ({ default: module.VirtualizedUnitList }))
 );
 
@@ -69,7 +69,7 @@ interface LazyWrapperProps {
  */
 function withLazySuspense<T extends object>(
   LazyComponent: ComponentType<T>,
-  defaultFallback: React.ReactNode = <LoadingStates.ComponentLoading />
+  defaultFallback: React.ReactNode = <LoadingStates.Spinner size="md" color="primary" />
 ) {
   return function LazyWrapper(props: T & LazyWrapperProps) {
     const { fallback = defaultFallback, ...componentProps } = props;
@@ -95,7 +95,7 @@ function withLazySuspense<T extends object>(
  */
 export const BattleReplayLazy = withLazySuspense(
   LazyBattleReplay,
-  <LoadingStates.BattleLoading />
+  <LoadingStates.FullPageLoader message="Загрузка повтора боя..." />
 );
 
 /**
@@ -107,7 +107,9 @@ export const BattleReplayLazy = withLazySuspense(
  */
 export const UnitDetailModalLazy = withLazySuspense(
   LazyUnitDetailModal,
-  <LoadingStates.ModalLoading />
+  <LoadingStates.LoadingOverlay visible={true} message="Загрузка модального окна...">
+    <div className="w-96 h-64 bg-gray-800 rounded-lg" />
+  </LoadingStates.LoadingOverlay>
 );
 
 /**
@@ -119,7 +121,9 @@ export const UnitDetailModalLazy = withLazySuspense(
  */
 export const SavedTeamsPanelLazy = withLazySuspense(
   LazySavedTeamsPanel,
-  <LoadingStates.PanelLoading />
+  <LoadingStates.LoadingOverlay visible={true} message="Загрузка панели команд...">
+    <div className="w-80 h-96 bg-gray-800 rounded-lg" />
+  </LoadingStates.LoadingOverlay>
 );
 
 /**
@@ -131,7 +135,7 @@ export const SavedTeamsPanelLazy = withLazySuspense(
  */
 export const VirtualizedUnitListLazy = withLazySuspense(
   LazyVirtualizedUnitList,
-  <LoadingStates.ListLoading />
+  <LoadingStates.ListSkeleton items={5} />
 );
 
 // =============================================================================

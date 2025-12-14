@@ -107,7 +107,10 @@ export default function TestProfileEnhancementsPage() {
   const [showRankTooltip, setShowRankTooltip] = useState(false);
 
   // Ensure selectedProfile is never undefined
-  const profile = selectedProfile || mockProfiles[1];
+  if (!selectedProfile) {
+    return <div>Loading...</div>;
+  }
+  const profile = selectedProfile;
   
   const rank = getRankInfo(profile.rating);
   const gamesPlayed = profile.wins + profile.losses;

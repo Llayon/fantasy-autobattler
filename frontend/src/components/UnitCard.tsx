@@ -107,7 +107,7 @@ interface ListVariantProps {
 }
 
 function ListVariant({ unit, styles }: ListVariantProps) {
-  const firstAbility = unit.abilities[0];
+  const firstAbility: string | undefined = unit.abilities[0];
   
   return (
     <div className="p-4 space-y-3">
@@ -160,7 +160,7 @@ function ListVariant({ unit, styles }: ListVariantProps) {
       {/* Footer: Ability preview */}
       {firstAbility && (
         <div className="text-xs text-gray-400">
-          <span className="text-yellow-400">✨</span> {truncateText(typeof firstAbility === 'string' ? firstAbility : firstAbility.name, 30)}
+          <span className="text-yellow-400">✨</span> {truncateText(firstAbility, 30)}
         </div>
       )}
     </div>
@@ -377,7 +377,7 @@ const UnitCard = memo(function UnitCard({
     >
       {/* Hidden description for screen readers */}
       <div id={`unit-${unit.id}-description`} className="sr-only">
-        {unit.abilities.length > 0 && `Abilities: ${unit.abilities.map(a => typeof a === 'string' ? a : a.name).join(', ')}. `}
+        {unit.abilities.length > 0 && `Abilities: ${unit.abilities.join(', ')}. `}
         Stats: HP {unit.stats.hp}, Attack {unit.stats.atk}, Speed {unit.stats.speed}, Armor {unit.stats.armor}.
       </div>
 

@@ -49,6 +49,9 @@ export function AxeProvider({ children }: AxeProviderProps) {
       
       return () => clearTimeout(timer);
     }
+    
+    // Return undefined for non-development environments
+    return undefined;
   }, []);
 
   return <>{children}</>;

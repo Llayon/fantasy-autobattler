@@ -112,10 +112,15 @@ export default function TestMobileUXPage() {
     teamCount: 3,
   };
 
-  const handleUnitSelect = (unit: UnitTemplate) => {
-    logTouch(`Unit selected: ${unit.name}`);
-    setSelectedUnit(unit);
-    setTestResults(prev => ({ ...prev, unitSelect: true }));
+  const handleUnitSelect = (unit: UnitTemplate | null) => {
+    if (unit) {
+      logTouch(`Unit selected: ${unit.name}`);
+      setSelectedUnit(unit);
+      setTestResults(prev => ({ ...prev, unitSelect: true }));
+    } else {
+      logTouch('Unit deselected');
+      setSelectedUnit(null);
+    }
   };
 
   const handleUnitLongPress = (unit: UnitTemplate) => {

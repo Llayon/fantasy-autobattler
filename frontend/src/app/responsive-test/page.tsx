@@ -148,8 +148,8 @@ export default function ResponsiveTestPage() {
               <h2 className="text-xl font-bold mb-4">🃏 Unit Cards</h2>
               <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <UnitCard unit={mockUnit} size="compact" />
-                  <UnitCard unit={mockUnit} size="full" />
+                  <UnitCard unit={mockUnit} variant="compact" />
+                  <UnitCard unit={mockUnit} variant="grid" />
                 </div>
               </div>
             </section>
