@@ -7131,3 +7131,106 @@ Total: 19 pure functions ✅
 - **Steps 55-65**: Advanced mechanics implementation (Planned)
 
 **Ability system with status effects complete!**
+
+
+---
+
+## Step 55: AI Decision Making ✅ COMPLETED
+**Date:** December 14, 2025  
+**Duration:** ~40 minutes  
+**Status:** SUCCESS
+
+### 🎯 Objectives
+- Create AI decision-making system for unit actions
+- Implement role-specific decision logic
+- Support ability usage, attack, and movement decisions
+- Ensure deterministic behavior for replay consistency
+
+### 🔧 Changes Made
+
+#### 1. Core Types Created
+- ✅ `ActionType` - Union type: 'attack' | 'ability' | 'move'
+- ✅ `UnitAction` - Decision result with type, target, abilityId, priority, reason
+- ✅ `DecisionContext` - Pre-computed battlefield information for decisions
+
+#### 2. Main Decision Function
+- ✅ `decideAction(unit, state)` - Main entry point for AI decisions
+- ✅ Routes to role-specific decision functions
+- ✅ Handles dead/stunned units gracefully
+- ✅ Returns detailed action with priority and reason
+
+#### 3. Role-Specific Decision Logic
+- ✅ **Support (Priest, Bard)**: Prioritize healing wounded allies > buff allies > attack
+- ✅ **Tank (Knight, Guardian, Berserker)**: Use taunt > defensive buff > attack > move to enemies
+- ✅ **DPS (Rogue, Duelist, Assassin, Archer, Crossbowman, Hunter)**: Execute low HP targets > damage ability > attack weakest
+- ✅ **Mage (Mage, Warlock, Elementalist)**: AoE if 2+ enemies clustered > single target damage > attack
+- ✅ **Control (Enchanter)**: Stun high-threat target > attack
+
+#### 4. Priority System
+```typescript
+CRITICAL_HEAL: 100      // Emergency healing
+DEFENSIVE_TAUNT: 90     // Protecting allies
+AOE_MULTI_TARGET: 85    // AoE hitting 2+ enemies
+EXECUTE_FINISH: 80      // Finishing low HP targets
+STANDARD_HEAL: 75       // Normal healing
+BUFF_ALLIES: 70         // Buff abilities
+DAMAGE_ABILITY: 65      // Damage abilities
+CONTROL_ABILITY: 60     // Stun/CC abilities
+BASIC_ATTACK: 50        // Basic attacks
+MOVE_TO_ENEMY: 30       // Movement
+NO_ACTION: 0            // No valid action
+```
+
+#### 5. Deterministic Selection Helpers
+- ✅ `selectLowestHpUnit()` - Select unit with lowest HP (ID tiebreaker)
+- ✅ `selectWeakestUnit()` - Select unit with lowest absolute HP (ID tiebreaker)
+- ✅ `selectNearestUnit()` - Select nearest unit by Manhattan distance (ID tiebreaker)
+- ✅ `selectHighestThreatUnit()` - Select unit with highest ATK (ID tiebreaker)
+
+#### 6. Ability Effect Checkers
+- ✅ `hasHealEffect()` - Check for heal/hot effects
+- ✅ `hasBuffEffect()` - Check for buff effects
+- ✅ `hasDamageEffect()` - Check for damage/dot effects
+- ✅ `hasStunEffect()` - Check for stun effects
+- ✅ `hasTauntEffect()` - Check for taunt effects
+- ✅ `isAoEAbility()` - Check for area targeting
+
+#### 7. AoE Target Finding
+- ✅ `findBestAoETarget()` - Find position to hit maximum enemies
+- ✅ Considers ability range and area size
+- ✅ Deterministic position selection (y, then x)
+
+### 📊 Test Coverage
+```bash
+✅ 17 tests passing
+✅ decideAction basic behavior: 3 tests
+✅ Tank role decisions: 2 tests
+✅ Support role decisions: 1 test
+✅ DPS role decisions: 2 tests
+✅ Mage role decisions: 1 test
+✅ Control role decisions: 1 test
+✅ selectBestAction: 3 tests
+✅ shouldUseAbility: 2 tests
+✅ Determinism tests: 2 tests
+```
+
+### 📝 Files Created
+- `backend/src/battle/ai.decision.ts` - **NEW** AI decision system (~550 lines)
+- `backend/src/battle/ai.decision.spec.ts` - **NEW** comprehensive tests (17 tests)
+
+### 🎉 Success Criteria Met
+- [x] `decideAction(unit, state)` returns `UnitAction`
+- [x] `UnitAction` has type, target, abilityId, priority, reason
+- [x] Healer prioritizes healing wounded allies
+- [x] Tank moves to enemies and uses taunt
+- [x] DPS attacks weakest enemy
+- [x] Mage uses AoE when 2+ enemies nearby
+- [x] Deterministic selection (ID tiebreaker for equal priorities)
+- [x] All functions are pure (no side effects)
+- [x] TypeScript compilation passes
+- [x] All 17 tests pass
+
+### 🚀 Ready For
+- Step 56: Battle Simulator with Abilities integration
+- Step 57: Enhanced turn execution with AI decisions
+- Frontend AI visualization (decision reasons)
