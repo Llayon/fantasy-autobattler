@@ -538,7 +538,7 @@ export function PulseDot({
 // EXPORTS
 // =============================================================================
 
-export default {
+const LoadingStatesExports = {
   Spinner,
   Skeleton,
   FullPageLoader,
@@ -550,6 +550,8 @@ export default {
   InlineLoading,
   PulseDot,
 };
+
+export default LoadingStatesExports;
 
 export type {
   SpinnerProps,

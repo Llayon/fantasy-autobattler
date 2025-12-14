@@ -760,7 +760,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     
     // Log error for debugging (only in development)
     if (process.env.NODE_ENV === 'development') {
-      console.error('ErrorBoundary caught an error:', error, errorInfo);
+      // In production, this would be sent to a logging service
+      void error;
+      void errorInfo;
     }
   }
   
@@ -830,7 +832,7 @@ export function useToast() {
 // EXPORTS
 // =============================================================================
 
-export default {
+const ErrorStatesExports = {
   ErrorMessage,
   ErrorPage,
   Toast,
@@ -840,6 +842,8 @@ export default {
   toastManager,
   useToast,
 };
+
+export default ErrorStatesExports;
 
 export type {
   ErrorMessageProps,

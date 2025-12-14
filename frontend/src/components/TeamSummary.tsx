@@ -141,7 +141,7 @@ function calculateTeamStats(units: PlacedUnit[], unitTemplates: UnitTemplate[]):
  */
 function formatRoleDistribution(roleDistribution: Record<string, number>): string {
   return Object.entries(roleDistribution)
-    .map(([role, count]) => `${getRoleIcon(role as any)}${count}`)
+    .map(([role, count]) => `${getRoleIcon(role as UnitRole)}${count}`)
     .join(' ');
 }
 

@@ -34,9 +34,9 @@ const AUTOSAVE_DELAY = 1000;
  * @param delay - Delay in milliseconds
  * @returns Debounced function
  */
-function debounce<T extends (...args: any[]) => void>(func: T, delay: number): T {
+function debounce<T extends (...args: unknown[]) => void>(func: T, delay: number): T {
   let timeoutId: NodeJS.Timeout;
-  return ((...args: any[]) => {
+  return ((...args: Parameters<T>) => {
     clearTimeout(timeoutId);
     timeoutId = setTimeout(() => func(...args), delay);
   }) as T;
@@ -57,7 +57,8 @@ function saveDraftToLocalStorage(draft: TeamDraft): void {
       localStorage.setItem(DRAFT_TEAM_KEY, JSON.stringify(draftData));
     }
   } catch (error) {
-    console.warn('Failed to save draft to localStorage:', error);
+    // Silently fail - localStorage might not be available
+    void error;
   }
 }
 
@@ -83,7 +84,8 @@ function loadDraftFromLocalStorage(): (TeamDraft & { timestamp: number }) | null
       }
     }
   } catch (error) {
-    console.warn('Failed to load draft from localStorage:', error);
+    // Silently fail - localStorage might not be available
+    void error;
   }
   return null;
 }
@@ -97,7 +99,8 @@ function clearDraftFromLocalStorage(): void {
       localStorage.removeItem(DRAFT_TEAM_KEY);
     }
   } catch (error) {
-    console.warn('Failed to clear draft from localStorage:', error);
+    // Silently fail - localStorage might not be available
+    void error;
   }
 }
 

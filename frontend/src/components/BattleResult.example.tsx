@@ -103,18 +103,18 @@ export function BattleResultExample() {
   const [showResult, setShowResult] = useState(false);
   
   const handleWatchReplay = () => {
-    console.log('Navigate to battle replay');
+    // Navigate to battle replay
     // In real app: router.push(`/battle/${battleLog.id}`);
   };
   
   const handleNewBattle = () => {
-    console.log('Start new battle');
+    // Start new battle
     setShowResult(false);
     // In real app: router.push('/matchmaking');
   };
   
   const handleEditTeam = () => {
-    console.log('Edit team');
+    // Edit team
     setShowResult(false);
     // In real app: router.push('/');
   };

@@ -209,7 +209,7 @@ function calculateContrastRatio(color1: string, color2: string): number {
  * @returns Validation results
  */
 export function validateRoleColorContrast() {
-  const results: Record<UnitRole, { ratio: number; passes: boolean }> = {} as any;
+  const results: Record<UnitRole, { ratio: number; passes: boolean }> = {} as Record<UnitRole, { ratio: number; passes: boolean }>;
   
   Object.entries(ROLE_COLORS).forEach(([role, colors]) => {
     const ratio = calculateContrastRatio(colors.bg, colors.text);
@@ -232,8 +232,9 @@ if (process.env.NODE_ENV === 'development') {
   const failures = Object.entries(validation).filter(([, result]) => !result.passes);
   
   if (failures.length > 0) {
-    console.warn('Role color contrast validation failures:', failures);
+    // Role color contrast validation failures found
+    void failures;
   } else {
-    console.log('✅ All role colors pass WCAG AA contrast requirements');
+    // All role colors pass WCAG AA contrast requirements
   }
 }

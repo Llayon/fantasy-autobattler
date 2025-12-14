@@ -111,7 +111,7 @@ function getRoleIconsPreview(team: TeamResponse): string {
   });
   
   return Object.entries(roleCounts)
-    .map(([role, count]) => getRoleIcon(role as any).repeat(count))
+    .map(([role, count]) => getRoleIcon(role as UnitRole).repeat(count))
     .join('');
 }
 

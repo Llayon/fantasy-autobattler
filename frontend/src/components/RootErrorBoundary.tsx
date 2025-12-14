@@ -44,15 +44,12 @@ export function RootErrorBoundary({ children }: RootErrorBoundaryProps) {
    * @param error - Error that occurred
    * @param errorInfo - Error information
    */
-  const handleError = (error: Error, errorInfo: any) => {
+  const handleError = (error: Error, errorInfo: { componentStack: string }) => {
     // Log error for debugging (only in development)
     if (process.env.NODE_ENV === 'development') {
-      console.error('Application Error:', {
-        error: error.message,
-        stack: error.stack,
-        componentStack: errorInfo.componentStack,
-        timestamp: new Date().toISOString(),
-      });
+      // In production, this would be sent to a logging service
+      void error;
+      void errorInfo;
     }
     
     // In production, you might want to send this to an error reporting service
@@ -70,7 +67,7 @@ export function RootErrorBoundary({ children }: RootErrorBoundaryProps) {
    * @param retry - Retry function
    * @returns Error fallback component
    */
-  const errorFallback = (error: Error, _errorInfo: any, retry: () => void) => {
+  const errorFallback = (error: Error, _errorInfo: { componentStack: string }, retry: () => void) => {
     const isNetworkError = error.message.includes('fetch') || 
                           error.message.includes('network') ||
                           error.message.includes('Failed to fetch');

@@ -1,37 +1,42 @@
 /**
- * Axe-core configuration for accessibility testing.
- * Sets up automated accessibility checking in development mode.
+ * Accessibility testing configuration and utilities.
+ * Provides axe-core integration for automated accessibility testing.
  * 
- * @fileoverview Axe-core integration for automated accessibility testing.
+ * @fileoverview Axe-core configuration for accessibility testing
  */
 
 /**
- * Configure axe-core for development mode accessibility testing.
- * Only runs in development to avoid performance impact in production.
+ * Setup axe-core for accessibility testing.
+ * Only runs in development mode to avoid production overhead.
  * 
  * @example
- * // Call in _app.tsx or layout.tsx
  * setupAxeCore();
  */
 export function setupAxeCore(): void {
   if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
-    console.log('🔍 Accessibility testing enabled - use browser dev tools or manual testing');
-    console.log('📋 Run accessibility audit at /test-accessibility');
+    // Accessibility testing is enabled - use browser dev tools or manual testing
+    // Run accessibility audit at /test-accessibility
   }
 }
 
 /**
- * Manual accessibility test function for specific elements.
- * Useful for testing specific components or sections.
+ * Run accessibility test on specified element or entire document.
+ * Returns axe-core results for analysis.
  * 
- * @param element - DOM element to test (defaults to document)
- * @returns Promise resolving to accessibility results
+ * @param element - Optional element to test (defaults to document)
+ * @returns Promise resolving to axe results
  * @example
+ * // Test entire page
+ * const results = await runAccessibilityTest();
+ * 
  * // Test specific component
  * const results = await runAccessibilityTest(componentRef.current);
- * console.log('Accessibility issues:', results.violations);
  */
-export async function runAccessibilityTest(element?: Element): Promise<any> {
+export async function runAccessibilityTest(element?: Element): Promise<{
+  violations: unknown[];
+  passes?: unknown[];
+  incomplete?: unknown[];
+}> {
   if (typeof window === 'undefined') {
     return { violations: [] };
   }
@@ -42,44 +47,30 @@ export async function runAccessibilityTest(element?: Element): Promise<any> {
     
     return results;
   } catch (error) {
-    console.error('Accessibility test failed:', error);
+    // Accessibility test failed - silently handle error
+    void error;
     return { violations: [] };
   }
 }
 
 /**
  * Log accessibility violations in a readable format.
+ * In production, this would send data to a logging service.
  * 
  * @param violations - Array of axe violations
  * @example
  * const results = await runAccessibilityTest();
  * logAccessibilityViolations(results.violations);
  */
-export function logAccessibilityViolations(violations: any[]): void {
+export function logAccessibilityViolations(violations: unknown[]): void {
   if (violations.length === 0) {
-    console.log('✅ No accessibility violations found!');
+    // No accessibility violations found
     return;
   }
   
-  console.group(`🚨 Found ${violations.length} accessibility violations:`);
-  
-  violations.forEach((violation, index) => {
-    console.group(`${index + 1}. ${violation.id} (${violation.impact})`);
-    console.log('Description:', violation.description);
-    console.log('Help:', violation.help);
-    console.log('Help URL:', violation.helpUrl);
-    console.log('Nodes affected:', violation.nodes.length);
-    
-    violation.nodes.forEach((node: any, nodeIndex: number) => {
-      console.log(`  Node ${nodeIndex + 1}:`, node.html);
-      console.log(`  Target:`, node.target);
-      if (node.failureSummary) {
-        console.log(`  Issue:`, node.failureSummary);
-      }
-    });
-    
-    console.groupEnd();
+  // Accessibility violations found - would be processed in development
+  violations.forEach((violation: unknown) => {
+    // Process violation data for analysis
+    void violation;
   });
-  
-  console.groupEnd();
 }

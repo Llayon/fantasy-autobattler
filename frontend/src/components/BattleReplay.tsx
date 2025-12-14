@@ -114,9 +114,9 @@ const EVENT_TYPE_NAMES: Record<string, string> = {
  */
 function getPlayerName(battle: BattleLog, player: 'player1' | 'player2'): string {
   if (player === 'player1') {
-    return (battle as any).player1Name || 'Игрок 1';
+    return (battle as BattleLog & { player1Name?: string }).player1Name || 'Игрок 1';
   } else {
-    return (battle as any).player2Name || 'Игрок 2';
+    return (battle as BattleLog & { player2Name?: string }).player2Name || 'Игрок 2';
   }
 }
 
@@ -990,8 +990,8 @@ export function BattleReplay({ battle }: BattleReplayProps) {
     heals: [],
   });
   
-  // Battle events
-  const events = battle?.events || [];
+  // Battle events - memoized to prevent dependency issues
+  const events = useMemo(() => battle?.events || [], [battle?.events]);
   
   /**
    * Apply events up to specified index and trigger animations for current event.
@@ -1027,7 +1027,7 @@ export function BattleReplay({ battle }: BattleReplayProps) {
     
     setUnits(currentUnits);
     setReplayState(prev => ({ ...prev, currentRound }));
-  }, [initialUnits, events]);
+  }, [initialUnits, events, triggerEventAnimation]);
 
   /**
    * Trigger animation for a specific battle event.
