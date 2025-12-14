@@ -22,15 +22,19 @@ describe('TeamService', () => {
   let playerRepo: jest.Mocked<Repository<Player>>;
   let validator: jest.Mocked<TeamValidator>;
 
+  // Valid UUIDs for testing
+  const VALID_TEAM_ID = '550e8400-e29b-41d4-a716-446655440000';
+  const VALID_PLAYER_ID = '550e8400-e29b-41d4-a716-446655440001';
+
   const mockPlayer = {
-    id: 'player-123',
+    id: VALID_PLAYER_ID,
     guestId: 'guest-123',
     name: 'Test Player',
   };
 
   const mockTeam = {
-    id: 'team-123',
-    playerId: 'player-123',
+    id: VALID_TEAM_ID,
+    playerId: VALID_PLAYER_ID,
     name: 'Test Team',
     units: [
       { unitId: 'knight', position: { x: 0, y: 0 } },
@@ -105,12 +109,12 @@ describe('TeamService', () => {
       teamRepo.create.mockReturnValue(mockTeam as Team);
       teamRepo.save.mockResolvedValue(mockTeam as Team);
 
-      const result = await service.createTeam('player-123', teamData);
+      const result = await service.createTeam(VALID_PLAYER_ID, teamData);
 
-      expect(playerRepo.findOne).toHaveBeenCalledWith({ where: { id: 'player-123' } });
+      expect(playerRepo.findOne).toHaveBeenCalledWith({ where: { id: VALID_PLAYER_ID } });
       expect(validator.validateTeam).toHaveBeenCalledWith(teamData);
       expect(teamRepo.create).toHaveBeenCalledWith({
-        playerId: 'player-123',
+        playerId: VALID_PLAYER_ID,
         name: 'New Team',
         units: teamData.units,
         totalCost: 5,
@@ -134,20 +138,20 @@ describe('TeamService', () => {
         error: 'Team exceeds budget',
       });
 
-      await expect(service.createTeam('player-123', teamData))
+      await expect(service.createTeam(VALID_PLAYER_ID, teamData))
         .rejects.toThrow(InvalidTeamException);
     });
   });
 
   describe('getPlayerTeams', () => {
     it('should return player teams', async () => {
-      const teams = [mockTeam, { ...mockTeam, id: 'team-456', name: 'Team 2' }];
+      const teams = [mockTeam, { ...mockTeam, id: '550e8400-e29b-41d4-a716-446655440002', name: 'Team 2' }];
       teamRepo.find.mockResolvedValue(teams as Team[]);
 
-      const result = await service.getPlayerTeams('player-123');
+      const result = await service.getPlayerTeams(VALID_PLAYER_ID);
 
       expect(teamRepo.find).toHaveBeenCalledWith({
-        where: { playerId: 'player-123' },
+        where: { playerId: VALID_PLAYER_ID },
         order: { createdAt: 'DESC' },
       });
       expect(result).toHaveLength(2);
@@ -159,18 +163,18 @@ describe('TeamService', () => {
     it('should return a specific team', async () => {
       teamRepo.findOne.mockResolvedValue(mockTeam as Team);
 
-      const result = await service.getTeam('team-123', 'player-123');
+      const result = await service.getTeam(VALID_TEAM_ID, VALID_PLAYER_ID);
 
       expect(teamRepo.findOne).toHaveBeenCalledWith({
-        where: { id: 'team-123', playerId: 'player-123' },
+        where: { id: VALID_TEAM_ID, playerId: VALID_PLAYER_ID },
       });
-      expect(result.id).toBe('team-123');
+      expect(result.id).toBe(VALID_TEAM_ID);
     });
 
     it('should throw NotFoundException if team not found', async () => {
       teamRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.getTeam('invalid-team', 'player-123'))
+      await expect(service.getTeam('invalid-team', VALID_PLAYER_ID))
         .rejects.toThrow(NotFoundException);
     });
   });
@@ -192,7 +196,7 @@ describe('TeamService', () => {
       });
       teamRepo.save.mockResolvedValue({ ...mockTeam, ...updateData } as Team);
 
-      const result = await service.updateTeam('team-123', 'player-123', updateData);
+      const result = await service.updateTeam(VALID_TEAM_ID, VALID_PLAYER_ID, updateData);
 
       expect(validator.validateTeam).toHaveBeenCalled();
       expect(teamRepo.save).toHaveBeenCalled();
@@ -202,7 +206,7 @@ describe('TeamService', () => {
     it('should throw NotFoundException if team not found', async () => {
       teamRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.updateTeam('invalid-team', 'player-123', updateData))
+      await expect(service.updateTeam('invalid-team', VALID_PLAYER_ID, updateData))
         .rejects.toThrow(NotFoundException);
     });
 
@@ -213,7 +217,7 @@ describe('TeamService', () => {
         error: 'Invalid team configuration',
       });
 
-      await expect(service.updateTeam('team-123', 'player-123', updateData))
+      await expect(service.updateTeam(VALID_TEAM_ID, VALID_PLAYER_ID, updateData))
         .rejects.toThrow(InvalidTeamException);
     });
   });
@@ -223,10 +227,10 @@ describe('TeamService', () => {
       teamRepo.findOne.mockResolvedValue(mockTeam as Team);
       teamRepo.remove.mockResolvedValue(mockTeam as Team);
 
-      await service.deleteTeam('team-123', 'player-123');
+      await service.deleteTeam(VALID_TEAM_ID, VALID_PLAYER_ID);
 
       expect(teamRepo.findOne).toHaveBeenCalledWith({
-        where: { id: 'team-123', playerId: 'player-123' },
+        where: { id: VALID_TEAM_ID, playerId: VALID_PLAYER_ID },
       });
       expect(teamRepo.remove).toHaveBeenCalledWith(mockTeam);
     });
@@ -234,7 +238,7 @@ describe('TeamService', () => {
     it('should throw NotFoundException if team not found', async () => {
       teamRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.deleteTeam('invalid-team', 'player-123'))
+      await expect(service.deleteTeam('invalid-team', VALID_PLAYER_ID))
         .rejects.toThrow(NotFoundException);
     });
 
@@ -242,7 +246,7 @@ describe('TeamService', () => {
       const activeTeam = { ...mockTeam, isActive: true };
       teamRepo.findOne.mockResolvedValue(activeTeam as Team);
 
-      await expect(service.deleteTeam('team-123', 'player-123'))
+      await expect(service.deleteTeam(VALID_TEAM_ID, VALID_PLAYER_ID))
         .rejects.toThrow(CannotDeleteActiveTeamException);
     });
   });
@@ -254,11 +258,11 @@ describe('TeamService', () => {
       teamRepo.update.mockResolvedValue({ affected: 1 } as any);
       teamRepo.save.mockResolvedValue({ ...mockTeam, isActive: true } as Team);
 
-      const result = await service.activateTeam('team-123', 'player-123');
+      const result = await service.activateTeam(VALID_TEAM_ID, VALID_PLAYER_ID);
 
       expect(validator.validateForBattle).toHaveBeenCalledWith(mockTeam);
       expect(teamRepo.update).toHaveBeenCalledWith(
-        { playerId: 'player-123', isActive: true },
+        { playerId: VALID_PLAYER_ID, isActive: true },
         { isActive: false }
       );
       expect(result.isActive).toBe(true);
@@ -267,7 +271,7 @@ describe('TeamService', () => {
     it('should throw NotFoundException if team not found', async () => {
       teamRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.activateTeam('invalid-team', 'player-123'))
+      await expect(service.activateTeam('invalid-team', VALID_PLAYER_ID))
         .rejects.toThrow(NotFoundException);
     });
 
@@ -275,7 +279,7 @@ describe('TeamService', () => {
       teamRepo.findOne.mockResolvedValue(mockTeam as Team);
       validator.validateForBattle.mockReturnValue(false);
 
-      await expect(service.activateTeam('team-123', 'player-123'))
+      await expect(service.activateTeam(VALID_TEAM_ID, VALID_PLAYER_ID))
         .rejects.toThrow(InvalidTeamException);
     });
   });
@@ -285,10 +289,10 @@ describe('TeamService', () => {
       const activeTeam = { ...mockTeam, isActive: true };
       teamRepo.findOne.mockResolvedValue(activeTeam as Team);
 
-      const result = await service.getActiveTeam('player-123');
+      const result = await service.getActiveTeam(VALID_PLAYER_ID);
 
       expect(teamRepo.findOne).toHaveBeenCalledWith({
-        where: { playerId: 'player-123', isActive: true },
+        where: { playerId: VALID_PLAYER_ID, isActive: true },
       });
       expect(result?.isActive).toBe(true);
     });
@@ -296,7 +300,7 @@ describe('TeamService', () => {
     it('should return null if no active team', async () => {
       teamRepo.findOne.mockResolvedValue(null);
 
-      const result = await service.getActiveTeam('player-123');
+      const result = await service.getActiveTeam(VALID_PLAYER_ID);
 
       expect(result).toBeNull();
     });

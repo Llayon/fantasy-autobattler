@@ -6,7 +6,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { MatchmakingService } from './matchmaking.service';
 import { MatchmakingQueue, MatchmakingStatus } from '../entities/matchmaking-queue.entity';
 import { Player } from '../entities/player.entity';
@@ -21,9 +21,14 @@ describe('MatchmakingService', () => {
   let teamRepository: jest.Mocked<Repository<Team>>;
   let battleService: jest.Mocked<BattleService>;
 
+  // Valid UUIDs for testing
+  const VALID_PLAYER_ID = '550e8400-e29b-41d4-a716-446655440001';
+  const VALID_TEAM_ID = '550e8400-e29b-41d4-a716-446655440002';
+  const VALID_QUEUE_ID = '550e8400-e29b-41d4-a716-446655440003';
+
   // Test data
   const mockPlayer = {
-    id: 'player-123',
+    id: VALID_PLAYER_ID,
     guestId: 'guest-123',
     name: 'Test Player',
     wins: 0,
@@ -31,8 +36,8 @@ describe('MatchmakingService', () => {
   } as Player;
 
   const mockTeam = {
-    id: 'team-456',
-    playerId: 'player-123',
+    id: VALID_TEAM_ID,
+    playerId: VALID_PLAYER_ID,
     name: 'Test Team',
     units: [
       { unitId: 'knight', position: { x: 0, y: 0 } },
@@ -53,9 +58,9 @@ describe('MatchmakingService', () => {
   } as unknown as Team;
 
   const mockQueueEntry = {
-    id: 'queue-789',
-    playerId: 'player-123',
-    teamId: 'team-456',
+    id: VALID_QUEUE_ID,
+    playerId: VALID_PLAYER_ID,
+    teamId: VALID_TEAM_ID,
     rating: MATCHMAKING_CONSTANTS.DEFAULT_ELO,
     status: MatchmakingStatus.WAITING,
     joinedAt: new Date(),
@@ -96,6 +101,8 @@ describe('MatchmakingService', () => {
           provide: BattleService,
           useValue: {
             startBattle: jest.fn(),
+            startPvPBattle: jest.fn(),
+            getRecentBattleForPlayer: jest.fn(),
           },
         },
       ],
@@ -121,26 +128,26 @@ describe('MatchmakingService', () => {
       queueRepository.save.mockResolvedValue(mockQueueEntry);
 
       // Act
-      const result = await service.joinQueue('player-123', 'team-456');
+      const result = await service.joinQueue(VALID_PLAYER_ID, VALID_TEAM_ID);
 
       // Assert
       expect(result).toEqual({
-        id: 'queue-789',
-        playerId: 'player-123',
-        teamId: 'team-456',
+        id: VALID_QUEUE_ID,
+        playerId: VALID_PLAYER_ID,
+        teamId: VALID_TEAM_ID,
         rating: MATCHMAKING_CONSTANTS.DEFAULT_ELO,
         status: MatchmakingStatus.WAITING,
         joinedAt: expect.any(Date),
         waitTime: 30000,
       });
 
-      expect(playerRepository.findOne).toHaveBeenCalledWith({ where: { id: 'player-123' } });
+      expect(playerRepository.findOne).toHaveBeenCalledWith({ where: { id: VALID_PLAYER_ID } });
       expect(teamRepository.findOne).toHaveBeenCalledWith({
-        where: { id: 'team-456', playerId: 'player-123', isActive: true },
+        where: { id: VALID_TEAM_ID, playerId: VALID_PLAYER_ID, isActive: true },
       });
       expect(queueRepository.create).toHaveBeenCalledWith({
-        playerId: 'player-123',
-        teamId: 'team-456',
+        playerId: VALID_PLAYER_ID,
+        teamId: VALID_TEAM_ID,
         rating: MATCHMAKING_CONSTANTS.DEFAULT_ELO,
         status: MatchmakingStatus.WAITING,
       });
@@ -151,7 +158,7 @@ describe('MatchmakingService', () => {
       playerRepository.findOne.mockResolvedValue(null);
 
       // Act & Assert
-      await expect(service.joinQueue('invalid-player', 'team-456')).rejects.toThrow(
+      await expect(service.joinQueue('invalid-player', VALID_TEAM_ID)).rejects.toThrow(
         NotFoundException,
       );
       expect(playerRepository.findOne).toHaveBeenCalledWith({ where: { id: 'invalid-player' } });
@@ -163,27 +170,34 @@ describe('MatchmakingService', () => {
       teamRepository.findOne.mockResolvedValue(null);
 
       // Act & Assert
-      await expect(service.joinQueue('player-123', 'invalid-team')).rejects.toThrow(
+      await expect(service.joinQueue(VALID_PLAYER_ID, 'invalid-team')).rejects.toThrow(
         NotFoundException,
       );
       expect(teamRepository.findOne).toHaveBeenCalledWith({
-        where: { id: 'invalid-team', playerId: 'player-123', isActive: true },
+        where: { id: 'invalid-team', playerId: VALID_PLAYER_ID, isActive: true },
       });
     });
 
-    it('should throw ConflictException when player already in queue', async () => {
+    it('should remove existing queue entry and rejoin when player already in queue', async () => {
       // Arrange
       playerRepository.findOne.mockResolvedValue(mockPlayer);
       teamRepository.findOne.mockResolvedValue(mockTeam);
       queueRepository.findOne.mockResolvedValue(mockQueueEntry); // Existing entry
+      queueRepository.remove.mockResolvedValue(mockQueueEntry);
+      queueRepository.create.mockReturnValue(mockQueueEntry);
+      queueRepository.save.mockResolvedValue(mockQueueEntry);
 
-      // Act & Assert
-      await expect(service.joinQueue('player-123', 'team-456')).rejects.toThrow(
-        ConflictException,
-      );
+      // Act
+      const result = await service.joinQueue(VALID_PLAYER_ID, VALID_TEAM_ID);
+
+      // Assert
       expect(queueRepository.findOne).toHaveBeenCalledWith({
-        where: { playerId: 'player-123', status: MatchmakingStatus.WAITING },
+        where: { playerId: VALID_PLAYER_ID, status: MatchmakingStatus.WAITING },
       });
+      expect(queueRepository.remove).toHaveBeenCalledWith(mockQueueEntry);
+      expect(queueRepository.create).toHaveBeenCalled();
+      expect(queueRepository.save).toHaveBeenCalled();
+      expect(result.playerId).toBe(VALID_PLAYER_ID);
     });
   });
 
@@ -194,11 +208,11 @@ describe('MatchmakingService', () => {
       queueRepository.remove.mockResolvedValue(mockQueueEntry);
 
       // Act
-      await service.leaveQueue('player-123');
+      await service.leaveQueue(VALID_PLAYER_ID);
 
       // Assert
       expect(queueRepository.findOne).toHaveBeenCalledWith({
-        where: { playerId: 'player-123', status: MatchmakingStatus.WAITING },
+        where: { playerId: VALID_PLAYER_ID, status: MatchmakingStatus.WAITING },
       });
       expect(queueRepository.remove).toHaveBeenCalledWith(mockQueueEntry);
     });
@@ -208,18 +222,23 @@ describe('MatchmakingService', () => {
       queueRepository.findOne.mockResolvedValue(null);
 
       // Act & Assert
-      await expect(service.leaveQueue('player-123')).rejects.toThrow(NotFoundException);
+      await expect(service.leaveQueue(VALID_PLAYER_ID)).rejects.toThrow(NotFoundException);
       expect(queueRepository.findOne).toHaveBeenCalledWith({
-        where: { playerId: 'player-123', status: MatchmakingStatus.WAITING },
+        where: { playerId: VALID_PLAYER_ID, status: MatchmakingStatus.WAITING },
       });
     });
   });
 
   describe('findMatch', () => {
+    const VALID_OPPONENT_PLAYER_ID = '550e8400-e29b-41d4-a716-446655440004';
+    const VALID_OPPONENT_TEAM_ID = '550e8400-e29b-41d4-a716-446655440005';
+    const VALID_OPPONENT_QUEUE_ID = '550e8400-e29b-41d4-a716-446655440006';
+    const VALID_BATTLE_ID = '550e8400-e29b-41d4-a716-446655440007';
+
     const mockOpponent = {
-      id: 'queue-opponent',
-      playerId: 'player-opponent',
-      teamId: 'team-opponent',
+      id: VALID_OPPONENT_QUEUE_ID,
+      playerId: VALID_OPPONENT_PLAYER_ID,
+      teamId: VALID_OPPONENT_TEAM_ID,
       rating: MATCHMAKING_CONSTANTS.DEFAULT_ELO + 50,
       status: MatchmakingStatus.WAITING,
       joinedAt: new Date(Date.now() - 60000), // 1 minute ago
@@ -247,8 +266,18 @@ describe('MatchmakingService', () => {
       mockQueryBuilder.getMany.mockResolvedValue([mockOpponent]);
       teamRepository.findOne
         .mockResolvedValueOnce(mockTeam) // Player team
-        .mockResolvedValueOnce({ ...mockTeam, id: 'team-opponent' } as Team); // Opponent team
-      battleService.startBattle.mockResolvedValue({ battleId: 'battle-123' });
+        .mockResolvedValueOnce({ ...mockTeam, id: VALID_OPPONENT_TEAM_ID } as Team); // Opponent team
+      battleService.startPvPBattle.mockResolvedValue({
+        id: VALID_BATTLE_ID,
+        player1Id: VALID_PLAYER_ID,
+        player2Id: VALID_OPPONENT_PLAYER_ID,
+        status: 'completed',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        rounds: [],
+        winner: VALID_PLAYER_ID,
+        seed: 12345,
+      } as any);
       queueRepository.save.mockResolvedValue(mockQueueEntry);
 
       // Act
@@ -257,22 +286,22 @@ describe('MatchmakingService', () => {
       // Assert
       expect(result).toEqual({
         player1: expect.objectContaining({
-          playerId: 'player-123',
+          playerId: VALID_PLAYER_ID,
           rating: MATCHMAKING_CONSTANTS.DEFAULT_ELO,
         }),
         player2: expect.objectContaining({
-          playerId: 'player-opponent',
+          playerId: VALID_OPPONENT_PLAYER_ID,
           rating: MATCHMAKING_CONSTANTS.DEFAULT_ELO + 50,
         }),
         ratingDifference: 50,
-        battleId: 'battle-123',
+        battleId: VALID_BATTLE_ID,
       });
 
-      expect(battleService.startBattle).toHaveBeenCalledWith('player-123');
-      expect(mockQueueEntry.markAsMatched).toHaveBeenCalledWith('battle-123');
-      expect(mockOpponent.markAsMatched).toHaveBeenCalledWith('battle-123');
+      expect(battleService.startPvPBattle).toHaveBeenCalledWith(VALID_PLAYER_ID, VALID_OPPONENT_PLAYER_ID);
+      expect(mockQueueEntry.markAsMatched).toHaveBeenCalledWith(VALID_BATTLE_ID);
+      expect(mockOpponent.markAsMatched).toHaveBeenCalledWith(VALID_BATTLE_ID);
       expect(queueRepository.save).toHaveBeenCalledTimes(2);
-      expect(queueRepository.remove).toHaveBeenCalledTimes(2);
+      // Note: Queue entries are scheduled for removal after 5 minutes, not immediately
     });
 
     it('should return null when no suitable opponent found', async () => {
@@ -281,21 +310,24 @@ describe('MatchmakingService', () => {
       mockQueryBuilder.getMany.mockResolvedValue([]); // No opponents
 
       // Act
-      const result = await service.findMatch('player-123');
+      const result = await service.findMatch(VALID_PLAYER_ID);
 
       // Assert
       expect(result).toBeNull();
       expect(queueRepository.createQueryBuilder).toHaveBeenCalled();
     });
 
-    it('should throw NotFoundException when player not in queue', async () => {
+    it('should return null when player not in queue', async () => {
       // Arrange
       queueRepository.findOne.mockResolvedValue(null);
 
-      // Act & Assert
-      await expect(service.findMatch('player-123')).rejects.toThrow(NotFoundException);
+      // Act
+      const result = await service.findMatch(VALID_PLAYER_ID);
+
+      // Assert
+      expect(result).toBeNull();
       expect(queueRepository.findOne).toHaveBeenCalledWith({
-        where: { playerId: 'player-123', status: MatchmakingStatus.WAITING },
+        where: { playerId: VALID_PLAYER_ID, status: MatchmakingStatus.WAITING },
       });
     });
 
@@ -310,7 +342,7 @@ describe('MatchmakingService', () => {
       mockQueryBuilder.getMany.mockResolvedValue([]);
 
       // Act
-      await service.findMatch('player-123');
+      await service.findMatch(VALID_PLAYER_ID);
 
       // Assert
       const expectedExpansion = 5 * MATCHMAKING_CONSTANTS.RATING_EXPANSION_PER_MINUTE;
@@ -418,12 +450,16 @@ describe('MatchmakingService', () => {
   });
 
   describe('createBattle', () => {
+    const VALID_OPPONENT_PLAYER_ID_2 = '550e8400-e29b-41d4-a716-446655440008';
+    const VALID_OPPONENT_TEAM_ID_2 = '550e8400-e29b-41d4-a716-446655440009';
+    const VALID_OPPONENT_QUEUE_ID_2 = '550e8400-e29b-41d4-a716-44665544000a';
+
     it('should handle battle creation errors gracefully', async () => {
       // Arrange
       const opponent = {
-        id: 'queue-opponent',
-        playerId: 'player-opponent',
-        teamId: 'team-opponent',
+        id: VALID_OPPONENT_QUEUE_ID_2,
+        playerId: VALID_OPPONENT_PLAYER_ID_2,
+        teamId: VALID_OPPONENT_TEAM_ID_2,
         rating: MATCHMAKING_CONSTANTS.DEFAULT_ELO + 50,
         status: MatchmakingStatus.WAITING,
         joinedAt: new Date(Date.now() - 60000),
@@ -433,8 +469,8 @@ describe('MatchmakingService', () => {
 
       teamRepository.findOne
         .mockResolvedValueOnce(mockTeam)
-        .mockResolvedValueOnce({ ...mockTeam, id: 'team-opponent' } as Team);
-      battleService.startBattle.mockRejectedValue(new Error('Battle creation failed'));
+        .mockResolvedValueOnce({ ...mockTeam, id: VALID_OPPONENT_TEAM_ID_2 } as Team);
+      battleService.startPvPBattle.mockRejectedValue(new Error('Battle creation failed'));
 
       // Act & Assert
       await expect(service.createBattle(mockQueueEntry, opponent)).rejects.toThrow(
@@ -445,9 +481,9 @@ describe('MatchmakingService', () => {
     it('should throw BadRequestException when team data not found', async () => {
       // Arrange
       const opponent = {
-        id: 'queue-opponent',
-        playerId: 'player-opponent',
-        teamId: 'team-opponent',
+        id: VALID_OPPONENT_QUEUE_ID_2,
+        playerId: VALID_OPPONENT_PLAYER_ID_2,
+        teamId: VALID_OPPONENT_TEAM_ID_2,
         rating: MATCHMAKING_CONSTANTS.DEFAULT_ELO + 50,
         status: MatchmakingStatus.WAITING,
         joinedAt: new Date(Date.now() - 60000),
