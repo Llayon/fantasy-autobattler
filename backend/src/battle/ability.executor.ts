@@ -176,9 +176,12 @@ export function canUseAbility(
   
   // Check if there are valid targets
   const validTargets = getValidTargets(unit, ability, state);
-  if (validTargets.length === 0 && ability.targetType !== 'self') {
+  if (validTargets.length === 0 && ability.targetType !== 'self' && ability.targetType !== 'area') {
     return false;
   }
+  
+  // For area abilities, we can always target any position within range
+  // The actual target validation happens in executeAbility
   
   return true;
 }

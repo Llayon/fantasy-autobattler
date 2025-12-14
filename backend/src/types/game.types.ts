@@ -169,10 +169,14 @@ export type BattleEventType =
   | 'attack' 
   | 'heal' 
   | 'ability' 
+  | 'ability_used'
   | 'damage' 
   | 'death' 
   | 'buff' 
   | 'debuff'
+  | 'status_applied'
+  | 'status_tick'
+  | 'status_removed'
   | 'round_start'
   | 'battle_end';
 
@@ -205,6 +209,14 @@ export interface BattleEvent {
   abilityId?: string;
   /** Units killed by this event */
   killedUnits?: string[];
+  /** Status effect applied/removed/ticked */
+  statusEffect?: {
+    type: string;
+    duration?: number;
+    value?: number;
+  };
+  /** Source of damage (attack, ability, status) */
+  source?: 'attack' | 'ability' | 'status';
   /** Additional event metadata */
   metadata?: Record<string, unknown>;
 }

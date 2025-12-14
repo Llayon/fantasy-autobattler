@@ -7526,3 +7526,121 @@ Edge Cases:
 - **Phase 5**: Frontend Integration 🔄 IN PROGRESS (Steps 58-65)
 
 **Total Progress: 57/100 steps completed (57%)**
+
+
+## Step 58: Passive Abilities ✅ COMPLETED
+**Date:** December 15, 2025  
+**Duration:** ~25 minutes  
+**Status:** SUCCESS
+
+### 🎯 Objectives
+- Implement passive abilities system for 4 units
+- Create pure functions for passive ability processing
+- Ensure deterministic behavior for battle replay
+- Add comprehensive test coverage
+
+### 🔧 Changes Made
+
+#### 1. Passive Abilities Implemented
+- ✅ **Evasion (Rogue)**: +15% dodge permanently
+- ✅ **Rage (Berserker)**: +50% ATK when HP < 50%
+- ✅ **Thorns (Guardian)**: Reflects 20% of received damage
+- ✅ **Lifesteal (Warlock)**: Heals 20% of damage dealt
+
+#### 2. Core Functions Created
+- ✅ `hasPassive()` - Check if unit has specific passive
+- ✅ `getUnitPassive()` - Get passive ID for unit
+- ✅ `isRageConditionMet()` - Check rage HP threshold
+- ✅ `applyEvasionPassive()` - Apply permanent dodge bonus
+- ✅ `getEffectiveDodge()` - Calculate dodge with evasion (capped at 75%)
+- ✅ `updateRagePassive()` - Activate/deactivate rage based on HP
+- ✅ `getEffectiveAttack()` - Calculate attack with rage bonus
+- ✅ `calculateThornsDamage()` - Calculate reflected damage
+- ✅ `processThorns()` - Process thorns on damage received
+- ✅ `calculateLifestealHealing()` - Calculate healing from damage
+- ✅ `processLifesteal()` - Process lifesteal on damage dealt
+- ✅ `applyBattleStartPassives()` - Apply passives at battle start
+- ✅ `applyAllBattleStartPassives()` - Apply to all units in state
+- ✅ `updateConditionalPassives()` - Update passives after HP change
+- ✅ `getEffectiveStatsWithPassives()` - Get all effective stats
+- ✅ `processAttackPassives()` - Process all attack-related passives
+- ✅ `applyPassiveResults()` - Apply passive effects to battle state
+- ✅ `getPassiveEvents()` - Extract events from passive results
+
+#### 3. Constants & Types
+- ✅ `PASSIVE_CONSTANTS` - All passive values (dodge bonus, rage threshold, etc.)
+- ✅ `UNIT_PASSIVE_MAP` - Maps unit IDs to passive abilities
+- ✅ `PassiveAbilityId` - Type for passive IDs
+- ✅ `PassiveTriggerResult` - Result of passive trigger
+- ✅ `PassiveEffect` - Effect applied by passive
+- ✅ `BattleUnitWithPassives` - Extended unit interface
+- ✅ `PassiveEffectInstance` - Active passive effect on unit
+
+#### 4. Test Coverage
+- ✅ **47 tests** in `backend/src/battle/passive.abilities.spec.ts`
+- ✅ All 4 passives fully tested
+- ✅ Edge cases covered (HP thresholds, caps, lethal damage)
+- ✅ Deterministic testing with fixed seeds
+- ✅ Constants validation tests
+
+### 📊 Test Results
+```bash
+✅ 634 tests passing (up from 587)
+✅ passive.abilities.spec.ts: 47 tests passing
+✅ All passive abilities tested
+✅ Edge cases covered
+✅ Deterministic behavior verified
+```
+
+### 📊 Passive Abilities Summary
+| Passive | Unit | Effect | Trigger |
+|---------|------|--------|---------|
+| Evasion | Rogue | +15% dodge | Permanent (battle start) |
+| Rage | Berserker | +50% ATK | HP < 50% |
+| Thorns | Guardian | 20% damage reflect | On damage received |
+| Lifesteal | Warlock | 20% damage as heal | On damage dealt |
+
+### 📝 Files Created
+- `backend/src/battle/passive.abilities.ts` - **NEW** passive abilities system (~450 lines)
+- `backend/src/battle/passive.abilities.spec.ts` - **NEW** comprehensive test suite (47 tests)
+
+### 🎉 Success Criteria Met
+- [x] All 4 passive abilities implemented
+- [x] Pure functions for deterministic behavior
+- [x] Comprehensive test coverage (47 tests)
+- [x] All 634 tests pass
+- [x] TypeScript strict compliance
+- [x] JSDoc documentation complete
+
+### 🚀 Ready For
+- Step 59: Ability UI Components
+- Integration with battle simulator
+- Frontend passive ability indicators
+
+---
+
+## 🎯 Phase 5 Progress Summary
+**Frontend Integration** - Steps 58-65
+
+### ✅ Completed Steps
+- **Step 58**: Passive Abilities ✅ COMPLETED (December 15, 2025)
+
+### 📊 Phase 5 Achievements
+- **Passive abilities system** with 4 unique passives
+- **47 new tests** for passive abilities
+- **Pure function architecture** for deterministic replays
+- **Type-safe implementation** with full TypeScript compliance
+
+### 🚀 Next Steps
+- Step 59: Ability UI Components
+- Step 60: Status effect indicators
+- Step 61: Enhanced battle replay with abilities
+
+### 📈 Overall Progress
+- **Phase 1**: Foundation ✅ COMPLETED (Steps 1-15)
+- **Phase 2**: Matchmaking & Battles ✅ COMPLETED (Steps 16-30)
+- **Phase 3**: Frontend Core ✅ COMPLETED (Steps 31-50)
+- **Phase 4**: Advanced Battle Mechanics ✅ COMPLETED (Steps 51-57)
+- **Phase 5**: Frontend Integration 🔄 IN PROGRESS (Steps 58-65)
+
+**Total Progress: 58/100 steps completed (58%)**

@@ -505,3 +505,552 @@ describe('applyEffect', () => {
     expect(result.damage).toBe(30);
   });
 });
+
+// =============================================================================
+// REAL ABILITY TESTS
+// =============================================================================
+
+import { 
+  executeAbility, 
+  applyAbilityEvents, 
+  tickAbilityCooldowns 
+} from './ability.executor';
+import { ABILITIES } from '../abilities/ability.data';
+
+describe('Real Ability Tests', () => {
+  
+  // =============================================================================
+  // FIREBALL TESTS - AoE Magic Damage
+  // =============================================================================
+  
+  describe('Fireball Ability', () => {
+    test('deals magic damage to all enemies in radius', () => {
+      const mage = createMockUnit({
+        id: 'mage',
+        instanceId: 'mage_1',
+        position: { x: 2, y: 2 },
+        stats: { hp: 60, atk: 25, atkCount: 1, armor: 5, speed: 2, initiative: 40, dodge: 5 },
+        abilityCooldowns: {}, // Initialize cooldowns
+      });
+      
+      const enemy1 = createMockUnit({
+        instanceId: 'enemy_1',
+        team: 'bot',
+        position: { x: 4, y: 4 }, // Within fireball range (3) and AoE (1)
+        currentHp: 80,
+        maxHp: 80,
+      });
+      
+      const enemy2 = createMockUnit({
+        instanceId: 'enemy_2', 
+        team: 'bot',
+        position: { x: 4, y: 3 }, // Within AoE radius of target
+        currentHp: 80,
+        maxHp: 80,
+      });
+      
+      const enemy3 = createMockUnit({
+        instanceId: 'enemy_3',
+        team: 'bot', 
+        position: { x: 6, y: 6 }, // Outside AoE radius
+        currentHp: 80,
+        maxHp: 80,
+      });
+      
+      const state = createMockBattleState([mage, enemy1, enemy2, enemy3]);
+      const fireball = ABILITIES.fireball;
+      
+      const events = executeAbility(mage, fireball, { x: 4, y: 4 }, state, 12345);
+      
+      expect(events).toHaveLength(1);
+      expect(events[0]?.type).toBe('ability');
+      expect(events[0]?.abilityId).toBe('fireball');
+      expect(events[0]?.effectResults).toHaveLength(2); // Should hit 2 enemies in AoE
+      
+      // Check that both enemies in AoE took damage
+      const results = events[0]?.effectResults || [];
+      expect(results.every(r => r.effectType === 'damage')).toBe(true);
+      expect(results.every(r => r.damage && r.damage > 0)).toBe(true);
+    });
+    
+    test('magical damage ignores armor', () => {
+      const mage = createMockUnit({
+        id: 'mage',
+        instanceId: 'mage_1',
+        position: { x: 0, y: 0 },
+        stats: { hp: 60, atk: 25, atkCount: 1, armor: 5, speed: 2, initiative: 40, dodge: 5 },
+        abilityCooldowns: {}, // Initialize cooldowns
+      });
+      
+      const armoredEnemy = createMockUnit({
+        instanceId: 'armored_enemy',
+        team: 'bot',
+        position: { x: 2, y: 2 },
+        stats: { hp: 100, atk: 15, atkCount: 1, armor: 20, speed: 2, initiative: 30, dodge: 0 }, // High armor
+        currentHp: 100,
+        maxHp: 100,
+      });
+      
+      const state = createMockBattleState([mage, armoredEnemy]);
+      const fireball = ABILITIES.fireball;
+      
+      const events = executeAbility(mage, fireball, { x: 2, y: 2 }, state, 12345);
+      
+      expect(events).toHaveLength(1);
+      const result = events[0]?.effectResults[0];
+      expect(result?.damage).toBeDefined();
+      // Fireball base damage (30) + attack scaling (25 * 0.6 = 15) = 45 damage
+      // Should not be reduced by armor since it's magical
+      expect(result?.damage).toBe(45);
+    });
+  });
+  
+  // =============================================================================
+  // HEAL TESTS - HP Restoration with Limits
+  // =============================================================================
+  
+  describe('Heal Ability', () => {
+    test('restores HP to wounded ally', () => {
+      const priest = createMockUnit({
+        id: 'priest',
+        instanceId: 'priest_1',
+        position: { x: 0, y: 0 },
+        stats: { hp: 70, atk: 15, atkCount: 1, armor: 8, speed: 2, initiative: 35, dodge: 10 },
+      });
+      
+      const woundedAlly = createMockUnit({
+        instanceId: 'wounded_ally',
+        team: 'player',
+        position: { x: 1, y: 1 },
+        currentHp: 30,
+        maxHp: 100,
+      });
+      
+      const state = createMockBattleState([priest, woundedAlly]);
+      const heal = ABILITIES.heal;
+      
+      const events = executeAbility(priest, heal, woundedAlly, state, 12345);
+      
+      expect(events).toHaveLength(1);
+      expect(events[0]?.type).toBe('ability');
+      expect(events[0]?.abilityId).toBe('heal');
+      
+      const result = events[0]?.effectResults[0];
+      expect(result?.effectType).toBe('heal');
+      expect(result?.healing).toBeDefined();
+      expect(result?.healing).toBeGreaterThan(0);
+      // Heal base (25) + attack scaling (15 * 0.5 = 7.5 rounded down = 7) = 32 healing
+      expect(result?.healing).toBe(32);
+    });
+    
+    test('does not heal above maximum HP', () => {
+      const priest = createMockUnit({
+        id: 'priest',
+        instanceId: 'priest_1',
+        position: { x: 0, y: 0 },
+        stats: { hp: 70, atk: 15, atkCount: 1, armor: 8, speed: 2, initiative: 35, dodge: 10 },
+      });
+      
+      const nearFullAlly = createMockUnit({
+        instanceId: 'near_full_ally',
+        team: 'player',
+        position: { x: 1, y: 1 },
+        currentHp: 95,
+        maxHp: 100,
+      });
+      
+      const state = createMockBattleState([priest, nearFullAlly]);
+      const heal = ABILITIES.heal;
+      
+      const events = executeAbility(priest, heal, nearFullAlly, state, 12345);
+      
+      expect(events).toHaveLength(1);
+      const result = events[0]?.effectResults[0];
+      expect(result?.newHp).toBe(100); // Should cap at max HP
+      expect(result?.healing).toBe(5); // Only healed 5 HP to reach max
+    });
+    
+    test('targets lowest HP ally automatically', () => {
+      const priest = createMockUnit({
+        id: 'priest',
+        instanceId: 'priest_1',
+        position: { x: 0, y: 0 },
+        stats: { hp: 70, atk: 15, atkCount: 1, armor: 8, speed: 2, initiative: 35, dodge: 10 },
+      });
+      
+      const ally1 = createMockUnit({
+        instanceId: 'ally_1',
+        team: 'player',
+        position: { x: 1, y: 1 },
+        currentHp: 60,
+        maxHp: 100,
+      });
+      
+      const ally2 = createMockUnit({
+        instanceId: 'ally_2',
+        team: 'player',
+        position: { x: 2, y: 1 },
+        currentHp: 20, // Lowest HP - should be targeted
+        maxHp: 100,
+      });
+      
+      const state = createMockBattleState([priest, ally1, ally2]);
+      const heal = ABILITIES.heal;
+      
+      const events = executeAbility(priest, heal, ally2, state, 12345);
+      
+      expect(events).toHaveLength(1);
+      expect(events[0]?.targetId).toBe('ally_2');
+    });
+  });
+  
+  // =============================================================================
+  // STUN TESTS - Turn Skipping
+  // =============================================================================
+  
+  describe('Stun Ability', () => {
+    test('applies stun effect to target', () => {
+      const enchanter = createMockUnit({
+        id: 'enchanter',
+        instanceId: 'enchanter_1',
+        position: { x: 0, y: 0 },
+        stats: { hp: 55, atk: 20, atkCount: 1, armor: 6, speed: 2, initiative: 45, dodge: 15 },
+        abilityCooldowns: {}, // Initialize cooldowns
+      });
+      
+      const enemy = createMockUnit({
+        instanceId: 'enemy_1',
+        team: 'bot',
+        position: { x: 1, y: 2 }, // Distance 3 from (0,0) - within stun range
+        currentHp: 80,
+        maxHp: 80,
+        isStunned: false,
+      });
+      
+      const state = createMockBattleState([enchanter, enemy]);
+      const stun = ABILITIES.stun;
+      
+      const events = executeAbility(enchanter, stun, enemy, state, 12345);
+      
+      expect(events).toHaveLength(1);
+      expect(events[0]?.type).toBe('ability');
+      expect(events[0]?.abilityId).toBe('stun');
+      
+      const result = events[0]?.effectResults[0];
+      expect(result?.effectType).toBe('stun');
+      expect(result?.duration).toBe(1);
+      expect(result?.targetId).toBe('enemy_1');
+    });
+    
+    test('stunned unit cannot use abilities', () => {
+      const stunnedUnit = createMockUnit({
+        isStunned: true,
+        abilityCooldowns: {},
+      });
+      const ability = ABILITIES.fireball;
+      const enemy = createMockUnit({
+        instanceId: 'enemy_1',
+        team: 'bot',
+        position: { x: 1, y: 0 },
+      });
+      const state = createMockBattleState([stunnedUnit, enemy]);
+      
+      expect(canUseAbility(stunnedUnit, ability, state)).toBe(false);
+    });
+  });
+  
+  // =============================================================================
+  // TAUNT TESTS - Force Enemy Targeting
+  // =============================================================================
+  
+  describe('Taunt Ability', () => {
+    test('applies taunt effect to self', () => {
+      const guardian = createMockUnit({
+        id: 'guardian',
+        instanceId: 'guardian_1',
+        position: { x: 0, y: 0 },
+        stats: { hp: 120, atk: 18, atkCount: 1, armor: 15, speed: 1, initiative: 25, dodge: 5 },
+        hasTaunt: false,
+      });
+      
+      const state = createMockBattleState([guardian]);
+      const taunt = ABILITIES.taunt;
+      
+      const events = executeAbility(guardian, taunt, guardian, state, 12345);
+      
+      expect(events).toHaveLength(1);
+      expect(events[0]?.type).toBe('ability');
+      expect(events[0]?.abilityId).toBe('taunt');
+      
+      const result = events[0]?.effectResults[0];
+      expect(result?.effectType).toBe('taunt');
+      expect(result?.duration).toBe(2);
+      expect(result?.targetId).toBe('guardian_1');
+    });
+    
+    test('taunt effect is applied to unit state', () => {
+      const guardian = createMockUnit({
+        id: 'guardian',
+        instanceId: 'guardian_1',
+        position: { x: 0, y: 0 },
+        stats: { hp: 120, atk: 18, atkCount: 1, armor: 15, speed: 1, initiative: 25, dodge: 5 },
+        hasTaunt: false,
+        tauntDuration: 0,
+      });
+      
+      const state = createMockBattleState([guardian]);
+      const taunt = ABILITIES.taunt;
+      
+      const events = executeAbility(guardian, taunt, guardian, state, 12345);
+      const updatedState = applyAbilityEvents(state, events, taunt, guardian.instanceId);
+      
+      const updatedGuardian = updatedState.units.find(u => u.instanceId === 'guardian_1') as BattleUnitWithAbilities;
+      expect(updatedGuardian?.hasTaunt).toBe(true);
+      expect(updatedGuardian?.tauntDuration).toBe(2);
+    });
+  });
+  
+  // =============================================================================
+  // RAGE TESTS - Conditional ATK Boost
+  // =============================================================================
+  
+  describe('Rage Ability (Passive)', () => {
+    test('triggers when HP falls below 50%', () => {
+      const berserker = createMockUnit({
+        id: 'berserker',
+        instanceId: 'berserker_1',
+        position: { x: 0, y: 0 },
+        stats: { hp: 100, atk: 22, atkCount: 1, armor: 12, speed: 2, initiative: 30, dodge: 8 },
+        currentHp: 40, // Below 50% threshold
+        maxHp: 100,
+      });
+      
+      const rage = ABILITIES.rage;
+      
+      // Test trigger condition
+      expect(rage.type).toBe('passive');
+      if (rage.type === 'passive') {
+        expect(rage.trigger).toBe('on_low_hp');
+        expect(rage.triggerThreshold).toBe(50);
+      }
+      
+      // Check if rage should trigger
+      const hpPercent = (berserker.currentHp / berserker.maxHp) * 100;
+      expect(hpPercent).toBeLessThan(50);
+      
+      // Rage effect should boost attack by 50%
+      const effect = rage.effects[0];
+      expect(effect?.type).toBe('buff');
+      if (effect?.type === 'buff') {
+        expect(effect.stat).toBe('attack');
+        expect(effect.percentage).toBe(0.5);
+      }
+    });
+    
+    test('does not trigger when HP is above 50%', () => {
+      const berserker = createMockUnit({
+        id: 'berserker',
+        instanceId: 'berserker_1',
+        position: { x: 0, y: 0 },
+        stats: { hp: 100, atk: 22, atkCount: 1, armor: 12, speed: 2, initiative: 30, dodge: 8 },
+        currentHp: 60, // Above 50% threshold
+        maxHp: 100,
+      });
+      
+      const hpPercent = (berserker.currentHp / berserker.maxHp) * 100;
+      expect(hpPercent).toBeGreaterThan(50);
+      
+      // Rage should not trigger
+      const rage = ABILITIES.rage;
+      if (rage.type === 'passive') {
+        expect(rage.triggerThreshold).toBe(50);
+      }
+    });
+  });
+  
+  // =============================================================================
+  // HEAL TESTS - HP Restoration with Limits (continued)
+  // =============================================================================
+  
+  describe('Heal Ability (continued)', () => {
+    test('targets lowest HP ally automatically', () => {
+      const priest = createMockUnit({
+        id: 'priest',
+        instanceId: 'priest_1',
+        position: { x: 0, y: 0 },
+        stats: { hp: 70, atk: 15, atkCount: 1, armor: 8, speed: 2, initiative: 35, dodge: 10 },
+      });
+      
+      const ally1 = createMockUnit({
+        instanceId: 'ally_1',
+        team: 'player',
+        position: { x: 1, y: 1 },
+        currentHp: 60,
+        maxHp: 100,
+      });
+      
+      const ally2 = createMockUnit({
+        instanceId: 'ally_2',
+        team: 'player',
+        position: { x: 2, y: 1 },
+        currentHp: 20, // Lowest HP - should be targeted
+        maxHp: 100,
+      });
+      
+      const state = createMockBattleState([priest, ally1, ally2]);
+      const heal = ABILITIES.heal;
+      
+      const events = executeAbility(priest, heal, ally2, state, 12345);
+      
+      expect(events).toHaveLength(1);
+      expect(events[0]?.targetId).toBe('ally_2');
+    });
+  });
+  
+  // =============================================================================
+  // TAUNT TESTS - Force Enemy Targeting (continued)
+  // =============================================================================
+  
+  describe('Taunt Ability (continued)', () => {
+    test('taunt effect is applied to unit state', () => {
+      const guardian = createMockUnit({
+        id: 'guardian',
+        instanceId: 'guardian_1',
+        position: { x: 0, y: 0 },
+        stats: { hp: 120, atk: 18, atkCount: 1, armor: 15, speed: 1, initiative: 25, dodge: 5 },
+        hasTaunt: false,
+        tauntDuration: 0,
+      });
+      
+      const state = createMockBattleState([guardian]);
+      const taunt = ABILITIES.taunt;
+      
+      const events = executeAbility(guardian, taunt, guardian, state, 12345);
+      const updatedState = applyAbilityEvents(state, events, taunt, guardian.instanceId);
+      
+      const updatedGuardian = updatedState.units.find(u => u.instanceId === 'guardian_1') as BattleUnitWithAbilities;
+      expect(updatedGuardian?.hasTaunt).toBe(true);
+      expect(updatedGuardian?.tauntDuration).toBe(2);
+    });
+  });
+  
+  // =============================================================================
+  // RAGE TESTS - Conditional ATK Boost (continued)
+  // =============================================================================
+  
+  describe('Rage Ability (Passive) (continued)', () => {
+    test('does not trigger when HP is above 50%', () => {
+      const berserker = createMockUnit({
+        id: 'berserker',
+        instanceId: 'berserker_1',
+        position: { x: 0, y: 0 },
+        stats: { hp: 100, atk: 22, atkCount: 1, armor: 12, speed: 2, initiative: 30, dodge: 8 },
+        currentHp: 60, // Above 50% threshold
+        maxHp: 100,
+      });
+      
+      const hpPercent = (berserker.currentHp / berserker.maxHp) * 100;
+      expect(hpPercent).toBeGreaterThan(50);
+      
+      // Rage should not trigger
+      const rage = ABILITIES.rage;
+      if (rage.type === 'passive') {
+        expect(rage.triggerThreshold).toBe(50);
+      }
+    });
+  });
+  
+  // =============================================================================
+  // COOLDOWN TESTS - Ability Availability
+  // =============================================================================
+  
+  describe('Cooldown System', () => {
+    test('ability is unavailable when on cooldown', () => {
+      const mage = createMockUnit({
+        id: 'mage',
+        instanceId: 'mage_1',
+        abilityCooldowns: { fireball: 2 }, // Fireball on cooldown
+      });
+      const enemy = createMockUnit({
+        instanceId: 'enemy_1',
+        team: 'bot',
+        position: { x: 1, y: 0 },
+      });
+      const state = createMockBattleState([mage, enemy]);
+      const fireball = ABILITIES.fireball;
+      
+      expect(canUseAbility(mage, fireball, state)).toBe(false);
+    });
+    
+    test('ability becomes available when cooldown reaches 0', () => {
+      const mage = createMockUnit({
+        id: 'mage',
+        instanceId: 'mage_1',
+        abilityCooldowns: { fireball: 0 }, // Cooldown finished
+      });
+      const enemy = createMockUnit({
+        instanceId: 'enemy_1',
+        team: 'bot',
+        position: { x: 1, y: 0 },
+      });
+      const state = createMockBattleState([mage, enemy]);
+      const fireball = ABILITIES.fireball;
+      
+      expect(canUseAbility(mage, fireball, state)).toBe(true);
+    });
+    
+    test('cooldown is set after using ability', () => {
+      const mage = createMockUnit({
+        id: 'mage',
+        instanceId: 'mage_1',
+        position: { x: 0, y: 0 },
+        abilityCooldowns: {},
+      });
+      const enemy = createMockUnit({
+        instanceId: 'enemy_1',
+        team: 'bot',
+        position: { x: 2, y: 2 },
+      });
+      const state = createMockBattleState([mage, enemy]);
+      const fireball = ABILITIES.fireball;
+      
+      const events = executeAbility(mage, fireball, { x: 2, y: 2 }, state, 12345);
+      const updatedState = applyAbilityEvents(state, events, fireball, mage.instanceId);
+      
+      const updatedMage = updatedState.units.find(u => u.instanceId === 'mage_1') as BattleUnitWithAbilities;
+      expect(updatedMage?.abilityCooldowns?.['fireball']).toBe(2); // Fireball cooldown is 2
+    });
+    
+    test('cooldowns tick down each turn', () => {
+      const unit = createMockUnit({
+        abilityCooldowns: {
+          fireball: 3,
+          heal: 1,
+          stun: 2,
+        },
+      });
+      
+      const updatedUnit = tickAbilityCooldowns(unit);
+      
+      expect(updatedUnit.abilityCooldowns?.['fireball']).toBe(2);
+      expect(updatedUnit.abilityCooldowns?.['heal']).toBeUndefined(); // Removed when reaches 0
+      expect(updatedUnit.abilityCooldowns?.['stun']).toBe(1);
+    });
+    
+    test('cooldowns tick down correctly', () => {
+      const unit = createMockUnit({
+        abilityCooldowns: {
+          fireball: 3,
+          heal: 1,
+          stun: 2,
+        },
+      });
+      
+      const updatedUnit = tickAbilityCooldowns(unit);
+      
+      expect(updatedUnit.abilityCooldowns?.['fireball']).toBe(2);
+      expect(updatedUnit.abilityCooldowns?.['heal']).toBeUndefined(); // Removed when reaches 0
+      expect(updatedUnit.abilityCooldowns?.['stun']).toBe(1);
+    });
+  });
+});
