@@ -375,6 +375,10 @@ export interface BattleLog {
   player2Id: string;
   /** Battle winner identifier */
   winnerId?: string;
+  /** Player 1 display name */
+  player1Name?: string;
+  /** Player 2 display name */
+  player2Name?: string;
   /** Player 1 team snapshot */
   player1TeamSnapshot: TeamSetup;
   /** Player 2 team snapshot */

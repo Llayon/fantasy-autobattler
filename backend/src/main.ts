@@ -33,7 +33,7 @@ async function bootstrap(): Promise<void> {
     
     // Enable CORS for frontend communication
     app.enableCors({
-      origin: 'http://localhost:3000',
+      origin: ['http://localhost:3000', 'http://localhost:3001'],
       credentials: true,
     });
 
@@ -69,9 +69,9 @@ async function bootstrap(): Promise<void> {
       },
     });
 
-    await app.listen(3001);
-    logger.log('Backend running on http://localhost:3001');
-    logger.log('Swagger documentation available at http://localhost:3001/api/docs');
+    await app.listen(3004);
+    logger.log('Backend running on http://localhost:3004');
+    logger.log('Swagger documentation available at http://localhost:3004/api/docs');
   } catch (error) {
     logger.error('Failed to start application', error);
     process.exit(1);

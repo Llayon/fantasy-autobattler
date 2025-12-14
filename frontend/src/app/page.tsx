@@ -8,18 +8,20 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { Position, UnitTemplate, UnitId, TeamResponse } from '@/types/game';
-import { UnitList } from '@/components/UnitList';
-import { EnhancedBattleGrid } from '@/components/EnhancedBattleGrid';
 import { DragDropProvider, DragDropHandlers } from '@/components/DragDropProvider';
 import { BudgetIndicator } from '@/components/BudgetIndicator';
-import { SavedTeamsModal } from '@/components/SavedTeamsModal';
-import { MatchmakingPanel } from '@/components/MatchmakingPanel';
+import { SavedTeamsPanel } from '@/components/SavedTeamsPanel';
 import { Navigation, NavigationWrapper } from '@/components/Navigation';
-import { FullPageLoader, ButtonLoader } from '@/components/LoadingStates';
+import { FullPageLoader } from '@/components/LoadingStates';
+import UnitDetailModal from '@/components/UnitDetailModal';
+import { ResponsiveTeamBuilder, TeamActions } from '@/components/ResponsiveTeamBuilder';
+import { UndoRedoControls } from '@/components/UndoRedoControls';
 import { 
   usePlayerStore, 
   useTeamStore, 
+  useMatchmakingStore,
   selectPlayer, 
   selectPlayerLoading, 
   selectPlayerError,
@@ -28,6 +30,9 @@ import {
   selectTeamLoading,
   selectTeamError,
   selectTeams,
+  selectMatchmakingStatus,
+  selectMatch,
+  selectMatchmakingError,
   initializeStores
 } from '@/store';
 
@@ -82,137 +87,7 @@ function teamToGridUnits(units: UnitTemplate[], teamUnits: Array<{ unitId: UnitI
 
 
 
-/**
- * Team actions component.
- */
-interface TeamActionsProps {
-  onSave: () => void;
-  onClear: () => void;
-  onStartBattle: () => void;
-  onShowTeams: () => void;
-  canSave: boolean;
-  canBattle: boolean;
-  loading: boolean;
-  teamCount: number;
-}
 
-function TeamActions({ 
-  onSave, 
-  onClear, 
-  onStartBattle, 
-  onShowTeams, 
-  canSave, 
-  canBattle, 
-  loading,
-  teamCount 
-}: TeamActionsProps) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      <ButtonLoader
-        loading={loading}
-        onClick={onClear}
-        variant="secondary"
-        size="sm"
-        loadingText="Очистка..."
-      >
-        🗑️ Очистить
-      </ButtonLoader>
-      
-      <div className="relative">
-        <ButtonLoader
-          loading={loading}
-          onClick={onShowTeams}
-          variant="secondary"
-          size="sm"
-          loadingText="Загрузка..."
-          className="bg-purple-600 hover:bg-purple-500"
-        >
-          📋 Мои команды
-        </ButtonLoader>
-        {teamCount > 0 && (
-          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-            {teamCount}
-          </span>
-        )}
-      </div>
-      
-      <ButtonLoader
-        loading={loading}
-        onClick={onSave}
-        disabled={!canSave}
-        variant="primary"
-        size="sm"
-        loadingText="Сохранение..."
-      >
-        💾 Сохранить
-      </ButtonLoader>
-      
-      <ButtonLoader
-        loading={loading}
-        onClick={onStartBattle}
-        disabled={!canBattle}
-        variant="primary"
-        size="sm"
-        loadingText="Запуск..."
-        className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400"
-      >
-        ⚔️ В бой!
-      </ButtonLoader>
-    </div>
-  );
-}
-
-/**
- * Mobile unit list bottom sheet.
- */
-interface MobileUnitSheetProps {
-  isOpen: boolean;
-  onClose: () => void;
-  children: React.ReactNode;
-}
-
-function MobileUnitSheet({ isOpen, onClose, children }: MobileUnitSheetProps) {
-  return (
-    <>
-      {/* Backdrop */}
-      {isOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
-          onClick={onClose}
-        />
-      )}
-      
-      {/* Bottom sheet */}
-      <div className={`
-        fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-700 z-50 md:hidden
-        transform transition-transform duration-300 ease-out
-        ${isOpen ? 'translate-y-0' : 'translate-y-full'}
-        max-h-[80vh] overflow-hidden
-      `}>
-        {/* Handle */}
-        <div className="flex justify-center py-2">
-          <div className="w-12 h-1 bg-gray-600 rounded-full" />
-        </div>
-        
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-700">
-          <h3 className="font-bold text-white">Выбор юнитов</h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white"
-          >
-            ✕
-          </button>
-        </div>
-        
-        {/* Content */}
-        <div className="overflow-y-auto max-h-[calc(80vh-80px)] p-4">
-          {children}
-        </div>
-      </div>
-    </>
-  );
-}
 
 // =============================================================================
 // MAIN COMPONENT
@@ -229,9 +104,14 @@ function MobileUnitSheet({ isOpen, onClose, children }: MobileUnitSheetProps) {
  * }
  */
 export default function TeamBuilderPage() {
+  const router = useRouter();
   const [selectedUnit, setSelectedUnit] = useState<UnitTemplate | null>(null);
   const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
   const [showSavedTeamsModal, setShowSavedTeamsModal] = useState(false);
+  const [unitDetailModal, setUnitDetailModal] = useState<{
+    isOpen: boolean;
+    unit: UnitTemplate | null;
+  }>({ isOpen: false, unit: null });
   
   // Store selectors
   const player = usePlayerStore(selectPlayer);
@@ -243,6 +123,11 @@ export default function TeamBuilderPage() {
   const teamLoading = useTeamStore(selectTeamLoading);
   const teamError = useTeamStore(selectTeamError);
   const teams = useTeamStore(selectTeams);
+  
+  // Matchmaking selectors
+  const matchmakingStatus = useMatchmakingStore(selectMatchmakingStatus);
+  const match = useMatchmakingStore(selectMatch);
+  const matchmakingError = useMatchmakingStore(selectMatchmakingError);
   
   // Store actions
   const { initPlayer } = usePlayerStore();
@@ -261,6 +146,10 @@ export default function TeamBuilderPage() {
     const init = async () => {
       await initPlayer();
       await initializeStores();
+      
+      // Load draft from localStorage if available
+      const { loadDraftFromStorage } = useTeamStore.getState();
+      loadDraftFromStorage();
     };
     init();
   }, [initPlayer]);
@@ -271,12 +160,59 @@ export default function TeamBuilderPage() {
       createNewTeam('Новая команда');
     }
   }, [units.length, currentTeam.units.length, createNewTeam]);
+
+  // Navigate to battle when match is found
+  useEffect(() => {
+    if (matchmakingStatus === 'matched' && match?.battleId) {
+      router.push(`/battle/${match.battleId}`);
+    }
+  }, [matchmakingStatus, match?.battleId, router]);
   
   // Handle unit selection from list
-  const handleUnitSelect = useCallback((unit: UnitTemplate) => {
+  const handleUnitSelect = useCallback((unit: UnitTemplate | null) => {
     setSelectedUnit(unit);
     setIsMobileSheetOpen(false); // Close mobile sheet on selection
   }, []);
+
+  /**
+   * Handle opening unit detail modal.
+   * 
+   * @param unit - Unit to show details for
+   */
+  const handleUnitDetail = useCallback((unit: UnitTemplate) => {
+
+    setUnitDetailModal({ isOpen: true, unit });
+  }, []);
+
+  /**
+   * Handle closing unit detail modal.
+   */
+  const handleCloseUnitDetail = useCallback(() => {
+    setUnitDetailModal({ isOpen: false, unit: null });
+  }, []);
+
+  /**
+   * Handle adding unit to team from detail modal.
+   * Finds first available position in player deployment zone.
+   * 
+   * @param unit - Unit to add to team
+   */
+  const handleAddUnitFromModal = useCallback((unit: UnitTemplate) => {
+    // Find first available position in player zone
+    for (const y of PLAYER_ROWS) {
+      for (let x = 0; x < 8; x++) {
+        const position = { x, y };
+        const isOccupied = currentTeam.units.some(
+          teamUnit => teamUnit.position.x === x && teamUnit.position.y === y
+        );
+        if (!isOccupied) {
+          addUnitToTeam(unit.id, position);
+          return;
+        }
+      }
+    }
+    // If no free position found, show error (this should be handled by canAdd logic)
+  }, [currentTeam.units, addUnitToTeam]);
   
   // Handle grid cell click for unit placement
   const handleGridCellClick = useCallback((position: Position) => {
@@ -368,10 +304,21 @@ export default function TeamBuilderPage() {
     setSelectedUnit(null);
   }, [createNewTeam]);
   
-  const handleStartBattle = useCallback(() => {
-    // TODO: Implement battle start logic
-    // Battle will be started with current team
-  }, []);
+  const handleStartBattle = useCallback(async () => {
+    if (!currentTeam.isValid || currentTeam.units.length === 0) {
+      return;
+    }
+
+    // Save the team first to get an ID
+    const savedTeam = await saveTeam();
+    if (!savedTeam) {
+      return; // Save failed
+    }
+
+    // Start bot battle for now (can be changed to PvP later)
+    const { startBotBattle } = useMatchmakingStore.getState();
+    await startBotBattle(savedTeam.id, 'medium');
+  }, [currentTeam.isValid, currentTeam.units.length, saveTeam]);
 
   const handleShowTeams = useCallback(() => {
     setShowSavedTeamsModal(true);
@@ -381,6 +328,59 @@ export default function TeamBuilderPage() {
     loadTeamToDraft(team);
     setSelectedUnit(null);
   }, [loadTeamToDraft]);
+
+  /**
+   * Check if unit can be added to current team.
+   * 
+   * @param unit - Unit to check
+   * @returns True if unit can be added
+   */
+  const getCanAddUnit = useCallback((unit: UnitTemplate | null): boolean => {
+    if (!unit) return false;
+    
+    // Check if unit is already in team
+    const isAlreadyInTeam = currentTeam.units.some(teamUnit => teamUnit.unitId === unit.id);
+    if (isAlreadyInTeam) return false;
+    
+    // Check if adding unit would exceed budget
+    const newTotalCost = currentTeam.totalCost + unit.cost;
+    if (newTotalCost > MAX_BUDGET) return false;
+    
+    // Check if there's space on the grid
+    const occupiedPositions = currentTeam.units.length;
+    const maxPositions = PLAYER_ROWS.length * 8; // 2 rows × 8 columns = 16 positions
+    if (occupiedPositions >= maxPositions) return false;
+    
+    return true;
+  }, [currentTeam.units, currentTeam.totalCost]);
+
+  /**
+   * Get reason why unit cannot be added to team.
+   * 
+   * @param unit - Unit to check
+   * @returns Reason string or undefined if unit can be added
+   */
+  const getCannotAddReason = useCallback((unit: UnitTemplate | null): string | undefined => {
+    if (!unit) return undefined;
+    
+    // Check if unit is already in team
+    const isAlreadyInTeam = currentTeam.units.some(teamUnit => teamUnit.unitId === unit.id);
+    if (isAlreadyInTeam) return 'Юнит уже в команде';
+    
+    // Check if adding unit would exceed budget
+    const newTotalCost = currentTeam.totalCost + unit.cost;
+    if (newTotalCost > MAX_BUDGET) {
+      const exceededBy = newTotalCost - MAX_BUDGET;
+      return `Превышен бюджет на ${exceededBy} очков`;
+    }
+    
+    // Check if there's space on the grid
+    const occupiedPositions = currentTeam.units.length;
+    const maxPositions = PLAYER_ROWS.length * 8; // 2 rows × 8 columns = 16 positions
+    if (occupiedPositions >= maxPositions) return 'Нет свободных позиций на поле';
+    
+    return undefined;
+  }, [currentTeam.units, currentTeam.totalCost]);
   
   // Get disabled units (already in team)
   const disabledUnits = currentTeam.units.map(unit => unit.unitId);
@@ -414,182 +414,128 @@ export default function TeamBuilderPage() {
     );
   }
   
+  // Prepare team actions for ResponsiveTeamBuilder
+  const teamActions: TeamActions = {
+    onSave: handleSaveTeam,
+    onClear: handleClearTeam,
+    onStartBattle: handleStartBattle,
+    onShowTeams: handleShowTeams,
+    canSave: currentTeam.isValid && currentTeam.units.length > 0,
+    canBattle: currentTeam.isValid && currentTeam.units.length > 0,
+    loading: teamLoading,
+    teamCount: teams.length,
+  };
+
   return (
     <DragDropProvider handlers={dragDropHandlers} enabled={true}>
       <div className="min-h-screen bg-gray-900 text-white">
-      {/* Header */}
-      <header className="bg-gray-800/50 border-b border-gray-700 p-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            {/* Title and Navigation */}
-            <div className="flex flex-col md:flex-row md:items-center gap-4">
-              <div>
-                <h1 className="text-2xl md:text-3xl font-bold text-yellow-400 mb-1">
-                  ⚔️ Конструктор команды
-                </h1>
-                {player && (
-                  <p className="text-gray-300 text-sm">
-                    {player.name} | Побед: {(player as any).wins || 0} | Поражений: {(player as any).losses || 0}
-                  </p>
-                )}
+        {/* Desktop Header */}
+        <header className="hidden lg:block bg-gray-800/50 border-b border-gray-700 h-16">
+          <div className="max-w-7xl mx-auto h-full px-4">
+            <div className="flex items-center justify-between h-full">
+              {/* Title and Navigation */}
+              <div className="flex items-center gap-6">
+                <div>
+                  <h1 className="text-lg font-semibold text-yellow-400">
+                    🎮 Team Builder
+                  </h1>
+                  {player && (
+                    <p className="text-gray-300 text-xs">
+                      {player.name} | W: {player.stats?.wins || 0} | L: {player.stats?.losses || 0}
+                    </p>
+                  )}
+                </div>
+                
+                <Navigation />
               </div>
               
-              <Navigation />
+              {/* Center - Undo/Redo Controls */}
+              <div className="flex items-center">
+                <UndoRedoControls variant="compact" showShortcuts />
+              </div>
+              
+              {/* Budget indicator - compact for header */}
+              <div className="flex items-center flex-shrink-0">
+                <BudgetIndicator 
+                  current={currentTeam.totalCost} 
+                  max={MAX_BUDGET}
+                  variant="compact"
+                />
+              </div>
             </div>
             
-            {/* Budget and actions */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              <BudgetIndicator 
-                current={currentTeam.totalCost} 
-                max={MAX_BUDGET}
-                showDetails
-              />
-              
-              <TeamActions
-                onSave={handleSaveTeam}
-                onClear={handleClearTeam}
-                onStartBattle={handleStartBattle}
-                onShowTeams={handleShowTeams}
-                canSave={currentTeam.isValid && currentTeam.units.length > 0}
-                canBattle={currentTeam.isValid && currentTeam.units.length > 0}
-                loading={teamLoading}
-                teamCount={teams.length}
-              />
-            </div>
-          </div>
-          
-          {/* Team validation errors */}
-          {currentTeam.errors.length > 0 && (
-            <div className="mt-4 p-3 bg-red-900/30 border border-red-500 rounded-lg">
-              <div className="text-red-300 text-sm">
-                <div className="font-medium mb-1">Ошибки команды:</div>
-                <ul className="list-disc list-inside space-y-1">
-                  {currentTeam.errors.map((error, index) => (
-                    <li key={index}>{error}</li>
-                  ))}
-                </ul>
+            {/* Team validation errors */}
+            {currentTeam.errors.length > 0 && (
+              <div className="mt-4 p-3 bg-red-900/30 border border-red-500 rounded-lg">
+                <div className="text-red-300 text-sm">
+                  <div className="font-medium mb-1">Ошибки команды:</div>
+                  <ul className="list-disc list-inside space-y-1">
+                    {currentTeam.errors.map((error, index) => (
+                      <li key={index}>{error}</li>
+                    ))}
+                  </ul>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-      </header>
-      
-      {/* Main content */}
-      <NavigationWrapper>
-        <main className="max-w-7xl mx-auto p-4">
-        {/* Desktop layout */}
-        <div className="hidden md:grid md:grid-cols-12 gap-6 h-[calc(100vh-200px)]">
-          {/* Unit list - Left side */}
-          <div className="col-span-4 overflow-y-auto">
-            <UnitList
-              units={units}
-              onUnitSelect={handleUnitSelect}
-              disabledUnits={disabledUnits}
-              selectedUnit={selectedUnit}
-              compact
-              enableDragDrop
-            />
+            )}
           </div>
-          
-          {/* Battle grid - Right side */}
-          <div className="col-span-8 flex items-center justify-center">
-            <div className="w-full max-w-2xl">
-              <EnhancedBattleGrid
-                units={gridUnits}
-                onCellClick={handleGridCellClick}
-                highlightedCells={highlightedCells}
-                selectedUnit={selectedUnit ? {
-                  unit: selectedUnit,
-                  position: { x: -1, y: -1 }, // Invalid position for selected unit
-                  team: 'player',
-                  alive: true,
-                } : null}
-                mode="team-builder"
-                interactive
-              />
-              
-              {/* Instructions */}
-              <div className="mt-4 text-center text-sm text-gray-400">
-                <p>💡 Перетащите юниты или выберите юнита и кликните на поле</p>
-                <p>🎯 Размещение доступно только в синих зонах (ряды 0-1)</p>
-                <p>🗑️ Кликните на размещенного юнита для удаления</p>
-              </div>
-              
-              {/* Matchmaking Panel */}
-              <MatchmakingPanel className="mt-6" />
-            </div>
-          </div>
-        </div>
+        </header>
         
-        {/* Mobile layout */}
-        <div className="md:hidden space-y-4">
-          {/* Battle grid */}
-          <div className="bg-gray-800/30 rounded-lg p-4">
-            <EnhancedBattleGrid
-              units={gridUnits}
-              onCellClick={handleGridCellClick}
-              highlightedCells={highlightedCells}
-              selectedUnit={selectedUnit ? {
-                unit: selectedUnit,
-                position: { x: -1, y: -1 },
-                team: 'player',
-                alive: true,
-              } : null}
-              mode="team-builder"
-              interactive
-            />
-          </div>
-          
-          {/* Mobile unit selection button */}
-          <button
-            onClick={() => setIsMobileSheetOpen(true)}
-            className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors"
-          >
-            📋 Выбрать юниты ({selectedUnit ? selectedUnit.name : 'не выбран'})
-          </button>
-          
-          {/* Instructions */}
-          <div className="text-center text-sm text-gray-400 space-y-1">
-            <p>💡 Выберите юнита и коснитесь поля для размещения</p>
-            <p>🎯 Размещение только в синих зонах</p>
-          </div>
-          
-          {/* Matchmaking Panel */}
-          <MatchmakingPanel />
-        </div>
-        
-        {/* Mobile unit sheet */}
-        <MobileUnitSheet
-          isOpen={isMobileSheetOpen}
-          onClose={() => setIsMobileSheetOpen(false)}
-        >
-          <UnitList
+        {/* Responsive Team Builder */}
+        <NavigationWrapper>
+          <ResponsiveTeamBuilder
             units={units}
-            onUnitSelect={handleUnitSelect}
-            disabledUnits={disabledUnits}
+            currentTeam={currentTeam}
             selectedUnit={selectedUnit}
-            compact
+            disabledUnits={disabledUnits}
+            gridUnits={gridUnits}
+            highlightedCells={highlightedCells}
+            teamActions={teamActions}
+            onUnitSelect={handleUnitSelect}
+            onUnitLongPress={handleUnitDetail}
+            onGridCellClick={handleGridCellClick}
+            isMobileSheetOpen={isMobileSheetOpen}
+            onMobileSheetToggle={() => setIsMobileSheetOpen(!isMobileSheetOpen)}
           />
-        </MobileUnitSheet>
+        </NavigationWrapper>
         
         {/* Team error display */}
         {teamError && (
-          <div className="mt-4 p-4 bg-red-900/30 border border-red-500 rounded-lg">
+          <div className="fixed bottom-4 left-4 right-4 md:relative md:bottom-auto md:left-auto md:right-auto md:mt-4 p-4 bg-red-900/30 border border-red-500 rounded-lg z-20">
             <div className="text-red-300">
-              <div className="font-medium mb-1">Ошибка:</div>
+              <div className="font-medium mb-1">Ошибка команды:</div>
               <p>{teamError}</p>
             </div>
           </div>
         )}
-        </main>
-      </NavigationWrapper>
-      
-      {/* Saved Teams Modal */}
-      <SavedTeamsModal
-        isOpen={showSavedTeamsModal}
-        onClose={() => setShowSavedTeamsModal(false)}
-        onLoadTeam={handleLoadTeam}
-      />
+
+        {/* Matchmaking error display */}
+        {matchmakingError && (
+          <div className="fixed bottom-4 left-4 right-4 md:relative md:bottom-auto md:left-auto md:right-auto md:mt-4 p-4 bg-red-900/30 border border-red-500 rounded-lg z-20">
+            <div className="text-red-300">
+              <div className="font-medium mb-1">Ошибка поиска боя:</div>
+              <p>{matchmakingError}</p>
+            </div>
+          </div>
+        )}
+        
+        {/* Modals */}
+        <SavedTeamsPanel
+          variant="modal"
+          isOpen={showSavedTeamsModal}
+          onClose={() => setShowSavedTeamsModal(false)}
+          onLoadTeam={handleLoadTeam}
+        />
+
+        <UnitDetailModal
+          unit={unitDetailModal.unit}
+          isOpen={unitDetailModal.isOpen}
+          onClose={handleCloseUnitDetail}
+          onAddToTeam={handleAddUnitFromModal}
+          canAdd={getCanAddUnit(unitDetailModal.unit)}
+          cannotAddReason={getCannotAddReason(unitDetailModal.unit)}
+        />
+        
+        {/* MatchmakingPanel removed - functionality integrated into action buttons */}
       </div>
     </DragDropProvider>
   );

@@ -6,6 +6,7 @@
  */
 
 import { create } from 'zustand';
+import { produce } from 'immer';
 import { 
   UnitTemplate, 
   TeamResponse, 
@@ -15,6 +16,151 @@ import {
   UnitId 
 } from '@/types/game';
 import { api, ApiError } from '@/lib/api';
+
+// =============================================================================
+// AUTOSAVE UTILITIES
+// =============================================================================
+
+/** localStorage key for draft team autosave */
+const DRAFT_TEAM_KEY = 'autobattler_draft_team';
+
+/** Debounce delay for autosave (1 second) */
+const AUTOSAVE_DELAY = 1000;
+
+/**
+ * Debounce function for autosave operations.
+ * 
+ * @param func - Function to debounce
+ * @param delay - Delay in milliseconds
+ * @returns Debounced function
+ */
+function debounce<T extends (...args: any[]) => void>(func: T, delay: number): T {
+  let timeoutId: NodeJS.Timeout;
+  return ((...args: any[]) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func(...args), delay);
+  }) as T;
+}
+
+/**
+ * Save team draft to localStorage.
+ * 
+ * @param draft - Team draft to save
+ */
+function saveDraftToLocalStorage(draft: TeamDraft): void {
+  try {
+    if (typeof window !== 'undefined') {
+      const draftData = {
+        ...draft,
+        timestamp: Date.now(),
+      };
+      localStorage.setItem(DRAFT_TEAM_KEY, JSON.stringify(draftData));
+    }
+  } catch (error) {
+    console.warn('Failed to save draft to localStorage:', error);
+  }
+}
+
+/**
+ * Load team draft from localStorage.
+ * 
+ * @returns Saved draft or null if not found
+ */
+function loadDraftFromLocalStorage(): (TeamDraft & { timestamp: number }) | null {
+  try {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(DRAFT_TEAM_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Check if draft is not too old (24 hours)
+        const maxAge = 24 * 60 * 60 * 1000; // 24 hours in ms
+        if (Date.now() - parsed.timestamp < maxAge) {
+          return parsed;
+        } else {
+          // Remove old draft
+          localStorage.removeItem(DRAFT_TEAM_KEY);
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to load draft from localStorage:', error);
+  }
+  return null;
+}
+
+/**
+ * Clear team draft from localStorage.
+ */
+function clearDraftFromLocalStorage(): void {
+  try {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(DRAFT_TEAM_KEY);
+    }
+  } catch (error) {
+    console.warn('Failed to clear draft from localStorage:', error);
+  }
+}
+
+/**
+ * Show toast notification for draft restoration.
+ * 
+ * @param message - Toast message
+ */
+function showDraftToast(message: string): void {
+  // Simple toast implementation - can be enhanced with a proper toast library
+  if (typeof window !== 'undefined') {
+    // TODO: Integrate with proper toast system when available
+    // For now, we'll skip logging to avoid console.log in production
+    void message; // Acknowledge the parameter to avoid unused variable warning
+  }
+}
+
+// =============================================================================
+// UNDO/REDO UTILITIES
+// =============================================================================
+
+/**
+ * Add current state to history stack for undo functionality.
+ * Maintains maximum history size and clears future stack.
+ * 
+ * @param past - Current past states array
+ * @param currentUnits - Current team units to save
+ * @returns Updated past array with new state
+ */
+function addToHistory(past: UnitSelection[][], currentUnits: UnitSelection[]): UnitSelection[][] {
+  const newPast = [...past, [...currentUnits]];
+  
+  // Maintain maximum history size
+  if (newPast.length > MAX_HISTORY_SIZE) {
+    return newPast.slice(1);
+  }
+  
+  return newPast;
+}
+
+/**
+ * Calculate total cost for a set of units.
+ * 
+ * @param units - Available unit templates
+ * @param teamUnits - Team unit selections
+ * @returns Total cost of all units
+ */
+function calculateTotalCost(units: UnitTemplate[], teamUnits: UnitSelection[]): number {
+  return teamUnits.reduce((total, teamUnit) => {
+    const unitTemplate = units.find(u => u.id === teamUnit.unitId);
+    return total + (unitTemplate?.cost || 0);
+  }, 0);
+}
+
+/**
+ * Update computed properties for undo/redo state.
+ * 
+ * @param state - Current team state
+ */
+function updateComputedProperties(state: TeamState): void {
+  state.canUndo = state.past.length > 0;
+  state.canRedo = state.future.length > 0;
+}
 
 // =============================================================================
 // TYPES
@@ -54,6 +200,16 @@ interface TeamState {
   error: string | null;
   /** Whether units have been loaded */
   unitsLoaded: boolean;
+  /** Whether draft was restored from localStorage */
+  draftRestored: boolean;
+  /** History stack for undo functionality (max 20 states) */
+  past: UnitSelection[][];
+  /** Future stack for redo functionality */
+  future: UnitSelection[][];
+  /** Whether undo is available */
+  canUndo: boolean;
+  /** Whether redo is available */
+  canRedo: boolean;
 }
 
 /**
@@ -86,8 +242,22 @@ interface TeamActions {
   deleteTeam: (teamId: string) => Promise<void>;
   /** Activate team for matchmaking */
   activateTeam: (teamId: string) => Promise<void>;
+  /** Update saved team name */
+  updateSavedTeamName: (teamId: string, newName: string) => Promise<void>;
+  /** Load draft from localStorage on app start */
+  loadDraftFromStorage: () => void;
+  /** Clear current draft and localStorage */
+  clearDraft: () => void;
   /** Clear error state */
   clearError: () => void;
+  /** Undo last team modification */
+  undo: () => void;
+  /** Redo last undone modification */
+  redo: () => void;
+  /** Whether undo is available */
+  canUndo: boolean;
+  /** Whether redo is available */
+  canRedo: boolean;
 }
 
 /**
@@ -104,6 +274,9 @@ const MAX_BUDGET = 30;
 
 /** Maximum units per team */
 const MAX_UNITS = 10;
+
+/** Maximum history states for undo/redo */
+const MAX_HISTORY_SIZE = 20;
 
 /** Default team draft */
 const DEFAULT_TEAM_DRAFT: TeamDraft = {
@@ -145,6 +318,11 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
   loading: false,
   error: null,
   unitsLoaded: false,
+  draftRestored: false,
+  past: [],
+  future: [],
+  canUndo: false,
+  canRedo: false,
 
   // ===========================================================================
   // ACTIONS
@@ -216,13 +394,16 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
    * createNewTeam('My New Team');
    */
   createNewTeam: (name = 'Новая команда') => {
-    set({
-      currentTeam: {
+    set(produce((state: TeamState) => {
+      state.currentTeam = {
         ...DEFAULT_TEAM_DRAFT,
         name,
-      },
-      error: null,
-    });
+      };
+      state.error = null;
+      state.past = [];
+      state.future = [];
+      updateComputedProperties(state);
+    }));
   },
 
   /**
@@ -256,7 +437,7 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
    * addUnitToTeam('knight', { x: 0, y: 0 });
    */
   addUnitToTeam: (unitId: UnitId, position: Position) => {
-    const { currentTeam, units } = get();
+    const { currentTeam, units, past } = get();
     
     // Find unit template
     const unitTemplate = units.find(u => u.id === unitId);
@@ -288,6 +469,9 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
       return;
     }
 
+    // Save current state to history before making changes
+    const newPast = addToHistory(past, currentTeam.units);
+
     // Add unit to team
     const newUnits = [...currentTeam.units, { unitId, position }];
     
@@ -299,7 +483,14 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
       errors: [],
     };
     
-    set({ currentTeam: updatedTeam, error: null });
+    // Update state with history and clear future (redo stack)
+    set(produce((state: TeamState) => {
+      state.currentTeam = updatedTeam;
+      state.error = null;
+      state.past = newPast;
+      state.future = []; // Clear redo stack when new action is performed
+      updateComputedProperties(state);
+    }));
   },
 
   /**
@@ -310,7 +501,7 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
    * removeUnitFromTeam(0);
    */
   removeUnitFromTeam: (index: number) => {
-    const { currentTeam, units } = get();
+    const { currentTeam, units, past } = get();
     
     if (index < 0 || index >= currentTeam.units.length) {
       set({ error: 'Неверный индекс юнита' });
@@ -330,6 +521,9 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
       return;
     }
 
+    // Save current state to history before making changes
+    const newPast = addToHistory(past, currentTeam.units);
+
     const newUnits = currentTeam.units.filter((_, i) => i !== index);
     const newTotalCost = currentTeam.totalCost - unitTemplate.cost;
     
@@ -341,7 +535,14 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
       errors: newUnits.length === 0 ? ['Команда не может быть пустой'] : [],
     };
     
-    set({ currentTeam: updatedTeam, error: null });
+    // Update state with history and clear future (redo stack)
+    set(produce((state: TeamState) => {
+      state.currentTeam = updatedTeam;
+      state.error = null;
+      state.past = newPast;
+      state.future = []; // Clear redo stack when new action is performed
+      updateComputedProperties(state);
+    }));
   },
 
   /**
@@ -353,7 +554,7 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
    * updateUnitPosition(0, { x: 1, y: 0 });
    */
   updateUnitPosition: (index: number, position: Position) => {
-    const { currentTeam } = get();
+    const { currentTeam, past } = get();
     
     if (index < 0 || index >= currentTeam.units.length) {
       set({ error: 'Неверный индекс юнита' });
@@ -369,6 +570,9 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
       set({ error: 'Позиция уже занята' });
       return;
     }
+
+    // Save current state to history before making changes
+    const newPast = addToHistory(past, currentTeam.units);
 
     const newUnits = [...currentTeam.units];
     const unitToUpdate = newUnits[index];
@@ -387,7 +591,14 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
       units: newUnits,
     };
     
-    set({ currentTeam: updatedTeam, error: null });
+    // Update state with history and clear future (redo stack)
+    set(produce((state: TeamState) => {
+      state.currentTeam = updatedTeam;
+      state.error = null;
+      state.past = newPast;
+      state.future = []; // Clear redo stack when new action is performed
+      updateComputedProperties(state);
+    }));
   },
 
   /**
@@ -495,12 +706,14 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
       try {
         const activatedTeam = await api.activateTeam(savedTeam.id);
         
-        // Update state with activated team
-        set(state => ({
+        // Refresh teams list to get updated data from server
+        await get().loadTeams();
+        
+        // Update active team
+        set({
           activeTeam: activatedTeam,
-          teams: [...state.teams, activatedTeam],
           loading: false,
-        }));
+        });
         
         return activatedTeam;
       } catch (activateError) {
@@ -624,6 +837,38 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
   },
 
   /**
+   * Update saved team name only.
+   * 
+   * @param teamId - ID of team to update
+   * @param newName - New team name
+   * @throws ApiError if team cannot be updated
+   * @example
+   * await updateSavedTeamName('team-123', 'New Team Name');
+   */
+  updateSavedTeamName: async (teamId: string, newName: string) => {
+    set({ loading: true, error: null });
+    
+    try {
+      const updatedTeam = await api.updateTeam(teamId, { name: newName });
+      
+      // Update team in state
+      set(state => ({
+        teams: state.teams.map(team => 
+          team.id === teamId ? updatedTeam : team
+        ),
+        activeTeam: state.activeTeam?.id === teamId ? updatedTeam : state.activeTeam,
+        loading: false,
+      }));
+    } catch (error) {
+      const errorMessage = error instanceof ApiError 
+        ? error.message 
+        : 'Не удалось обновить название команды';
+      
+      set({ error: errorMessage, loading: false });
+    }
+  },
+
+  /**
    * Clear error state.
    * 
    * @example
@@ -632,7 +877,180 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
   clearError: () => {
     set({ error: null });
   },
+
+  /**
+   * Undo last team modification.
+   * Restores previous state from history stack.
+   * 
+   * @example
+   * undo();
+   */
+  undo: () => {
+    const { past, currentTeam, future, units } = get();
+    
+    if (past.length === 0) {
+      return; // Nothing to undo
+    }
+    
+    // Get the last state from past
+    const previousUnits = past[past.length - 1];
+    if (!previousUnits) {
+      return; // Safety check - should not happen
+    }
+    
+    const newPast = past.slice(0, -1);
+    
+    // Add current state to future for redo
+    const newFuture = [currentTeam.units, ...future];
+    
+    // Calculate new total cost
+    const newTotalCost = calculateTotalCost(units, previousUnits);
+    
+    // Update state with previous units
+    set(produce((state: TeamState) => {
+      state.past = newPast;
+      state.future = newFuture;
+      state.currentTeam.units = previousUnits;
+      state.currentTeam.totalCost = newTotalCost;
+      state.currentTeam.isValid = newTotalCost <= MAX_BUDGET && previousUnits.length > 0;
+      state.currentTeam.errors = newTotalCost > MAX_BUDGET ? [`Превышен бюджет: ${newTotalCost}/${MAX_BUDGET}`] : [];
+      updateComputedProperties(state);
+    }));
+  },
+
+  /**
+   * Redo last undone modification.
+   * Restores next state from future stack.
+   * 
+   * @example
+   * redo();
+   */
+  redo: () => {
+    const { past, currentTeam, future, units } = get();
+    
+    if (future.length === 0) {
+      return; // Nothing to redo
+    }
+    
+    // Get the next state from future
+    const nextUnits = future[0];
+    if (!nextUnits) {
+      return; // Safety check - should not happen
+    }
+    
+    const newFuture = future.slice(1);
+    
+    // Add current state to past
+    const newPast = addToHistory(past, currentTeam.units);
+    
+    // Calculate new total cost
+    const newTotalCost = calculateTotalCost(units, nextUnits);
+    
+    // Update state with next units
+    set(produce((state: TeamState) => {
+      state.past = newPast;
+      state.future = newFuture;
+      state.currentTeam.units = nextUnits;
+      state.currentTeam.totalCost = newTotalCost;
+      state.currentTeam.isValid = newTotalCost <= MAX_BUDGET && nextUnits.length > 0;
+      state.currentTeam.errors = newTotalCost > MAX_BUDGET ? [`Превышен бюджет: ${newTotalCost}/${MAX_BUDGET}`] : [];
+      updateComputedProperties(state);
+    }));
+  },
+
+  /**
+   * Load draft from localStorage on app start.
+   * Restores previously saved team draft if available.
+   * 
+   * @example
+   * loadDraftFromStorage();
+   */
+  loadDraftFromStorage: () => {
+    const savedDraft = loadDraftFromLocalStorage();
+    if (savedDraft) {
+      const { timestamp, ...draft } = savedDraft;
+      // timestamp is used for age validation but not needed here
+      void timestamp;
+      set({ 
+        currentTeam: draft,
+        draftRestored: true,
+      });
+      showDraftToast('Restored draft team from previous session');
+    }
+  },
+
+  /**
+   * Clear current draft and localStorage.
+   * Resets team to default state and removes autosave.
+   * 
+   * @example
+   * clearDraft();
+   */
+  clearDraft: () => {
+    clearDraftFromLocalStorage();
+    set({ 
+      currentTeam: { ...DEFAULT_TEAM_DRAFT },
+      draftRestored: false,
+    });
+  },
 }));
+
+// =============================================================================
+// AUTOSAVE INTEGRATION
+// =============================================================================
+
+// Create debounced autosave function
+const debouncedAutosave = debounce((draft: TeamDraft) => {
+  // Only autosave if team has units (don't save empty teams)
+  if (draft.units.length > 0) {
+    saveDraftToLocalStorage(draft);
+  }
+}, AUTOSAVE_DELAY);
+
+// Enhance store with autosave functionality
+const originalStore = useTeamStore.getState();
+const originalAddUnitToTeam = originalStore.addUnitToTeam;
+const originalRemoveUnitFromTeam = originalStore.removeUnitFromTeam;
+const originalUpdateUnitPosition = originalStore.updateUnitPosition;
+const originalUpdateTeamName = originalStore.updateTeamName;
+const originalSaveTeam = originalStore.saveTeam;
+
+// Override methods to include autosave
+useTeamStore.setState({
+  addUnitToTeam: (unitId: UnitId, position: Position) => {
+    originalAddUnitToTeam(unitId, position);
+    const { currentTeam } = useTeamStore.getState();
+    debouncedAutosave(currentTeam);
+  },
+
+  removeUnitFromTeam: (index: number) => {
+    originalRemoveUnitFromTeam(index);
+    const { currentTeam } = useTeamStore.getState();
+    debouncedAutosave(currentTeam);
+  },
+
+  updateUnitPosition: (index: number, position: Position) => {
+    originalUpdateUnitPosition(index, position);
+    const { currentTeam } = useTeamStore.getState();
+    debouncedAutosave(currentTeam);
+  },
+
+  updateTeamName: (name: string) => {
+    originalUpdateTeamName(name);
+    const { currentTeam } = useTeamStore.getState();
+    debouncedAutosave(currentTeam);
+  },
+
+  saveTeam: async () => {
+    const result = await originalSaveTeam();
+    if (result) {
+      // Clear draft from localStorage after successful save
+      clearDraftFromLocalStorage();
+      useTeamStore.setState({ draftRestored: false });
+    }
+    return result;
+  },
+});
 
 // =============================================================================
 // SELECTORS

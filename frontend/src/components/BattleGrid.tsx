@@ -48,9 +48,19 @@ interface HighlightedCell {
 }
 
 /**
+ * Grid display variant for different use cases.
+ * - 'full': Standard 8×10 grid with all features (default)
+ * - 'mini': Compact 8×2 grid showing only player zone (rows 0-1) for mobile
+ * - 'preview': Tiny grid for saved team thumbnails, minimal styling
+ */
+type GridVariant = 'full' | 'mini' | 'preview';
+
+/**
  * BattleGrid component props.
  */
 interface BattleGridProps {
+  /** Grid display variant */
+  variant?: GridVariant;
   /** Units to display on grid */
   units?: GridUnit[];
   /** Callback when cell is clicked */
@@ -172,9 +182,10 @@ interface UnitDisplayProps {
   unit: GridUnit;
   isSelected: boolean;
   mode: 'team-builder' | 'battle' | 'replay';
+  variant: GridVariant;
 }
 
-function UnitDisplay({ unit, isSelected, mode }: UnitDisplayProps) {
+function UnitDisplay({ unit, isSelected, mode, variant }: UnitDisplayProps) {
   const unitInfo = UNIT_INFO[unit.unit.id as UnitId];
   const maxHp = unit.unit.stats.hp;
   const currentHp = unit.currentHp ?? maxHp;
@@ -188,29 +199,46 @@ function UnitDisplay({ unit, isSelected, mode }: UnitDisplayProps) {
     ? 'border-red-400' 
     : 'border-gray-400';
   
+  // Size-based styling
+  const emojiSize = variant === 'preview' 
+    ? 'text-xs' 
+    : variant === 'mini' 
+    ? 'text-sm sm:text-base' 
+    : 'text-lg sm:text-xl md:text-2xl';
+  
+  const borderSize = variant === 'preview' ? 'border' : 'border-2';
+  const costBadgeSize = variant === 'preview' 
+    ? 'w-2 h-2 text-[8px]' 
+    : variant === 'mini'
+    ? 'w-3 h-3 text-[10px]'
+    : 'w-4 h-4 text-xs';
+  
   return (
     <div className={`
       relative w-full h-full flex flex-col items-center justify-center
-      rounded-lg border-2 transition-all duration-200
+      ${variant === 'preview' ? 'rounded' : 'rounded-lg'} ${borderSize} transition-all duration-200
       ${teamStyle}
-      ${isSelected ? 'ring-2 ring-yellow-400 scale-105' : ''}
+      ${isSelected && variant !== 'preview' ? 'ring-2 ring-yellow-400 scale-105' : ''}
       ${!isAlive ? 'opacity-30 grayscale' : ''}
       ${unitInfo?.color || 'bg-gray-600'} bg-opacity-80
     `}>
       {/* Unit emoji */}
-      <div className="text-lg sm:text-xl md:text-2xl">
+      <div className={emojiSize}>
         {unitInfo?.emoji || '❓'}
       </div>
       
       {/* Unit cost (team-builder mode) */}
-      {mode === 'team-builder' && (
-        <div className="absolute -top-1 -right-1 bg-yellow-500 text-black text-xs rounded-full w-4 h-4 flex items-center justify-center font-bold">
+      {mode === 'team-builder' && variant !== 'preview' && (
+        <div className={`
+          absolute -top-1 -right-1 bg-yellow-500 text-black rounded-full 
+          flex items-center justify-center font-bold ${costBadgeSize}
+        `}>
           {unit.unit.cost}
         </div>
       )}
       
       {/* HP bar (battle/replay mode) */}
-      {(mode === 'battle' || mode === 'replay') && (
+      {(mode === 'battle' || mode === 'replay') && variant !== 'preview' && (
         <div className="absolute -bottom-1 left-0 right-0 mx-1">
           <div className="bg-gray-900 rounded-full h-1 overflow-hidden">
             <div 
@@ -222,9 +250,9 @@ function UnitDisplay({ unit, isSelected, mode }: UnitDisplayProps) {
       )}
       
       {/* Death indicator */}
-      {!isAlive && (
+      {!isAlive && variant !== 'preview' && (
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-red-500 text-xl">💀</span>
+          <span className={`text-red-500 ${variant === 'mini' ? 'text-sm' : 'text-xl'}`}>💀</span>
         </div>
       )}
     </div>
@@ -241,6 +269,7 @@ interface GridCellProps {
   isSelected: boolean;
   interactive: boolean;
   mode: 'team-builder' | 'battle' | 'replay';
+  variant: GridVariant;
   showCoordinates: boolean;
   onCellClick: (position: Position) => void;
   onCellHover: (position: Position | null) => void;
@@ -254,6 +283,7 @@ function GridCell({
   isSelected,
   interactive,
   mode,
+  variant,
   showCoordinates,
   onCellClick,
   onCellHover,
@@ -333,6 +363,7 @@ function GridCell({
           unit={unit} 
           isSelected={isSelected}
           mode={mode}
+          variant={variant}
         />
       )}
       
@@ -359,11 +390,54 @@ function GridCell({
 // =============================================================================
 
 /**
+ * Get grid dimensions based on variant.
+ * 
+ * @param variant - Grid variant
+ * @returns Grid dimensions and configuration
+ */
+function getGridConfig(variant: GridVariant) {
+  switch (variant) {
+    case 'mini':
+      return {
+        width: GRID_WIDTH,
+        height: 2, // Only player rows 0-1
+        startRow: 0,
+        endRow: 1,
+        cellSize: 'w-11 h-11 sm:w-12 sm:h-12', // 44px minimum for touch targets
+        showLegend: false,
+        showZoomHint: false,
+      };
+    case 'preview':
+      return {
+        width: GRID_WIDTH,
+        height: GRID_HEIGHT,
+        startRow: 0,
+        endRow: GRID_HEIGHT - 1,
+        cellSize: 'w-4 h-4', // Very small for previews
+        showLegend: false,
+        showZoomHint: false,
+      };
+    case 'full':
+    default:
+      return {
+        width: GRID_WIDTH,
+        height: GRID_HEIGHT,
+        startRow: 0,
+        endRow: GRID_HEIGHT - 1,
+        cellSize: 'aspect-square', // Full size, responsive
+        showLegend: true,
+        showZoomHint: true,
+      };
+  }
+}
+
+/**
  * BattleGrid component for displaying 8×10 battlefield.
  * Supports team building, battle display, and replay modes.
  * 
  * @example
  * <BattleGrid
+ *   variant="full"
  *   units={teamUnits}
  *   onCellClick={handleCellClick}
  *   highlightedCells={validPositions}
@@ -373,6 +447,7 @@ function GridCell({
  * />
  */
 export function BattleGrid({
+  variant = 'full',
   units = [],
   onCellClick,
   onUnitDrop,
@@ -386,6 +461,9 @@ export function BattleGrid({
 }: BattleGridProps) {
   const [hoveredCell, setHoveredCell] = useState<Position | null>(null);
   
+  // Get grid configuration based on variant
+  const gridConfig = useMemo(() => getGridConfig(variant), [variant]);
+  
   // Create grid cells
   const gridCells = useMemo(() => {
     const cells: Array<{
@@ -395,8 +473,8 @@ export function BattleGrid({
       isSelected: boolean;
     }> = [];
     
-    for (let y = 0; y < GRID_HEIGHT; y++) {
-      for (let x = 0; x < GRID_WIDTH; x++) {
+    for (let y = gridConfig.startRow; y <= gridConfig.endRow; y++) {
+      for (let x = 0; x < gridConfig.width; x++) {
         const position = { x, y };
         const unit = getUnitAtPosition(units, position);
         const highlight = getCellHighlight(highlightedCells, position);
@@ -421,7 +499,7 @@ export function BattleGrid({
     }
     
     return cells;
-  }, [units, highlightedCells, selectedUnit, hoveredCell]);
+  }, [units, highlightedCells, selectedUnit, hoveredCell, gridConfig]);
   
   const handleCellClick = useCallback((position: Position) => {
     onCellClick?.(position);
@@ -431,55 +509,90 @@ export function BattleGrid({
     setHoveredCell(position);
   }, []);
   
+  // Container styling based on variant
+  const containerClass = variant === 'mini' 
+    ? 'w-full overflow-x-auto' 
+    : variant === 'preview'
+    ? 'w-full max-w-xs'
+    : 'w-full max-w-4xl mx-auto';
+  
+  const gridClass = variant === 'mini'
+    ? 'grid gap-1 p-2 bg-gray-900/30 rounded border border-gray-700/50'
+    : variant === 'preview'
+    ? 'grid gap-0.5 p-1 bg-gray-900/20 rounded'
+    : 'grid gap-1 p-4 bg-gray-900/50 rounded-lg border border-gray-700';
+  
   return (
     <div className={`
-      relative w-full max-w-4xl mx-auto
-      ${!disableZoom ? 'touch-pan-x touch-pan-y' : ''}
+      relative ${containerClass}
+      ${!disableZoom && variant === 'full' ? 'touch-pan-x touch-pan-y' : ''}
       ${className}
     `}>
       {/* Grid container */}
       <div 
         className={`
-          grid grid-cols-8 gap-1 p-4 bg-gray-900/50 rounded-lg border border-gray-700
-          ${!disableZoom ? 'transform-gpu transition-transform' : ''}
+          ${gridClass}
+          ${!disableZoom && variant === 'full' ? 'transform-gpu transition-transform' : ''}
         `}
         style={{
-          aspectRatio: `${GRID_WIDTH} / ${GRID_HEIGHT}`,
+          gridTemplateColumns: `repeat(${gridConfig.width}, minmax(0, 1fr))`,
+          aspectRatio: variant === 'mini' 
+            ? `${gridConfig.width} / ${gridConfig.height}`
+            : variant === 'preview'
+            ? `${gridConfig.width} / ${gridConfig.height}`
+            : `${GRID_WIDTH} / ${GRID_HEIGHT}`,
         }}
       >
         {gridCells.map(({ position, unit, highlight, isSelected }) => (
-          <GridCell
+          <div
             key={`${position.x}-${position.y}`}
-            position={position}
-            unit={unit}
-            highlight={highlight}
-            isSelected={isSelected}
-            interactive={interactive}
-            mode={mode}
-            showCoordinates={showCoordinates}
-            onCellClick={handleCellClick}
-            onCellHover={handleCellHover}
-            onUnitDrop={onUnitDrop}
-          />
+            className={`
+              ${gridConfig.cellSize}
+              ${variant === 'preview' ? 'min-w-0' : ''}
+            `}
+          >
+            <GridCell
+              position={position}
+              unit={unit}
+              highlight={highlight}
+              isSelected={isSelected}
+              interactive={interactive}
+              mode={mode}
+              variant={variant}
+              showCoordinates={showCoordinates && variant === 'full'}
+              onCellClick={handleCellClick}
+              onCellHover={handleCellHover}
+              onUnitDrop={onUnitDrop}
+            />
+          </div>
         ))}
       </div>
       
       {/* Zone legend */}
-      <div className="flex justify-between mt-2 text-xs text-gray-400">
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-blue-900/40 border border-blue-600/50 rounded"></div>
-          <span>Player Zone (Rows 0-1)</span>
+      {gridConfig.showLegend && (
+        <div className="flex justify-between mt-2 text-xs text-gray-400">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-blue-900/40 border border-blue-600/50 rounded"></div>
+            <span>Player Zone (Rows 0-1)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-red-900/40 border border-red-600/50 rounded"></div>
+            <span>Enemy Zone (Rows 8-9)</span>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-red-900/40 border border-red-600/50 rounded"></div>
-          <span>Enemy Zone (Rows 8-9)</span>
-        </div>
-      </div>
+      )}
       
       {/* Mobile zoom hint */}
-      {!disableZoom && (
+      {gridConfig.showZoomHint && !disableZoom && (
         <div className="mt-2 text-center text-xs text-gray-500 sm:hidden">
           Pinch to zoom • Drag to pan
+        </div>
+      )}
+      
+      {/* Mini grid scroll hint */}
+      {variant === 'mini' && (
+        <div className="mt-1 text-center text-xs text-gray-500 sm:hidden">
+          ← Swipe to navigate →
         </div>
       )}
     </div>
@@ -490,5 +603,5 @@ export function BattleGrid({
 // EXPORTS
 // =============================================================================
 
-export type { BattleGridProps, GridUnit, HighlightedCell, CellHighlight };
+export type { BattleGridProps, GridUnit, HighlightedCell, CellHighlight, GridVariant };
 export { GRID_WIDTH, GRID_HEIGHT, PLAYER_ROWS, ENEMY_ROWS };

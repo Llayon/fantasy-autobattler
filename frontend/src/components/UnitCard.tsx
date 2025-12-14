@@ -1,17 +1,24 @@
 /**
  * UnitCard component for Fantasy Autobattler.
- * Displays unit information with stats, role-based styling, and multiple size modes.
+ * Displays unit information with multiple variants and role-based styling.
  * 
- * @fileoverview Comprehensive unit card component with full stat display.
+ * @fileoverview Redesigned unit card component with list, grid, and compact variants.
  */
 
 'use client';
 
-import { UnitTemplate, UnitRole, UNIT_INFO } from '@/types/game';
+import { useState, useRef, useCallback, memo } from 'react';
+import { UnitTemplate, UnitRole } from '@/types/game';
+import { getRoleColor, getRoleIcon, getRoleName, getRoleClasses } from '@/lib/roleColors';
 
 // =============================================================================
 // TYPES
 // =============================================================================
+
+/**
+ * UnitCard display variants.
+ */
+export type UnitCardVariant = 'list' | 'grid' | 'compact';
 
 /**
  * UnitCard component props.
@@ -19,18 +26,18 @@ import { UnitTemplate, UnitRole, UNIT_INFO } from '@/types/game';
 interface UnitCardProps {
   /** Unit template data */
   unit: UnitTemplate;
-  /** Card display size */
-  size?: 'compact' | 'full';
+  /** Card display variant */
+  variant?: UnitCardVariant;
   /** Click handler */
   onClick?: () => void;
+  /** Long press handler */
+  onLongPress?: () => void;
   /** Whether card is selected */
   selected?: boolean;
   /** Whether card is disabled */
   disabled?: boolean;
   /** Custom CSS classes */
   className?: string;
-  /** Show ability icons */
-  showAbilities?: boolean;
 }
 
 // =============================================================================
@@ -38,77 +45,18 @@ interface UnitCardProps {
 // =============================================================================
 
 /**
- * Role-based color schemes.
+ * Stat icons for display.
  */
-const ROLE_COLORS: Record<UnitRole, { 
-  bg: string; 
-  border: string; 
-  accent: string; 
-  text: string;
-}> = {
-  tank: {
-    bg: 'bg-blue-900/40',
-    border: 'border-blue-500',
-    accent: 'text-blue-400',
-    text: 'text-blue-100',
-  },
-  melee_dps: {
-    bg: 'bg-red-900/40',
-    border: 'border-red-500',
-    accent: 'text-red-400',
-    text: 'text-red-100',
-  },
-  ranged_dps: {
-    bg: 'bg-orange-900/40',
-    border: 'border-orange-500',
-    accent: 'text-orange-400',
-    text: 'text-orange-100',
-  },
-  mage: {
-    bg: 'bg-purple-900/40',
-    border: 'border-purple-500',
-    accent: 'text-purple-400',
-    text: 'text-purple-100',
-  },
-  support: {
-    bg: 'bg-green-900/40',
-    border: 'border-green-500',
-    accent: 'text-green-400',
-    text: 'text-green-100',
-  },
-  control: {
-    bg: 'bg-indigo-900/40',
-    border: 'border-indigo-500',
-    accent: 'text-indigo-400',
-    text: 'text-indigo-100',
-  },
-};
-
-/**
- * Stat icons and labels.
- */
-const STAT_DISPLAY = {
-  hp: { icon: '❤️', label: 'HP', tooltip: 'Hit Points' },
-  atk: { icon: '⚔️', label: 'ATK', tooltip: 'Attack Damage' },
-  atkCount: { icon: '🗡️', label: '#ATK', tooltip: 'Attacks per Turn' },
-  armor: { icon: '🛡️', label: 'BR', tooltip: 'Armor (Damage Reduction)' },
-  speed: { icon: '💨', label: 'СК', tooltip: 'Movement Speed' },
-  initiative: { icon: '⚡', label: 'ИН', tooltip: 'Initiative (Turn Order)' },
-  dodge: { icon: '🌪️', label: 'УК', tooltip: 'Dodge Chance %' },
-  range: { icon: '🎯', label: 'Range', tooltip: 'Attack Range' },
-};
-
-/**
- * Role display names in Russian.
- */
-const ROLE_NAMES: Record<UnitRole, string> = {
-  tank: 'Танк',
-  melee_dps: 'Ближний бой',
-  ranged_dps: 'Дальний бой',
-  mage: 'Маг',
-  support: 'Поддержка',
-  control: 'Контроль',
-};
+const STAT_ICONS = {
+  hp: '❤️',
+  atk: '⚔️',
+  atkCount: '🎯',
+  armor: '🛡️',
+  speed: '🏃',
+  initiative: '⚡',
+  dodge: '🌪️',
+  range: '📏',
+} as const;
 
 // =============================================================================
 // HELPER FUNCTIONS
@@ -118,134 +66,171 @@ const ROLE_NAMES: Record<UnitRole, string> = {
  * Get role-based styling for unit card.
  * 
  * @param role - Unit role
- * @returns CSS classes object
+ * @returns CSS classes and colors for the role
  */
-function getRoleColors(role: UnitRole) {
-  return ROLE_COLORS[role] || ROLE_COLORS.tank;
+function getCardRoleStyles(role: UnitRole) {
+  const roleColor = getRoleColor(role);
+  const classes = getRoleClasses(role);
+  
+  return {
+    roleColor,
+    classes,
+    bgClass: `${classes.bg}/20`, // Light background
+    borderClass: classes.border,
+    textClass: 'text-white',
+    accentClass: classes.text,
+  };
 }
 
 /**
- * Format stat value for display.
+ * Truncate text to specified length with ellipsis.
  * 
- * @param value - Stat value
- * @param statKey - Stat identifier
- * @returns Formatted string
+ * @param text - Text to truncate
+ * @param maxLength - Maximum length before truncation
+ * @returns Truncated text with ellipsis if needed
  */
-function formatStatValue(value: number, statKey: string): string {
-  if (statKey === 'dodge') {
-    return `${value}%`;
-  }
-  return value.toString();
+function truncateText(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  return text.slice(0, maxLength) + '...';
 }
 
 // =============================================================================
-// COMPONENTS
+// VARIANT COMPONENTS
 // =============================================================================
 
 /**
- * Compact stat display for small cards.
+ * List variant - full information display for unit selection.
  */
-interface CompactStatsProps {
+interface ListVariantProps {
   unit: UnitTemplate;
-  colors: ReturnType<typeof getRoleColors>;
+  styles: ReturnType<typeof getCardRoleStyles>;
 }
 
-function CompactStats({ unit, colors }: CompactStatsProps) {
+function ListVariant({ unit, styles }: ListVariantProps) {
+  const firstAbility = unit.abilities[0];
+  
   return (
-    <div className="grid grid-cols-2 gap-1 text-xs">
-      <div className={`flex items-center gap-1 ${colors.text}`}>
-        <span>{STAT_DISPLAY.hp.icon}</span>
-        <span>{unit.stats.hp}</span>
+    <div className="p-4 space-y-3">
+      {/* Header: Cost badge + Role icon + Name */}
+      <div className="flex items-center gap-3">
+        <div className="relative">
+          <div className={`w-10 h-10 rounded-lg ${styles.bgClass} ${styles.borderClass} border-2 flex items-center justify-center text-lg`}>
+            {getRoleIcon(unit.role)}
+          </div>
+          <div className="absolute -top-1 -right-1 bg-yellow-500 text-black text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+            {unit.cost}
+          </div>
+        </div>
+        <div className="flex-1">
+          <div className="font-bold text-white text-lg">{unit.name}</div>
+          <div className={`text-sm ${styles.accentClass} font-medium`}>
+            {getRoleName(unit.role)}
+          </div>
+        </div>
       </div>
-      <div className={`flex items-center gap-1 ${colors.text}`}>
-        <span>{STAT_DISPLAY.atk.icon}</span>
-        <span>{unit.stats.atk}</span>
+
+      {/* Stats row 1: HP, ATK, Speed (prominent) */}
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-1">
+          <span className="text-red-400">{STAT_ICONS.hp}</span>
+          <span className="text-white font-bold text-lg">{unit.stats.hp}</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-orange-400">{STAT_ICONS.atk}</span>
+          <span className="text-white font-bold text-lg">{unit.stats.atk}</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-green-400">{STAT_ICONS.speed}</span>
+          <span className="text-white font-bold text-lg">{unit.stats.speed}</span>
+        </div>
       </div>
-      <div className={`flex items-center gap-1 ${colors.text}`}>
-        <span>{STAT_DISPLAY.armor.icon}</span>
-        <span>{unit.stats.armor}</span>
+
+      {/* Stats row 2: #ATK, Armor (smaller) */}
+      <div className="flex items-center gap-4 text-sm">
+        <div className="flex items-center gap-1">
+          <span className="text-blue-400">{STAT_ICONS.atkCount}</span>
+          <span className="text-gray-300">{unit.stats.atkCount}</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-purple-400">{STAT_ICONS.armor}</span>
+          <span className="text-gray-300">{unit.stats.armor}</span>
+        </div>
       </div>
-      <div className={`flex items-center gap-1 ${colors.text}`}>
-        <span>{STAT_DISPLAY.range.icon}</span>
-        <span>{unit.range}</span>
-      </div>
+
+      {/* Footer: Ability preview */}
+      {firstAbility && (
+        <div className="text-xs text-gray-400">
+          <span className="text-yellow-400">✨</span> {truncateText(typeof firstAbility === 'string' ? firstAbility : firstAbility.name, 30)}
+        </div>
+      )}
     </div>
   );
 }
 
 /**
- * Full stat display for detailed cards.
+ * Grid variant - minimal display for battle field.
  */
-interface FullStatsProps {
+interface GridVariantProps {
   unit: UnitTemplate;
-  colors: ReturnType<typeof getRoleColors>;
+  styles: ReturnType<typeof getCardRoleStyles>;
 }
 
-function FullStats({ unit, colors }: FullStatsProps) {
-  const stats = [
-    { key: 'hp', value: unit.stats.hp },
-    { key: 'atk', value: unit.stats.atk },
-    { key: 'atkCount', value: unit.stats.atkCount },
-    { key: 'armor', value: unit.stats.armor },
-    { key: 'speed', value: unit.stats.speed },
-    { key: 'initiative', value: unit.stats.initiative },
-    { key: 'dodge', value: unit.stats.dodge },
-    { key: 'range', value: unit.range },
-  ];
-
+function GridVariant({ unit, styles }: GridVariantProps) {
+  const hpPercentage = Math.min(100, (unit.stats.hp / 200) * 100); // Assume max HP ~200 for bar
+  
   return (
-    <div className="grid grid-cols-2 gap-2 text-sm">
-      {stats.map(({ key, value }) => {
-        const display = STAT_DISPLAY[key as keyof typeof STAT_DISPLAY];
-        return (
+    <div className="p-2 space-y-2">
+      {/* Role icon */}
+      <div className="flex justify-center">
+        <div className={`w-8 h-8 rounded-lg ${styles.bgClass} ${styles.borderClass} border flex items-center justify-center text-lg`}>
+          {getRoleIcon(unit.role)}
+        </div>
+      </div>
+
+      {/* HP bar */}
+      <div className="space-y-1">
+        <div className="w-full bg-gray-700 rounded-full h-2">
           <div 
-            key={key}
-            className={`flex items-center justify-between ${colors.text}`}
-            title={display.tooltip}
-          >
-            <div className="flex items-center gap-1">
-              <span className="text-xs">{display.icon}</span>
-              <span className="text-xs font-medium">{display.label}</span>
-            </div>
-            <span className={`font-bold ${colors.accent}`}>
-              {formatStatValue(value, key)}
-            </span>
-          </div>
-        );
-      })}
+            className="bg-red-500 h-2 rounded-full transition-all duration-300"
+            style={{ width: `${hpPercentage}%` }}
+          />
+        </div>
+        <div className="text-center text-xs text-white font-medium">
+          {unit.stats.hp}
+        </div>
+      </div>
     </div>
   );
 }
 
 /**
- * Ability icons display.
+ * Compact variant - minimal info for saved teams preview.
  */
-interface AbilityIconsProps {
-  abilities: string[];
-  colors: ReturnType<typeof getRoleColors>;
+interface CompactVariantProps {
+  unit: UnitTemplate;
+  styles: ReturnType<typeof getCardRoleStyles>;
 }
 
-function AbilityIcons({ abilities, colors }: AbilityIconsProps) {
-  if (abilities.length === 0) return null;
-
+function CompactVariant({ unit, styles }: CompactVariantProps) {
   return (
-    <div className="flex items-center gap-1 mt-2">
-      <span className={`text-xs ${colors.text}`}>Способности:</span>
-      <div className="flex gap-1">
-        {abilities.slice(0, 3).map((ability, index) => (
-          <div
-            key={index}
-            className={`w-6 h-6 rounded-full ${colors.bg} ${colors.border} border flex items-center justify-center text-xs`}
-            title={ability}
-          >
-            ✨
-          </div>
-        ))}
-        {abilities.length > 3 && (
-          <div className={`text-xs ${colors.text}`}>
-            +{abilities.length - 3}
-          </div>
-        )}
+    <div className="p-2 flex items-center gap-2">
+      {/* Role icon + Cost */}
+      <div className="relative flex-shrink-0">
+        <div className={`w-6 h-6 rounded ${styles.bgClass} ${styles.borderClass} border flex items-center justify-center text-sm`}>
+          {getRoleIcon(unit.role)}
+        </div>
+        <div className="absolute -top-1 -right-1 bg-yellow-500 text-black text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center">
+          {unit.cost}
+        </div>
+      </div>
+
+      {/* Name + Key stats */}
+      <div className="flex-1 min-w-0">
+        <div className="text-white text-sm font-medium truncate">{unit.name}</div>
+        <div className="flex items-center gap-2 text-xs text-gray-400">
+          <span>{STAT_ICONS.hp}{unit.stats.hp}</span>
+          <span>{STAT_ICONS.atk}{unit.stats.atk}</span>
+        </div>
       </div>
     </div>
   );
@@ -257,103 +242,176 @@ function AbilityIcons({ abilities, colors }: AbilityIconsProps) {
 
 /**
  * UnitCard component for displaying unit information.
- * Supports compact and full display modes with role-based styling.
+ * Supports multiple variants: list (full info), grid (battle field), compact (saved teams).
  * 
  * @example
  * <UnitCard
  *   unit={knightTemplate}
- *   size="full"
+ *   variant="list"
  *   selected={selectedUnit?.id === unit.id}
  *   onClick={() => selectUnit(unit)}
  * />
  */
-export function UnitCard({
+const UnitCard = memo(function UnitCard({
   unit,
-  size = 'full',
+  variant = 'list',
   onClick,
+  onLongPress,
   selected = false,
   disabled = false,
   className = '',
-  showAbilities = true,
 }: UnitCardProps) {
-  const unitInfo = UNIT_INFO[unit.id];
-  const colors = getRoleColors(unit.role);
-  const isCompact = size === 'compact';
+  const styles = getCardRoleStyles(unit.role);
   
-  const handleClick = () => {
-    if (!disabled && onClick) {
+  // Long press detection state
+  const [isLongPressing, setIsLongPressing] = useState(false);
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const longPressTriggered = useRef(false);
+
+  /**
+   * Handle pointer down event to start long press detection.
+   * Starts a 500ms timer for long press detection.
+   */
+  const handlePointerDown = useCallback(() => {
+    if (disabled) return;
+    
+    longPressTriggered.current = false;
+    setIsLongPressing(true);
+    
+    longPressTimer.current = setTimeout(() => {
+      longPressTriggered.current = true;
+      setIsLongPressing(false);
+
+      if (onLongPress) {
+        onLongPress();
+      }
+    }, 500); // 500ms for long press
+  }, [disabled, onLongPress]);
+
+  /**
+   * Handle pointer up event to complete interaction.
+   * Clears long press timer and triggers click if long press wasn't activated.
+   */
+  const handlePointerUp = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    
+    setIsLongPressing(false);
+    
+    // Only trigger click if long press wasn't triggered
+    if (!longPressTriggered.current && !disabled && onClick) {
       onClick();
+    }
+  }, [disabled, onClick]);
+
+  /**
+   * Handle pointer leave event to cancel long press.
+   * Clears timer when pointer moves away from element.
+   */
+  const handlePointerLeave = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    setIsLongPressing(false);
+  }, []);
+
+  /**
+   * Handle double click to open detail modal.
+   */
+  const handleDoubleClick = useCallback(() => {
+    if (!disabled && onLongPress) {
+      onLongPress();
+    }
+  }, [disabled, onLongPress]);
+
+  // Get variant-specific dimensions and styles
+  const getVariantStyles = () => {
+    switch (variant) {
+      case 'grid':
+        return {
+          container: 'w-16 h-20', // Fixed size for grid cells
+          minHeight: '',
+        };
+      case 'compact':
+        return {
+          container: 'min-w-[200px] h-12', // Compact horizontal layout
+          minHeight: '',
+        };
+      case 'list':
+      default:
+        return {
+          container: 'min-w-[280px] w-full',
+          minHeight: 'min-h-[140px]',
+        };
     }
   };
 
+  const variantStyles = getVariantStyles();
+
   return (
-    <div
+    <button
+      type="button"
+      disabled={disabled}
+      aria-label={`${unit.name} - ${getRoleName(unit.role)} - Cost: ${unit.cost} - HP: ${unit.stats.hp} - Attack: ${unit.stats.atk}${selected ? ' (Selected)' : ''}`}
+      aria-pressed={selected}
+      aria-describedby={`unit-${unit.id}-description`}
       className={`
         relative rounded-lg border-2 transition-all duration-200 cursor-pointer
-        ${colors.bg} ${colors.border}
-        ${selected ? 'ring-2 ring-yellow-400 scale-105 shadow-lg shadow-yellow-400/30' : ''}
-        ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105 hover:shadow-lg'}
-        ${isCompact ? 'p-3' : 'p-4'}
+        ${variantStyles.container} ${variantStyles.minHeight}
+        bg-gray-800/50 ${styles.borderClass}
+        ${selected ? 'ring-2 ring-yellow-400 shadow-lg shadow-yellow-400/30 animate-unit-select' : ''}
+        ${isLongPressing ? 'scale-95 shadow-lg' : ''}
+        ${disabled 
+          ? 'opacity-50 cursor-not-allowed grayscale' 
+          : 'hover:scale-105 hover:shadow-lg active:scale-95 touch-manipulation focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 focus:ring-offset-gray-900'
+        }
         ${className}
       `}
-      onClick={handleClick}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerLeave={handlePointerLeave}
+      onDoubleClick={handleDoubleClick}
     >
-      {/* Cost badge */}
-      <div className="absolute -top-2 -right-2 bg-yellow-500 text-black text-sm font-bold rounded-full w-8 h-8 flex items-center justify-center shadow-lg">
-        {unit.cost}
+      {/* Hidden description for screen readers */}
+      <div id={`unit-${unit.id}-description`} className="sr-only">
+        {unit.abilities.length > 0 && `Abilities: ${unit.abilities.map(a => typeof a === 'string' ? a : a.name).join(', ')}. `}
+        Stats: HP {unit.stats.hp}, Attack {unit.stats.atk}, Speed {unit.stats.speed}, Armor {unit.stats.armor}.
       </div>
 
-      {/* Unit header */}
-      <div className="flex items-center gap-3 mb-3">
-        <div className={`text-${isCompact ? '3xl' : '4xl'}`}>
-          {unitInfo?.emoji || '❓'}
-        </div>
-        <div className="flex-1">
-          <div className={`font-bold ${isCompact ? 'text-base' : 'text-lg'} ${colors.text}`}>
-            {unit.name}
-          </div>
-          <div className={`text-xs ${colors.accent} font-medium`}>
-            {ROLE_NAMES[unit.role]}
-          </div>
-        </div>
-      </div>
-
-      {/* Unit description */}
-      {!isCompact && (
-        <div className={`text-xs ${colors.text} mb-3 opacity-80`}>
-          {unitInfo?.description || 'Описание недоступно'}
-        </div>
+      {/* Render variant-specific content */}
+      {variant === 'list' && (
+        <ListVariant unit={unit} styles={styles} />
       )}
-
-      {/* Stats display */}
-      <div className="mb-3">
-        {isCompact ? (
-          <CompactStats unit={unit} colors={colors} />
-        ) : (
-          <FullStats unit={unit} colors={colors} />
-        )}
-      </div>
-
-      {/* Abilities */}
-      {showAbilities && !isCompact && (
-        <AbilityIcons abilities={unit.abilities} colors={colors} />
+      {variant === 'grid' && (
+        <GridVariant unit={unit} styles={styles} />
+      )}
+      {variant === 'compact' && (
+        <CompactVariant unit={unit} styles={styles} />
       )}
 
       {/* Selection indicator */}
       {selected && (
-        <div className="absolute inset-0 rounded-lg border-2 border-yellow-400 pointer-events-none">
-          <div className="absolute top-1 right-1 text-yellow-400">
+        <div className="absolute inset-0 rounded-lg border-2 border-yellow-400 pointer-events-none" aria-hidden="true">
+          <div className="absolute top-1 right-1 text-yellow-400 text-sm">
             ✓
           </div>
         </div>
       )}
-    </div>
+
+      {/* Glow effect for selected state */}
+      {selected && (
+        <div className="absolute inset-0 rounded-lg bg-yellow-400/10 pointer-events-none animate-pulse" aria-hidden="true" />
+      )}
+    </button>
   );
-}
+});
 
 // =============================================================================
 // EXPORTS
 // =============================================================================
 
+export { UnitCard };
 export type { UnitCardProps };
-export { ROLE_COLORS, ROLE_NAMES };

@@ -91,6 +91,9 @@ export class PlayerService {
       newName: trimmedName,
     });
 
-    return updatedPlayer!;
+    if (!updatedPlayer) {
+      throw new Error('Failed to update player name');
+    }
+    return updatedPlayer;
   }
 }

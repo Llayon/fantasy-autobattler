@@ -8,7 +8,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { BattleLog, BattleEvent, Position, UnitTemplate, UNIT_INFO } from '@/types/game';
+import { BattleLog, BattleEvent, Position, UnitTemplate, UNIT_INFO, UnitId } from '@/types/game';
 import { 
   MoveAnimation, 
   AttackAnimation, 
@@ -103,6 +103,67 @@ const EVENT_TYPE_NAMES: Record<string, string> = {
 // =============================================================================
 // UTILITY FUNCTIONS
 // =============================================================================
+
+/**
+ * Get player display name from battle log.
+ * Uses player1Name/player2Name if available, otherwise falls back to generic names.
+ * 
+ * @param battle - Battle log data
+ * @param player - Player identifier ('player1' or 'player2')
+ * @returns Display name for the player
+ */
+function getPlayerName(battle: BattleLog, player: 'player1' | 'player2'): string {
+  if (player === 'player1') {
+    return (battle as any).player1Name || 'Игрок 1';
+  } else {
+    return (battle as any).player2Name || 'Игрок 2';
+  }
+}
+
+/**
+ * Get winner display name from battle log.
+ * 
+ * @param battle - Battle log data
+ * @returns Winner display name or 'Ничья'
+ */
+function getWinnerName(battle: BattleLog): string {
+  if (!battle.winner) return 'Неизвестно';
+  
+  if (battle.winner === 'draw') return 'Ничья';
+  
+  if (battle.winner === 'player1') {
+    return getPlayerName(battle, 'player1');
+  } else {
+    return getPlayerName(battle, 'player2');
+  }
+}
+
+/**
+ * Get unit display name from instanceId.
+ * Converts instanceId like "player_knight_0" to "Knight".
+ * 
+ * @param instanceId - Unit instance identifier
+ * @param units - Available unit templates
+ * @returns Human-readable unit name
+ */
+function getUnitDisplayName(instanceId: string, units: ReplayUnit[]): string {
+  const unit = units.find(u => u.instanceId === instanceId);
+  if (unit) {
+    return unit.template.name;
+  }
+  
+  // Fallback: extract unit type from instanceId
+  const parts = instanceId.split('_');
+  if (parts.length >= 2) {
+    const unitId = parts[1] as UnitId;
+    const unitInfo = UNIT_INFO[unitId];
+    if (unitInfo && unitId) {
+      return unitId.charAt(0).toUpperCase() + unitId.slice(1);
+    }
+  }
+  
+  return instanceId;
+}
 
 /**
  * Extract initial unit states from battle log.
@@ -243,23 +304,28 @@ function applyEventToUnits(units: ReplayUnit[], event: BattleEvent): ReplayUnit[
 // =============================================================================
 
 /**
- * Grid cell component for battle replay.
+ * Grid cell component for battle replay with unit interaction.
  */
 function ReplayGridCell({ 
   position, 
   unit, 
   onClick,
+  onUnitClick,
   isMovementSource = false,
-  isMovementTarget = false
+  isMovementTarget = false,
+  movementPath = []
 }: { 
   position: Position; 
   unit?: ReplayUnit; 
   onClick?: () => void;
+  onUnitClick?: (unit: ReplayUnit, event: React.MouseEvent) => void;
   isMovementSource?: boolean;
   isMovementTarget?: boolean;
+  movementPath?: Position[];
 }) {
   const isPlayerZone = position.y <= 1;
   const isEnemyZone = position.y >= 8;
+  const isOnMovementPath = movementPath.some(p => p.x === position.x && p.y === position.y);
   
   const cellClasses = [
     'relative w-12 h-12 border border-gray-600 transition-all duration-300',
@@ -267,10 +333,23 @@ function ReplayGridCell({
     onClick ? 'cursor-pointer hover:bg-white/10' : '',
     isMovementSource ? 'bg-yellow-500/30 border-yellow-400' : '',
     isMovementTarget ? 'bg-green-500/30 border-green-400' : '',
+    isOnMovementPath ? 'bg-yellow-400/20 border-yellow-300' : '',
   ].join(' ');
+
+  /**
+   * Handle cell click - prioritize unit click over cell click.
+   */
+  const handleCellClick = (event: React.MouseEvent) => {
+    if (unit && onUnitClick) {
+      event.stopPropagation();
+      onUnitClick(unit, event);
+    } else if (onClick) {
+      onClick();
+    }
+  };
   
   return (
-    <div className={cellClasses} onClick={onClick}>
+    <div className={cellClasses} onClick={handleCellClick}>
       {/* Grid coordinates */}
       <div className="absolute top-0 left-0 text-xs text-gray-500 leading-none">
         {position.x},{position.y}
@@ -292,15 +371,17 @@ function ReplayGridCell({
       {/* Unit display */}
       {unit && (
         <div className={`
-          absolute inset-1 rounded flex items-center justify-center text-lg font-bold
-          ${unit.team === 'player1' ? 'bg-blue-600' : 'bg-red-600'}
+          absolute inset-1 rounded flex items-center justify-center text-lg font-bold cursor-pointer
+          ${unit.team === 'player1' ? 'bg-blue-600 hover:bg-blue-500' : 'bg-red-600 hover:bg-red-500'}
           ${!unit.alive ? 'opacity-30 grayscale' : ''}
           ${unit.animation?.type === 'damage' ? 'animate-pulse bg-red-400' : ''}
           ${unit.animation?.type === 'death' ? 'animate-bounce opacity-50' : ''}
           ${unit.animation?.type === 'move' ? 'ring-2 ring-yellow-400 ring-opacity-75 animate-pulse scale-110' : ''}
           ${unit.animation?.type === 'attack' ? 'animate-ping bg-orange-500' : ''}
-          transition-all duration-300
-        `}>
+          transition-all duration-300 hover:scale-110
+        `}
+        title={`${unit.template.name} - Click for details`}
+        >
           {UNIT_INFO[unit.template.id]?.emoji || '❓'}
           
           {/* HP bar */}
@@ -338,35 +419,189 @@ function ReplayGridCell({
 }
 
 /**
- * Turn order bar component.
+ * Turn order bar component with enhanced unit display.
  */
-function TurnOrderBar({ units, currentRound }: { units: ReplayUnit[]; currentRound: number }) {
+function TurnOrderBar({ 
+  units, 
+  currentRound, 
+  currentEventIndex, 
+  events,
+  battle
+}: { 
+  units: ReplayUnit[]; 
+  currentRound: number;
+  currentEventIndex: number;
+  events: BattleEvent[];
+  battle: BattleLog;
+}) {
+  const [selectedUnit, setSelectedUnit] = useState<ReplayUnit | null>(null);
+  const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number } | null>(null);
+  
   const aliveUnits = units.filter(unit => unit.alive);
+  
+  // Determine current active unit based on current event
+  const currentEvent = events[currentEventIndex];
+  const activeUnitId = currentEvent?.actorId;
+  
+  /**
+   * Handle unit click to show tooltip with stats.
+   */
+  const handleUnitClick = useCallback((unit: ReplayUnit, event: React.MouseEvent) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    setTooltipPosition({
+      x: rect.left + rect.width / 2,
+      y: rect.top - 10,
+    });
+    setSelectedUnit(unit);
+  }, []);
+  
+  /**
+   * Close tooltip when clicking outside.
+   */
+  const handleCloseTooltip = useCallback(() => {
+    setSelectedUnit(null);
+    setTooltipPosition(null);
+  }, []);
+  
+  // Close tooltip on outside click
+  useEffect(() => {
+    const handleClickOutside = () => handleCloseTooltip();
+    if (selectedUnit) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+    return undefined;
+  }, [selectedUnit, handleCloseTooltip]);
   
   return (
     <div className="bg-gray-800 rounded-lg p-4 mb-4">
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-3">
         <h3 className="text-lg font-medium">Раунд {currentRound}</h3>
         <div className="text-sm text-gray-400">
           Живых юнитов: {aliveUnits.length}
         </div>
       </div>
       
-      <div className="flex gap-2 overflow-x-auto">
+      <div className="flex gap-3 overflow-x-auto pb-2">
         {aliveUnits
           .sort((a, b) => b.template.stats.initiative - a.template.stats.initiative)
-          .map(unit => (
-            <div
-              key={unit.instanceId}
-              className={`
-                flex-shrink-0 w-12 h-12 rounded border-2 flex items-center justify-center
-                ${unit.team === 'player1' ? 'border-blue-400 bg-blue-600/20' : 'border-red-400 bg-red-600/20'}
-              `}
-            >
-              <span className="text-lg">{UNIT_INFO[unit.template.id]?.emoji || '❓'}</span>
-            </div>
-          ))}
+          .map(unit => {
+            const isActive = unit.instanceId === activeUnitId;
+            const hpPercent = (unit.currentHp / unit.maxHp) * 100;
+            
+            return (
+              <div
+                key={unit.instanceId}
+                className={`
+                  flex-shrink-0 cursor-pointer transition-all duration-200 hover:scale-105
+                  ${isActive ? 'ring-2 ring-yellow-400 ring-opacity-75' : ''}
+                `}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleUnitClick(unit, e);
+                }}
+                title={`${unit.template.name} - Click for stats`}
+              >
+                {/* Unit icon - increased to 48x48px */}
+                <div
+                  className={`
+                    w-12 h-12 rounded-lg border-2 flex items-center justify-center relative
+                    ${unit.team === 'player1' ? 'border-blue-400 bg-blue-600/20' : 'border-red-400 bg-red-600/20'}
+                    ${isActive ? 'animate-pulse' : ''}
+                  `}
+                >
+                  <span className="text-xl">{UNIT_INFO[unit.template.id]?.emoji || '❓'}</span>
+                  
+                  {/* Initiative indicator */}
+                  <div className="absolute -top-1 -right-1 bg-yellow-500 text-black text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                    {unit.template.stats.initiative}
+                  </div>
+                </div>
+                
+                {/* HP bar - 4px height */}
+                <div className="w-12 h-1 bg-gray-700 rounded-full mt-1 overflow-hidden">
+                  <div 
+                    className={`h-full transition-all duration-300 ${
+                      hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500'
+                    }`}
+                    style={{ width: `${hpPercent}%` }}
+                  />
+                </div>
+                
+                {/* HP text */}
+                <div className="text-xs text-center text-gray-400 mt-1">
+                  {unit.currentHp}/{unit.maxHp}
+                </div>
+              </div>
+            );
+          })}
       </div>
+      
+      {/* Unit stats tooltip */}
+      {selectedUnit && tooltipPosition && (
+        <div
+          className="fixed z-50 bg-gray-900 border border-gray-600 rounded-lg p-3 shadow-xl"
+          style={{
+            left: tooltipPosition.x,
+            top: tooltipPosition.y,
+            transform: 'translate(-50%, -100%)',
+          }}
+        >
+          <div className="text-sm">
+            <div className="font-bold text-white mb-2 flex items-center gap-2">
+              <span className="text-lg">{UNIT_INFO[selectedUnit.template.id]?.emoji}</span>
+              {selectedUnit.template.name}
+            </div>
+            
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <span className="text-gray-400">HP:</span>
+                <span className="text-red-400 font-medium ml-1">
+                  {selectedUnit.currentHp}/{selectedUnit.maxHp}
+                </span>
+              </div>
+              <div>
+                <span className="text-gray-400">ATK:</span>
+                <span className="text-orange-400 font-medium ml-1">
+                  {selectedUnit.template.stats.atk}
+                </span>
+              </div>
+              <div>
+                <span className="text-gray-400">Armor:</span>
+                <span className="text-blue-400 font-medium ml-1">
+                  {selectedUnit.template.stats.armor}
+                </span>
+              </div>
+              <div>
+                <span className="text-gray-400">Speed:</span>
+                <span className="text-green-400 font-medium ml-1">
+                  {selectedUnit.template.stats.speed}
+                </span>
+              </div>
+              <div>
+                <span className="text-gray-400">Initiative:</span>
+                <span className="text-yellow-400 font-medium ml-1">
+                  {selectedUnit.template.stats.initiative}
+                </span>
+              </div>
+              <div>
+                <span className="text-gray-400">Dodge:</span>
+                <span className="text-purple-400 font-medium ml-1">
+                  {selectedUnit.template.stats.dodge}%
+                </span>
+              </div>
+            </div>
+            
+            <div className="mt-2 pt-2 border-t border-gray-700">
+              <div className="text-xs text-gray-400">
+                Team: <span className={selectedUnit.team === 'player1' ? 'text-blue-400' : 'text-red-400'}>
+                  {selectedUnit.team === 'player1' ? getPlayerName(battle, 'player1') : getPlayerName(battle, 'player2')}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -521,62 +756,170 @@ function ReplayControls({
 }
 
 /**
- * Event log component.
+ * Enhanced event log component with color coding and readable names.
  */
 function EventLog({ 
   events, 
-  currentEventIndex 
+  currentEventIndex,
+  units
 }: { 
   events: BattleEvent[]; 
   currentEventIndex: number;
+  units: ReplayUnit[];
 }) {
+  /**
+   * Get event color based on type.
+   */
+  const getEventColor = (eventType: string): string => {
+    switch (eventType) {
+      case 'damage':
+        return 'text-red-400';
+      case 'move':
+        return 'text-blue-400';
+      case 'heal':
+        return 'text-green-400';
+      case 'attack':
+        return 'text-orange-400';
+      case 'death':
+        return 'text-purple-400';
+      case 'ability':
+        return 'text-yellow-400';
+      case 'round_start':
+        return 'text-cyan-400';
+      case 'battle_end':
+        return 'text-pink-400';
+      default:
+        return 'text-gray-400';
+    }
+  };
+
+  /**
+   * Get event border color based on type.
+   */
+  const getEventBorderColor = (eventType: string): string => {
+    switch (eventType) {
+      case 'damage':
+        return 'border-red-500';
+      case 'move':
+        return 'border-blue-500';
+      case 'heal':
+        return 'border-green-500';
+      case 'attack':
+        return 'border-orange-500';
+      case 'death':
+        return 'border-purple-500';
+      case 'ability':
+        return 'border-yellow-500';
+      case 'round_start':
+        return 'border-cyan-500';
+      case 'battle_end':
+        return 'border-pink-500';
+      default:
+        return 'border-gray-500';
+    }
+  };
+
+  /**
+   * Format event description with unit names instead of IDs.
+   */
+  const formatEventDescription = (event: BattleEvent): string => {
+    const actorName = event.actorId ? getUnitDisplayName(event.actorId, units) : '';
+    const targetName = event.targetId ? getUnitDisplayName(event.targetId, units) : '';
+
+    switch (event.type) {
+      case 'attack':
+        return `${actorName} атакует ${targetName}`;
+      case 'damage':
+        return `${targetName} получает ${event.damage} урона`;
+      case 'heal':
+        return `${targetName} восстанавливает ${event.healing} HP`;
+      case 'move':
+        return `${actorName} перемещается`;
+      case 'death':
+        return `${targetName} погибает`;
+      case 'ability':
+        return `${actorName} использует способность`;
+      case 'round_start':
+        return `Начинается раунд ${event.round}`;
+      case 'battle_end':
+        return 'Бой завершен';
+      default:
+        return EVENT_TYPE_NAMES[event.type] || event.type;
+    }
+  };
+
+  // Group events by rounds
+  const eventsByRound = events.slice(0, currentEventIndex + 1).reduce((acc, event, index) => {
+    const round = event.round || 1;
+    if (!acc[round]) {
+      acc[round] = [];
+    }
+    acc[round].push({ event, index });
+    return acc;
+  }, {} as Record<number, Array<{ event: BattleEvent; index: number }>>);
+
   return (
     <div className="bg-gray-800 rounded-lg p-4 h-64 overflow-y-auto">
       <h3 className="text-lg font-medium mb-3">Журнал событий</h3>
       
-      <div className="space-y-2">
-        {events.slice(0, currentEventIndex + 1).map((event, index) => (
-          <div
-            key={index}
-            className={`
-              text-sm p-2 rounded border-l-4
-              ${index === currentEventIndex 
-                ? 'bg-blue-900/30 border-blue-400' 
-                : 'bg-gray-700/30 border-gray-600'
-              }
-            `}
-          >
-            <div className="flex items-center gap-2">
-              <span className="text-gray-400 text-xs">R{event.round}</span>
-              <span className="font-medium">{EVENT_TYPE_NAMES[event.type] || event.type}</span>
-              {event.actorId && (
-                <span className="text-xs text-gray-500">({event.actorId})</span>
-              )}
+      <div className="space-y-3">
+        {Object.entries(eventsByRound).map(([round, roundEvents]) => (
+          <div key={round}>
+            {/* Round separator */}
+            <div className="flex items-center gap-2 mb-2">
+              <div className="h-px bg-gray-600 flex-1" />
+              <span className="text-xs text-gray-400 bg-gray-800 px-2">
+                Раунд {round}
+              </span>
+              <div className="h-px bg-gray-600 flex-1" />
             </div>
             
-            {event.damage && (
-              <div className="text-red-400 text-xs font-medium">
-                💥 Урон: {event.damage}
-              </div>
-            )}
-            
-            {event.healing && (
-              <div className="text-green-400 text-xs font-medium">
-                💚 Лечение: {event.healing}
-              </div>
-            )}
-            
-            {event.fromPosition && event.toPosition && (
-              <div className="text-yellow-400 text-xs font-medium">
-                🚶 Движение: ({event.fromPosition.x},{event.fromPosition.y}) → ({event.toPosition.x},{event.toPosition.y})
-              </div>
-            )}
-            
-            {event.targetId && event.type === 'attack' && (
-              <div className="text-orange-400 text-xs">
-                🎯 Цель: {event.targetId}
-              </div>
-            )}
+            {/* Round events */}
+            <div className="space-y-1 ml-2">
+              {roundEvents.map(({ event, index }) => (
+                <div
+                  key={index}
+                  className={`
+                    text-sm p-2 rounded border-l-4 transition-all duration-200
+                    ${index === currentEventIndex 
+                      ? 'bg-blue-900/30 border-blue-400 ring-1 ring-blue-400/50' 
+                      : `bg-gray-700/20 ${getEventBorderColor(event.type)}`
+                    }
+                  `}
+                >
+                  <div className={`font-medium ${getEventColor(event.type)}`}>
+                    {formatEventDescription(event)}
+                  </div>
+                  
+                  {/* Additional event details */}
+                  <div className="mt-1 space-y-1">
+                    {event.damage && (
+                      <div className="text-red-300 text-xs">
+                        💥 -{event.damage} HP
+                      </div>
+                    )}
+                    
+                    {event.healing && (
+                      <div className="text-green-300 text-xs">
+                        💚 +{event.healing} HP
+                      </div>
+                    )}
+                    
+                    {event.fromPosition && event.toPosition && (
+                      <div className="text-blue-300 text-xs">
+                        🚶 ({event.fromPosition.x},{event.fromPosition.y}) → ({event.toPosition.x},{event.toPosition.y})
+                      </div>
+                    )}
+                    
+                    {event.killedUnits && event.killedUnits.length > 0 && (
+                      <div className="text-purple-300 text-xs">
+                        💀 Погибли: {event.killedUnits.map(id => getUnitDisplayName(id, units)).join(', ')}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         ))}
       </div>
@@ -598,15 +941,19 @@ function EventLog({
  * <BattleReplay battle={battleLog} />
  */
 export function BattleReplay({ battle }: BattleReplayProps) {
+  // Safety check for required battle data - moved to top to avoid conditional hooks
+  const isValidBattle = battle && battle.id;
+  
   // Initialize units from battle log
   const initialUnits = useMemo(() => {
+    if (!isValidBattle) return [];
     try {
       return extractInitialUnits(battle);
     } catch (error) {
       // Error will be visible in battle validation below
       return [];
     }
-  }, [battle]);
+  }, [battle, isValidBattle]);
   
   // Replay state
   const [replayState, setReplayState] = useState<ReplayState>({
@@ -621,6 +968,12 @@ export function BattleReplay({ battle }: BattleReplayProps) {
   
   // Current unit states
   const [units, setUnits] = useState<ReplayUnit[]>(initialUnits);
+  
+  // Unit popup state
+  const [selectedGridUnit, setSelectedGridUnit] = useState<{
+    unit: ReplayUnit;
+    position: { x: number; y: number };
+  } | null>(null);
   
   // Active animations state
   const [activeAnimations, setActiveAnimations] = useState<{
@@ -638,25 +991,7 @@ export function BattleReplay({ battle }: BattleReplayProps) {
   });
   
   // Battle events
-  const events = battle.events || [];
-  
-  // Safety check for required battle data
-  if (!battle || !battle.id) {
-    return (
-      <div className="max-w-7xl mx-auto p-6 bg-gray-900 text-white">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-red-400 mb-4">❌ Invalid Battle Data</h1>
-          <p className="text-gray-300 mb-4">The battle data is missing or corrupted.</p>
-          <button
-            onClick={() => window.history.back()}
-            className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors"
-          >
-            ← Back
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const events = battle?.events || [];
   
   /**
    * Apply events up to specified index and trigger animations for current event.
@@ -710,8 +1045,8 @@ export function BattleReplay({ battle }: BattleReplayProps) {
             ...prev,
             moves: [...prev.moves, {
               id: animationId,
-              fromPosition: event.fromPosition!,
-              toPosition: event.toPosition!,
+              fromPosition: event.fromPosition,
+              toPosition: event.toPosition,
             }],
           }));
         }
@@ -744,7 +1079,7 @@ export function BattleReplay({ battle }: BattleReplayProps) {
               ...prev,
               damages: [...prev.damages, {
                 id: animationId,
-                damage: event.damage!,
+                damage: event.damage,
                 position: target.position,
               }],
             }));
@@ -754,7 +1089,7 @@ export function BattleReplay({ battle }: BattleReplayProps) {
         
       case 'death':
         if (event.targetId || event.killedUnits) {
-          const killedIds = event.killedUnits || [event.targetId!];
+          const killedIds = event.killedUnits || (event.targetId ? [event.targetId] : []);
           
           killedIds.forEach((killedId, index) => {
             const killedUnit = currentUnits.find(u => u.instanceId === killedId);
@@ -781,7 +1116,7 @@ export function BattleReplay({ battle }: BattleReplayProps) {
               ...prev,
               heals: [...prev.heals, {
                 id: animationId,
-                healing: event.healing!,
+                healing: event.healing,
                 position: target.position,
               }],
             }));
@@ -976,12 +1311,51 @@ export function BattleReplay({ battle }: BattleReplayProps) {
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [replayState.isPlaying, handlePlay, handlePause, handleStep, handleStepBack, handleSkipToStart, handleSkipToEnd, handleSpeedChange]);
   
+  /**
+   * Handle unit click on grid to show popup with stats.
+   */
+  const handleGridUnitClick = useCallback((unit: ReplayUnit, event: React.MouseEvent) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    setSelectedGridUnit({
+      unit,
+      position: {
+        x: rect.left + rect.width / 2,
+        y: rect.top - 10,
+      },
+    });
+  }, []);
+
+  /**
+   * Close unit popup.
+   */
+  const handleCloseUnitPopup = useCallback(() => {
+    setSelectedGridUnit(null);
+  }, []);
+
+  // Close popup on outside click
+  useEffect(() => {
+    const handleClickOutside = () => handleCloseUnitPopup();
+    if (selectedGridUnit) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+    return undefined;
+  }, [selectedGridUnit, handleCloseUnitPopup]);
+
   // Create grid with units and movement indicators
   const grid = useMemo(() => {
     const cells: JSX.Element[] = [];
     
-    // Get current event for movement indicators
+    // Get current event for movement indicators and path
     const currentEvent = events[replayState.currentEventIndex];
+    let movementPath: Position[] = [];
+    
+    // Build movement path if current event is movement
+    if (currentEvent?.type === 'move' && currentEvent.fromPosition && currentEvent.toPosition) {
+      // Simple path - just from and to positions for now
+      // In a more advanced implementation, this could show the actual pathfinding route
+      movementPath = [currentEvent.fromPosition, currentEvent.toPosition];
+    }
     
     for (let y = 0; y < GRID_HEIGHT; y++) {
       for (let x = 0; x < GRID_WIDTH; x++) {
@@ -1002,15 +1376,35 @@ export function BattleReplay({ battle }: BattleReplayProps) {
             key={`${x}-${y}`}
             position={position}
             unit={unit}
+            onUnitClick={handleGridUnitClick}
             isMovementSource={isMovementSource}
             isMovementTarget={isMovementTarget}
+            movementPath={movementPath}
           />
         );
       }
     }
     
     return cells;
-  }, [units, events, replayState.currentEventIndex]);
+  }, [units, events, replayState.currentEventIndex, handleGridUnitClick]);
+  
+  // Early return after all hooks are defined
+  if (!isValidBattle) {
+    return (
+      <div className="max-w-7xl mx-auto p-6 bg-gray-900 text-white">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold text-red-400 mb-4">❌ Invalid Battle Data</h1>
+          <p className="text-gray-300 mb-4">The battle data is missing or corrupted.</p>
+          <button
+            onClick={() => window.history.back()}
+            className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors"
+          >
+            ← Back
+          </button>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="max-w-7xl mx-auto p-6 bg-gray-900 text-white">
@@ -1029,15 +1423,15 @@ export function BattleReplay({ battle }: BattleReplayProps) {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
           <div>
             <span className="text-gray-400">Игрок 1:</span>
-            <div className="font-medium">{battle.player1Id}</div>
+            <div className="font-medium">{getPlayerName(battle, 'player1')}</div>
           </div>
           <div>
             <span className="text-gray-400">Игрок 2:</span>
-            <div className="font-medium">{battle.player2Id}</div>
+            <div className="font-medium">{getPlayerName(battle, 'player2')}</div>
           </div>
           <div>
             <span className="text-gray-400">Победитель:</span>
-            <div className="font-medium">{battle.winnerId || 'Неизвестно'}</div>
+            <div className="font-medium">{getWinnerName(battle)}</div>
           </div>
           <div>
             <span className="text-gray-400">Статус:</span>
@@ -1049,7 +1443,13 @@ export function BattleReplay({ battle }: BattleReplayProps) {
 
 
       {/* Turn order bar */}
-      <TurnOrderBar units={units} currentRound={replayState.currentRound} />
+      <TurnOrderBar 
+        units={units} 
+        currentRound={replayState.currentRound}
+        currentEventIndex={replayState.currentEventIndex}
+        events={events}
+        battle={battle}
+      />
       
       {/* Main content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1153,10 +1553,99 @@ export function BattleReplay({ battle }: BattleReplayProps) {
           <EventLog 
             events={events} 
             currentEventIndex={replayState.currentEventIndex}
+            units={units}
           />
         </div>
       </div>
       
+      {/* Unit Stats Popup */}
+      {selectedGridUnit && (
+        <div
+          className="fixed z-50 bg-gray-900 border border-gray-600 rounded-lg p-4 shadow-xl"
+          style={{
+            left: selectedGridUnit.position.x,
+            top: selectedGridUnit.position.y,
+            transform: 'translate(-50%, -100%)',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="text-sm">
+            <div className="font-bold text-white mb-3 flex items-center gap-2">
+              <span className="text-2xl">{UNIT_INFO[selectedGridUnit.unit.template.id]?.emoji}</span>
+              <div>
+                <div>{selectedGridUnit.unit.template.name}</div>
+                <div className="text-xs text-gray-400">
+                  {selectedGridUnit.unit.team === 'player1' ? getPlayerName(battle, 'player1') : getPlayerName(battle, 'player2')}
+                </div>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-3 text-xs mb-3">
+              <div>
+                <span className="text-gray-400">HP:</span>
+                <div className={`font-medium ml-1 ${
+                  selectedGridUnit.unit.currentHp > selectedGridUnit.unit.maxHp * 0.6 
+                    ? 'text-green-400' 
+                    : selectedGridUnit.unit.currentHp > selectedGridUnit.unit.maxHp * 0.3 
+                    ? 'text-yellow-400' 
+                    : 'text-red-400'
+                }`}>
+                  {selectedGridUnit.unit.currentHp}/{selectedGridUnit.unit.maxHp}
+                </div>
+              </div>
+              <div>
+                <span className="text-gray-400">ATK:</span>
+                <span className="text-orange-400 font-medium ml-1">
+                  {selectedGridUnit.unit.template.stats.atk}
+                </span>
+              </div>
+              <div>
+                <span className="text-gray-400">Armor:</span>
+                <span className="text-blue-400 font-medium ml-1">
+                  {selectedGridUnit.unit.template.stats.armor}
+                </span>
+              </div>
+              <div>
+                <span className="text-gray-400">Speed:</span>
+                <span className="text-green-400 font-medium ml-1">
+                  {selectedGridUnit.unit.template.stats.speed}
+                </span>
+              </div>
+              <div>
+                <span className="text-gray-400">Initiative:</span>
+                <span className="text-yellow-400 font-medium ml-1">
+                  {selectedGridUnit.unit.template.stats.initiative}
+                </span>
+              </div>
+              <div>
+                <span className="text-gray-400">Dodge:</span>
+                <span className="text-purple-400 font-medium ml-1">
+                  {selectedGridUnit.unit.template.stats.dodge}%
+                </span>
+              </div>
+            </div>
+            
+            <div className="pt-2 border-t border-gray-700">
+              <div className="text-xs text-gray-400 mb-2">
+                Position: <span className="text-white">({selectedGridUnit.unit.position.x}, {selectedGridUnit.unit.position.y})</span>
+              </div>
+              <div className="text-xs text-gray-400">
+                Status: <span className={selectedGridUnit.unit.alive ? 'text-green-400' : 'text-red-400'}>
+                  {selectedGridUnit.unit.alive ? 'Alive' : 'Dead'}
+                </span>
+              </div>
+            </div>
+            
+            <button
+              onClick={handleCloseUnitPopup}
+              className="mt-3 w-full px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded text-xs transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Battle Result Screen */}
       <BattleResult
         battle={battle}

@@ -2,6 +2,128 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Responsive Design Enhancements */
+@layer base {
+  /* Safe area insets for mobile devices */
+  .safe-area-inset-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .safe-area-inset-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  .safe-area-inset-left {
+    padding-left: env(safe-area-inset-left);
+  }
+  
+  .safe-area-inset-right {
+    padding-right: env(safe-area-inset-right);
+  }
+  
+  .pb-safe {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+  
+  /* Touch-friendly interactions */
+  .touch-manipulation {
+    touch-action: manipulation;
+  }
+  
+  .touch-pan-x {
+    touch-action: pan-x;
+  }
+  
+  .touch-pan-y {
+    touch-action: pan-y;
+  }
+  
+  .touch-pan-x.touch-pan-y {
+    touch-action: pan-x pan-y;
+  }
+  
+  /* Prevent text selection on interactive elements */
+  .no-select {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+  
+  /* Smooth scrolling for better UX */
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  /* Prevent horizontal overflow */
+  body {
+    overflow-x: hidden;
+  }
+  
+  /* Prevent zoom on input focus (iOS Safari) */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  textarea,
+  select {
+    font-size: 16px;
+  }
+  
+  /* Improve scroll performance */
+  .overscroll-contain {
+    overscroll-behavior: contain;
+  }
+  
+  /* Better tap highlighting */
+  * {
+    -webkit-tap-highlight-color: rgba(59, 130, 246, 0.3);
+  }
+}
+
+@layer components {
+  /* Responsive button base */
+  .btn-responsive {
+    @apply min-h-[44px] px-4 py-2 rounded-lg font-medium transition-all duration-200;
+    @apply hover:scale-105 active:scale-95 touch-manipulation;
+  }
+  
+  /* Responsive input base */
+  .input-responsive {
+    @apply min-h-[44px] px-3 py-2 rounded-lg border transition-colors;
+    @apply focus:outline-none focus:ring-2 focus:ring-blue-500;
+  }
+  
+  /* Responsive grid cell */
+  .grid-cell-responsive {
+    @apply aspect-square min-h-[32px] min-w-[32px] sm:min-h-[40px] sm:min-w-[40px];
+    @apply border transition-all duration-200 touch-manipulation;
+  }
+}
+
+@layer utilities {
+  /* Responsive text sizes */
+  .text-responsive-xs { font-size: clamp(0.75rem, 2vw, 0.875rem); }
+  .text-responsive-sm { font-size: clamp(0.875rem, 2.5vw, 1rem); }
+  .text-responsive-base { font-size: clamp(1rem, 3vw, 1.125rem); }
+  .text-responsive-lg { font-size: clamp(1.125rem, 3.5vw, 1.25rem); }
+  .text-responsive-xl { font-size: clamp(1.25rem, 4vw, 1.5rem); }
+  
+  /* Responsive spacing */
+  .p-responsive { padding: clamp(0.5rem, 2vw, 1rem); }
+  .px-responsive { padding-left: clamp(0.5rem, 2vw, 1rem); padding-right: clamp(0.5rem, 2vw, 1rem); }
+  .py-responsive { padding-top: clamp(0.5rem, 2vw, 1rem); padding-bottom: clamp(0.5rem, 2vw, 1rem); }
+  
+  /* Responsive gaps */
+  .gap-responsive { gap: clamp(0.5rem, 2vw, 1rem); }
+  
+  /* Mobile-first breakpoint utilities */
+  .min-mobile { min-width: 320px; }
+  .max-mobile { max-width: 480px; }
+  .min-tablet { min-width: 481px; }
+  .max-tablet { max-width: 768px; }
+  .min-desktop { min-width: 769px; }
+}
+
 body {
   background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
   min-height: 100vh;
@@ -223,4 +345,215 @@ body {
 
 .rating-change {
   animation: ratingChange 0.6s ease-out;
+}
+
+/* =============================================================================
+ * TEAM BUILDER ANIMATIONS
+ * ============================================================================= */
+
+/* Unit Selection Animation */
+@keyframes unit-select {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 rgba(59, 130, 246, 0);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.6);
+  }
+  100% {
+    transform: scale(1.02);
+    box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+  }
+}
+
+/* Unit Placement Animation */
+@keyframes unit-place {
+  0% {
+    transform: scale(0.8) translateY(-20px);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1) translateY(-5px);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Unit Removal Animation */
+@keyframes unit-remove {
+  0% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(0.8) rotate(-5deg);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(0) rotate(-10deg);
+    opacity: 0;
+  }
+}
+
+/* Shake Animation for Errors */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+  20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+/* Pulse Glow Animation */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px currentColor;
+    border-color: currentColor;
+  }
+  50% {
+    box-shadow: 0 0 25px currentColor, 0 0 35px currentColor;
+    border-color: currentColor;
+  }
+}
+
+/* Bounce In Animation */
+@keyframes bounce-in {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+  70% {
+    transform: scale(0.9);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Slide Up Animation */
+@keyframes slide-up {
+  0% {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Fade In Scale Animation */
+@keyframes fade-in-scale {
+  0% {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Utility Classes */
+.animate-unit-select {
+  animation: unit-select 0.3s ease-out forwards;
+}
+
+.animate-unit-place {
+  animation: unit-place 0.4s ease-out forwards;
+}
+
+.animate-unit-remove {
+  animation: unit-remove 0.3s ease-in forwards;
+}
+
+.animate-shake {
+  animation: shake 0.5s ease-in-out;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 1.5s ease-in-out infinite;
+}
+
+.animate-bounce-in {
+  animation: bounce-in 0.5s ease-out forwards;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.4s ease-out forwards;
+}
+
+.animate-fade-in-scale {
+  animation: fade-in-scale 0.3s ease-out forwards;
+}
+
+/* Accessibility: Respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .animate-unit-select,
+  .animate-unit-place,
+  .animate-unit-remove,
+  .animate-shake,
+  .animate-pulse-glow,
+  .animate-bounce-in,
+  .animate-slide-up,
+  .animate-fade-in-scale {
+    animation: none;
+  }
+  
+  /* Provide subtle alternatives for reduced motion */
+  .animate-unit-select {
+    transform: scale(1.02);
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+  }
+  
+  .animate-pulse-glow {
+    box-shadow: 0 0 8px currentColor;
+  }
+}
+
+/* =============================================================================
+ * ACCESSIBILITY UTILITIES
+ * ============================================================================= */
+
+/* Screen reader only utility class */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Focus visible utility for better keyboard navigation */
+.focus-visible {
+  outline: 2px solid #fbbf24;
+  outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .border-gray-600 {
+    border-color: #000;
+  }
+  
+  .text-gray-400 {
+    color: #000;
+  }
+  
+  .bg-gray-800 {
+    background-color: #fff;
+    color: #000;
+  }
 }

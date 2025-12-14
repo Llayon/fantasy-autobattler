@@ -58,24 +58,52 @@ interface RecentBattleResult {
 
 /** Rating thresholds for ranks */
 const RANK_THRESHOLDS = {
-  BRONZE: 800,
+  BRONZE: 0,
   SILVER: 1000,
-  GOLD: 1200,
-  PLATINUM: 1400,
-  DIAMOND: 1600,
-  MASTER: 1800,
-  GRANDMASTER: 2000,
+  GOLD: 1500,
+  PLATINUM: 2000,
+  DIAMOND: 2500,
 } as const;
 
 /** Rank display information */
 const RANK_INFO = {
-  BRONZE: { name: 'Бронза', emoji: '🥉', color: 'text-amber-600' },
-  SILVER: { name: 'Серебро', emoji: '🥈', color: 'text-gray-400' },
-  GOLD: { name: 'Золото', emoji: '🥇', color: 'text-yellow-500' },
-  PLATINUM: { name: 'Платина', emoji: '💎', color: 'text-cyan-400' },
-  DIAMOND: { name: 'Алмаз', emoji: '💠', color: 'text-blue-400' },
-  MASTER: { name: 'Мастер', emoji: '👑', color: 'text-purple-400' },
-  GRANDMASTER: { name: 'Гроссмейстер', emoji: '🏆', color: 'text-red-400' },
+  BRONZE: { name: 'Бронза', emoji: '🥉', color: 'text-amber-600', range: '0-999' },
+  SILVER: { name: 'Серебро', emoji: '🥈', color: 'text-gray-400', range: '1000-1499' },
+  GOLD: { name: 'Золото', emoji: '🥇', color: 'text-yellow-500', range: '1500-1999' },
+  PLATINUM: { name: 'Платина', emoji: '💎', color: 'text-cyan-400', range: '2000-2499' },
+  DIAMOND: { name: 'Алмаз', emoji: '💠', color: 'text-blue-400', range: '2500+' },
+} as const;
+
+/** Achievement definitions */
+const ACHIEVEMENTS = {
+  FIRST_WIN: {
+    id: 'first_win',
+    name: 'Первая победа',
+    description: 'Выиграть 1 бой',
+    emoji: '🏆',
+    requirement: (stats: PlayerStats) => stats.wins >= 1,
+  },
+  VETERAN: {
+    id: 'veteran',
+    name: 'Ветеран',
+    description: 'Сыграть 10 боёв',
+    emoji: '🎖️',
+    requirement: (stats: PlayerStats) => stats.gamesPlayed >= 10,
+  },
+  WINNER: {
+    id: 'winner',
+    name: 'Победитель',
+    description: 'Выиграть 10 боёв',
+    emoji: '👑',
+    requirement: (stats: PlayerStats) => stats.wins >= 10,
+  },
+  STRATEGIST: {
+    id: 'strategist',
+    name: 'Стратег',
+    description: 'Собрать 5 команд',
+    emoji: '🧠',
+    requirement: (stats: PlayerStats, teamCount: number) => teamCount >= 5,
+  },
 } as const;
 
 // =============================================================================
@@ -86,19 +114,102 @@ const RANK_INFO = {
  * Get player rank based on rating.
  * 
  * @param rating - Player rating
- * @returns Rank information
+ * @returns Rank information with progress to next rank
  * @example
  * const rank = getRankFromRating(1250);
- * console.log(rank.name); // 'Золото'
+ * console.log(rank.name); // 'Серебро'
  */
-function getRankFromRating(rating: number): { name: string; emoji: string; color: string } {
-  if (rating >= RANK_THRESHOLDS.GRANDMASTER) return RANK_INFO.GRANDMASTER;
-  if (rating >= RANK_THRESHOLDS.MASTER) return RANK_INFO.MASTER;
-  if (rating >= RANK_THRESHOLDS.DIAMOND) return RANK_INFO.DIAMOND;
-  if (rating >= RANK_THRESHOLDS.PLATINUM) return RANK_INFO.PLATINUM;
-  if (rating >= RANK_THRESHOLDS.GOLD) return RANK_INFO.GOLD;
-  if (rating >= RANK_THRESHOLDS.SILVER) return RANK_INFO.SILVER;
-  return RANK_INFO.BRONZE;
+function getRankFromRating(rating: number): { 
+  name: string; 
+  emoji: string; 
+  color: string; 
+  range: string;
+  progress: number;
+  nextRank?: string;
+  pointsToNext?: number;
+} {
+  let currentRank = RANK_INFO.BRONZE;
+  let nextThreshold = RANK_THRESHOLDS.SILVER;
+  let nextRankName = 'Серебро';
+
+  if (rating >= RANK_THRESHOLDS.DIAMOND) {
+    currentRank = RANK_INFO.DIAMOND;
+    return { ...currentRank, progress: 100 }; // Max rank
+  } else if (rating >= RANK_THRESHOLDS.PLATINUM) {
+    currentRank = RANK_INFO.PLATINUM;
+    nextThreshold = RANK_THRESHOLDS.DIAMOND;
+    nextRankName = 'Алмаз';
+  } else if (rating >= RANK_THRESHOLDS.GOLD) {
+    currentRank = RANK_INFO.GOLD;
+    nextThreshold = RANK_THRESHOLDS.PLATINUM;
+    nextRankName = 'Платина';
+  } else if (rating >= RANK_THRESHOLDS.SILVER) {
+    currentRank = RANK_INFO.SILVER;
+    nextThreshold = RANK_THRESHOLDS.GOLD;
+    nextRankName = 'Золото';
+  } else {
+    currentRank = RANK_INFO.BRONZE;
+    nextThreshold = RANK_THRESHOLDS.SILVER;
+    nextRankName = 'Серебро';
+  }
+
+  const currentThreshold = rating >= RANK_THRESHOLDS.DIAMOND ? RANK_THRESHOLDS.PLATINUM :
+                          rating >= RANK_THRESHOLDS.PLATINUM ? RANK_THRESHOLDS.GOLD :
+                          rating >= RANK_THRESHOLDS.GOLD ? RANK_THRESHOLDS.SILVER :
+                          rating >= RANK_THRESHOLDS.SILVER ? RANK_THRESHOLDS.BRONZE :
+                          RANK_THRESHOLDS.BRONZE;
+
+  const progress = Math.min(100, ((rating - currentThreshold) / (nextThreshold - currentThreshold)) * 100);
+  const pointsToNext = nextThreshold - rating;
+
+  return {
+    ...currentRank,
+    progress,
+    nextRank: nextRankName,
+    pointsToNext: pointsToNext > 0 ? pointsToNext : undefined,
+  };
+}
+
+/**
+ * Generate avatar URL using Boring Avatars.
+ * 
+ * @param playerId - Player ID for consistent avatar generation
+ * @param variant - Avatar style variant
+ * @returns Avatar URL
+ * @example
+ * const avatarUrl = generateAvatarUrl('player-123', 'beam');
+ */
+function generateAvatarUrl(playerId: string, variant: string = 'beam'): string {
+  const variants = ['marble', 'beam', 'pixel', 'sunset', 'ring', 'bauhaus'];
+  const selectedVariant = variants.includes(variant) ? variant : 'beam';
+  return `https://source.boringavatars.com/${selectedVariant}/120/${encodeURIComponent(playerId)}?colors=264653,2a9d8f,e9c46a,f4a261,e76f51`;
+}
+
+/**
+ * Get available preset avatars.
+ * 
+ * @returns Array of preset avatar options
+ */
+function getPresetAvatars(): Array<{ id: string; name: string; url: string }> {
+  const variants = ['marble', 'beam', 'pixel', 'sunset', 'ring', 'bauhaus', 'geometric', 'abstract'];
+  return variants.slice(0, 10).map((variant, index) => ({
+    id: variant,
+    name: `Стиль ${index + 1}`,
+    url: generateAvatarUrl('preset', variant),
+  }));
+}
+
+/**
+ * Check which achievements player has earned.
+ * 
+ * @param stats - Player statistics
+ * @param teamCount - Number of teams player has
+ * @returns Array of earned achievements
+ */
+function getEarnedAchievements(stats: PlayerStats, teamCount: number) {
+  return Object.values(ACHIEVEMENTS).filter(achievement => 
+    achievement.requirement(stats, teamCount)
+  );
 }
 
 /**
@@ -153,6 +264,220 @@ async function copyToClipboard(text: string): Promise<void> {
 // =============================================================================
 // COMPONENTS
 // =============================================================================
+
+/**
+ * Player avatar component with selection modal.
+ */
+function PlayerAvatar({ 
+  playerId, 
+  currentVariant = 'beam',
+  onVariantChange 
+}: { 
+  playerId: string;
+  currentVariant?: string;
+  onVariantChange?: (variant: string) => void;
+}) {
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [selectedVariant, setSelectedVariant] = useState(currentVariant);
+  const presetAvatars = getPresetAvatars();
+
+  const handleSaveAvatar = () => {
+    onVariantChange?.(selectedVariant);
+    setShowAvatarModal(false);
+  };
+
+  return (
+    <>
+      <div className="relative">
+        <img
+          src={generateAvatarUrl(playerId, currentVariant)}
+          alt="Player Avatar"
+          className="w-24 h-24 rounded-full border-4 border-gray-600 cursor-pointer hover:border-blue-400 transition-colors"
+          onClick={() => setShowAvatarModal(true)}
+          title="Нажмите, чтобы изменить аватар"
+        />
+        <button
+          onClick={() => setShowAvatarModal(true)}
+          className="absolute -bottom-1 -right-1 w-8 h-8 bg-blue-600 hover:bg-blue-500 rounded-full flex items-center justify-center text-white transition-colors"
+          title="Изменить аватар"
+        >
+          ✏️
+        </button>
+      </div>
+
+      {/* Avatar Selection Modal */}
+      {showAvatarModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full border border-gray-600">
+            <h3 className="text-xl font-bold mb-4">Выберите аватар</h3>
+            
+            <div className="grid grid-cols-5 gap-3 mb-6">
+              {presetAvatars.map((avatar) => (
+                <button
+                  key={avatar.id}
+                  onClick={() => setSelectedVariant(avatar.id)}
+                  className={`
+                    relative rounded-full border-2 transition-all hover:scale-105
+                    ${selectedVariant === avatar.id 
+                      ? 'border-blue-400 ring-2 ring-blue-400/50' 
+                      : 'border-gray-600 hover:border-gray-500'
+                    }
+                  `}
+                >
+                  <img
+                    src={generateAvatarUrl(playerId, avatar.id)}
+                    alt={avatar.name}
+                    className="w-12 h-12 rounded-full"
+                  />
+                </button>
+              ))}
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={handleSaveAvatar}
+                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors"
+              >
+                Сохранить
+              </button>
+              <button
+                onClick={() => setShowAvatarModal(false)}
+                className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors"
+              >
+                Отмена
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+/**
+ * Rank display with tooltip showing progress to next rank.
+ */
+function RankDisplay({ rating }: { rating: number }) {
+  const [showTooltip, setShowTooltip] = useState(false);
+  const rank = getRankFromRating(rating);
+
+  return (
+    <div className="relative">
+      <div
+        className="text-center cursor-pointer"
+        onMouseEnter={() => setShowTooltip(true)}
+        onMouseLeave={() => setShowTooltip(false)}
+      >
+        <div className="text-3xl mb-1">{rank.emoji}</div>
+        <div className={`font-bold ${rank.color}`}>{rank.name}</div>
+        <div className="text-2xl font-bold text-white">{rating}</div>
+        <div className="text-sm text-gray-400">Рейтинг</div>
+      </div>
+
+      {/* Tooltip */}
+      {showTooltip && (
+        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-10">
+          <div className="bg-gray-900 border border-gray-600 rounded-lg p-3 shadow-xl min-w-48">
+            <div className="text-sm">
+              <div className="font-bold text-white mb-2 flex items-center gap-2">
+                <span className="text-lg">{rank.emoji}</span>
+                {rank.name}
+              </div>
+              
+              <div className="text-gray-300 mb-2">
+                Диапазон: {rank.range}
+              </div>
+              
+              {rank.nextRank && rank.pointsToNext && (
+                <>
+                  <div className="text-gray-300 mb-2">
+                    До {rank.nextRank}: {rank.pointsToNext} очков
+                  </div>
+                  
+                  <div className="mb-2">
+                    <div className="flex justify-between text-xs text-gray-400 mb-1">
+                      <span>Прогресс</span>
+                      <span>{Math.round(rank.progress)}%</span>
+                    </div>
+                    <div className="w-full bg-gray-700 rounded-full h-2">
+                      <div 
+                        className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-500"
+                        style={{ width: `${rank.progress}%` }}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+              
+              {rank.progress === 100 && (
+                <div className="text-yellow-400 text-sm font-medium">
+                  🏆 Максимальный ранг!
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Achievements display component.
+ */
+function AchievementsCard({ 
+  stats, 
+  teamCount 
+}: { 
+  stats: PlayerStats;
+  teamCount: number;
+}) {
+  const earnedAchievements = getEarnedAchievements(stats, teamCount);
+  const totalAchievements = Object.keys(ACHIEVEMENTS).length;
+
+  return (
+    <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+      <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+        🏅 Достижения ({earnedAchievements.length}/{totalAchievements})
+      </h2>
+      
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {Object.values(ACHIEVEMENTS).map((achievement) => {
+          const isEarned = earnedAchievements.some(earned => earned.id === achievement.id);
+          
+          return (
+            <div
+              key={achievement.id}
+              className={`
+                text-center p-3 rounded-lg border-2 transition-all
+                ${isEarned 
+                  ? 'border-yellow-400/50 bg-yellow-900/20' 
+                  : 'border-gray-600 bg-gray-700/30 opacity-60'
+                }
+              `}
+              title={achievement.description}
+            >
+              <div className={`text-2xl mb-2 ${isEarned ? '' : 'grayscale'}`}>
+                {achievement.emoji}
+              </div>
+              <div className={`font-medium text-sm ${isEarned ? 'text-yellow-400' : 'text-gray-400'}`}>
+                {achievement.name}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                {achievement.description}
+              </div>
+              {isEarned && (
+                <div className="text-xs text-yellow-400 mt-1 font-medium">
+                  ✅ Получено
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 /**
  * Editable player name component.
@@ -245,8 +570,6 @@ function EditablePlayerName({
  * Player statistics card component.
  */
 function StatsCard({ stats }: { stats: PlayerStats }) {
-  const rank = getRankFromRating(stats.rating);
-
   return (
     <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
       <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
@@ -254,13 +577,8 @@ function StatsCard({ stats }: { stats: PlayerStats }) {
       </h2>
       
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {/* Rating & Rank */}
-        <div className="text-center">
-          <div className="text-2xl mb-1">{rank.emoji}</div>
-          <div className={`font-bold ${rank.color}`}>{rank.name}</div>
-          <div className="text-2xl font-bold text-white">{stats.rating}</div>
-          <div className="text-sm text-gray-400">Рейтинг</div>
-        </div>
+        {/* Rating & Rank with tooltip */}
+        <RankDisplay rating={stats.rating} />
 
         {/* Games Played */}
         <div className="text-center">
@@ -302,7 +620,69 @@ function StatsCard({ stats }: { stats: PlayerStats }) {
 }
 
 /**
- * Player teams list component.
+ * Get role icon for unit role.
+ * 
+ * @param role - Unit role
+ * @returns Role icon emoji
+ */
+function getRoleIcon(role: string): string {
+  const roleIcons: Record<string, string> = {
+    tank: '🛡️',
+    melee_dps: '⚔️',
+    ranged_dps: '🏹',
+    mage: '🔮',
+    support: '💚',
+    control: '✨',
+  };
+  return roleIcons[role] || '❓';
+}
+
+/**
+ * Team preview tooltip component.
+ */
+function TeamPreview({ 
+  team, 
+  position 
+}: { 
+  team: TeamResponse;
+  position: { x: number; y: number };
+}) {
+  const roleCount = team.units.reduce((acc, unit) => {
+    acc[unit.role] = (acc[unit.role] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  return (
+    <div
+      className="fixed z-50 bg-gray-900 border border-gray-600 rounded-lg p-3 shadow-xl"
+      style={{
+        left: position.x,
+        top: position.y,
+        transform: 'translate(-50%, -100%)',
+      }}
+    >
+      <div className="text-sm">
+        <div className="font-bold text-white mb-2">{team.name}</div>
+        
+        <div className="grid grid-cols-3 gap-2 mb-2">
+          {Object.entries(roleCount).map(([role, count]) => (
+            <div key={role} className="flex items-center gap-1">
+              <span className="text-lg">{getRoleIcon(role)}</span>
+              <span className="text-gray-300">×{count}</span>
+            </div>
+          ))}
+        </div>
+        
+        <div className="text-xs text-gray-400 border-t border-gray-700 pt-2">
+          {team.totalCost}/30 очков • {team.units.length} юнитов
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Player teams list component with hover previews.
  */
 function TeamsCard({ 
   teams, 
@@ -313,6 +693,26 @@ function TeamsCard({
   onTeamClick: (teamId: string) => void;
   onCreateTeam: () => void;
 }) {
+  const [hoveredTeam, setHoveredTeam] = useState<{
+    team: TeamResponse;
+    position: { x: number; y: number };
+  } | null>(null);
+
+  const handleTeamHover = (team: TeamResponse, event: React.MouseEvent) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    setHoveredTeam({
+      team,
+      position: {
+        x: rect.left + rect.width / 2,
+        y: rect.top - 10,
+      },
+    });
+  };
+
+  const handleTeamLeave = () => {
+    setHoveredTeam(null);
+  };
+
   if (teams.length === 0) {
     return (
       <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
@@ -336,58 +736,82 @@ function TeamsCard({
   }
 
   return (
-    <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-      <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-        ⚔️ Команды ({teams.length})
-      </h2>
-      
-      <div className="space-y-3">
-        {teams.map(team => (
-          <div
-            key={team.id}
-            onClick={() => onTeamClick(team.id)}
-            className={`
-              p-4 rounded-lg border-2 cursor-pointer transition-all duration-200
-              hover:scale-[1.02] hover:shadow-lg
-              ${team.isActive 
-                ? 'bg-blue-900/30 border-blue-400/50 hover:border-blue-400' 
-                : 'bg-gray-700/50 border-gray-600 hover:border-gray-500'
-              }
-            `}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  {team.isActive && <span className="text-blue-400">⭐</span>}
-                  <span className="font-bold text-white">{team.name}</span>
-                  {team.isActive && (
-                    <span className="px-2 py-1 bg-blue-600 text-xs rounded text-white">
-                      Активная
-                    </span>
-                  )}
+    <>
+      <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+        <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+          ⚔️ Команды ({teams.length})
+        </h2>
+        
+        <div className="space-y-3">
+          {teams.map(team => (
+            <div
+              key={team.id}
+              onClick={() => onTeamClick(team.id)}
+              onMouseEnter={(e) => handleTeamHover(team, e)}
+              onMouseLeave={handleTeamLeave}
+              className={`
+                p-4 rounded-lg border-2 cursor-pointer transition-all duration-200
+                hover:scale-[1.02] hover:shadow-lg
+                ${team.isActive 
+                  ? 'bg-blue-900/30 border-blue-400/50 hover:border-blue-400' 
+                  : 'bg-gray-700/50 border-gray-600 hover:border-gray-500'
+                }
+              `}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    {team.isActive && <span className="text-blue-400">⭐</span>}
+                    <span className="font-bold text-white">{team.name}</span>
+                    {team.isActive && (
+                      <span className="px-2 py-1 bg-blue-600 text-xs rounded text-white">
+                        Активная
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-sm text-gray-400 mb-2">
+                    {team.units.length} юнитов • {team.totalCost}/30 очков
+                  </div>
+                  
+                  {/* Role icons preview */}
+                  <div className="flex gap-1">
+                    {team.units.slice(0, 6).map((unit, index) => (
+                      <span key={index} className="text-sm" title={unit.name}>
+                        {getRoleIcon(unit.role)}
+                      </span>
+                    ))}
+                    {team.units.length > 6 && (
+                      <span className="text-xs text-gray-400">+{team.units.length - 6}</span>
+                    )}
+                  </div>
                 </div>
-                <div className="text-sm text-gray-400">
-                  {team.units.length} юнитов • {team.totalCost}/30 очков
-                </div>
-              </div>
-              
-              <div className="text-right">
-                <div className="text-sm text-gray-400">
-                  {new Date(team.createdAt).toLocaleDateString('ru-RU')}
+                
+                <div className="text-right">
+                  <div className="text-sm text-gray-400">
+                    {new Date(team.createdAt).toLocaleDateString('ru-RU')}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
+        
+        <button
+          onClick={onCreateTeam}
+          className="w-full mt-4 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+        >
+          + Создать новую команду
+        </button>
       </div>
-      
-      <button
-        onClick={onCreateTeam}
-        className="w-full mt-4 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
-      >
-        + Создать новую команду
-      </button>
-    </div>
+
+      {/* Team preview tooltip */}
+      {hoveredTeam && (
+        <TeamPreview 
+          team={hoveredTeam.team} 
+          position={hoveredTeam.position} 
+        />
+      )}
+    </>
   );
 }
 
@@ -484,6 +908,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [avatarVariant, setAvatarVariant] = useState('beam');
 
   /**
    * Load player teams from API.
@@ -647,14 +1072,23 @@ export default function ProfilePage() {
         <div className="max-w-6xl mx-auto p-6">
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
-          <div>
-            <EditablePlayerName 
-              name={player.name} 
-              onSave={handleNameUpdate}
+          <div className="flex items-center gap-6">
+            {/* Player Avatar */}
+            <PlayerAvatar 
+              playerId={player.id}
+              currentVariant={avatarVariant}
+              onVariantChange={setAvatarVariant}
             />
-            <p className="text-gray-400 mt-2">
-              Игрок с {new Date(player.createdAt).toLocaleDateString('ru-RU')}
-            </p>
+            
+            <div>
+              <EditablePlayerName 
+                name={player.name} 
+                onSave={handleNameUpdate}
+              />
+              <p className="text-gray-400 mt-2">
+                Игрок с {new Date(player.createdAt).toLocaleDateString('ru-RU')}
+              </p>
+            </div>
           </div>
           
           <div className="flex items-center gap-4">
@@ -701,6 +1135,7 @@ export default function ProfilePage() {
           {/* Left column */}
           <div className="space-y-6">
             <StatsCard stats={stats} />
+            <AchievementsCard stats={stats} teamCount={teams.length} />
             <WinRateChart battles={battles} />
           </div>
           

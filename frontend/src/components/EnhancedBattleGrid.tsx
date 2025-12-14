@@ -71,6 +71,10 @@ interface EnhancedBattleGridProps {
   showCoordinates?: boolean;
   /** Disable zoom on mobile */
   disableZoom?: boolean;
+  /** Show only player zone (rows 0-1) for compact team builder view */
+  compactMode?: boolean;
+  /** Unique ID prefix for droppable cells (required when multiple grids exist) */
+  gridId?: string;
 }
 
 // =============================================================================
@@ -158,8 +162,14 @@ export function EnhancedBattleGrid({
   className = '',
   showCoordinates = false,
   disableZoom = false,
+  compactMode = false,
+  gridId = 'default',
 }: EnhancedBattleGridProps) {
   const [hoveredCell, setHoveredCell] = useState<Position | null>(null);
+  
+  // Determine grid height based on mode
+  // compactMode shows only player zone (rows 0-1) for team builder
+  const effectiveGridHeight = compactMode ? 2 : GRID_HEIGHT;
   
   // Create grid cells with units
   const gridCells = useMemo(() => {
@@ -171,7 +181,7 @@ export function EnhancedBattleGrid({
       isValidDropZone: boolean;
     }> = [];
     
-    for (let y = 0; y < GRID_HEIGHT; y++) {
+    for (let y = 0; y < effectiveGridHeight; y++) {
       for (let x = 0; x < GRID_WIDTH; x++) {
         const position = { x, y };
         const unit = getUnitAtPosition(units, position);
@@ -201,7 +211,7 @@ export function EnhancedBattleGrid({
     }
     
     return cells;
-  }, [units, highlightedCells, selectedUnit, hoveredCell, mode]);
+  }, [units, highlightedCells, selectedUnit, hoveredCell, mode, effectiveGridHeight]);
   
   const handleCellClick = useCallback((position: Position) => {
     onCellClick?.(position);
@@ -219,17 +229,24 @@ export function EnhancedBattleGrid({
     `}>
       {/* Grid container */}
       <div 
+        role="grid"
+        aria-label={`Battle grid ${GRID_WIDTH} by ${effectiveGridHeight} cells. ${mode === 'team-builder' ? 'Place units in player zone (rows 0-1)' : 'Battle field view'}`}
+        aria-rowcount={effectiveGridHeight}
+        aria-colcount={GRID_WIDTH}
         className={`
-          grid grid-cols-8 gap-1 p-4 bg-gray-900/50 rounded-lg border border-gray-700
+          grid grid-cols-8 gap-0.5 sm:gap-1 p-2 sm:p-3 md:p-4 bg-gray-900/50 rounded-lg border border-gray-700
           ${!disableZoom ? 'transform-gpu transition-transform' : ''}
+          ${compactMode ? '' : mode === 'team-builder' ? 'min-h-[280px] sm:min-h-[350px] md:min-h-[400px]' : ''}
         `}
         style={{
-          aspectRatio: `${GRID_WIDTH} / ${GRID_HEIGHT}`,
+          aspectRatio: compactMode ? `${GRID_WIDTH} / 2` : `${GRID_WIDTH} / ${GRID_HEIGHT}`,
+          fontSize: 'clamp(0.5rem, 1.5vw, 0.875rem)',
+          maxWidth: '100vw',
         }}
       >
         {gridCells.map(({ position, unit, highlight, isSelected, isValidDropZone }) => (
           <DroppableGridCell
-            key={`${position.x}-${position.y}`}
+            key={`${gridId}-${position.x}-${position.y}`}
             position={position}
             unit={unit}
             highlight={highlight}
@@ -238,6 +255,7 @@ export function EnhancedBattleGrid({
             mode={mode}
             showCoordinates={showCoordinates}
             isValidDropZone={isValidDropZone}
+            gridId={gridId}
             onCellClick={handleCellClick}
             onCellHover={handleCellHover}
           />
@@ -247,21 +265,31 @@ export function EnhancedBattleGrid({
       </div>
       
       {/* Zone legend */}
-      <div className="flex justify-between mt-2 text-xs text-gray-400">
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-blue-900/40 border border-blue-600/50 rounded"></div>
-          <span>Player Zone (Rows 0-1)</span>
+      {/* Zone legend - hide in compact mode */}
+      {!compactMode && (
+        <div className="flex flex-col sm:flex-row sm:justify-between gap-2 mt-2 text-xs sm:text-sm text-gray-400">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 sm:w-4 sm:h-4 bg-blue-900/40 border border-blue-600/50 rounded"></div>
+            <span>Player Zone (Rows 0-1)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 sm:w-4 sm:h-4 bg-red-900/40 border border-red-600/50 rounded"></div>
+            <span>Enemy Zone (Rows 8-9)</span>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-red-900/40 border border-red-600/50 rounded"></div>
-          <span>Enemy Zone (Rows 8-9)</span>
+      )}
+      
+      {/* Compact mode label */}
+      {compactMode && (
+        <div className="mt-2 text-center text-xs text-gray-400">
+          🎯 Зона размещения вашей команды (8×2)
         </div>
-      </div>
+      )}
       
       {/* Mobile zoom hint */}
-      {!disableZoom && (
+      {!disableZoom && !compactMode && (
         <div className="mt-2 text-center text-xs text-gray-500 sm:hidden">
-          Pinch to zoom • Drag to pan
+          📱 Pinch to zoom • Drag to pan
         </div>
       )}
     </div>

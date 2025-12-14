@@ -19,7 +19,6 @@ import {
   useSensor,
   useSensors,
   closestCenter,
-  CollisionDetection,
 } from '@dnd-kit/core';
 import { UnitTemplate, Position } from '@/types/game';
 import { UnitCard } from './UnitCard';
@@ -98,28 +97,11 @@ interface DragDropProviderProps {
 }
 
 // =============================================================================
-// COLLISION DETECTION
+// COLLISION DETECTION NOTE
 // =============================================================================
-
-/**
- * Custom collision detection for better drop zone targeting.
- * Prioritizes grid cells over other drop zones.
- */
-const customCollisionDetection: CollisionDetection = (args) => {
-  // Use closest center as base
-  const closestCenterCollisions = closestCenter(args);
-  
-  // Prioritize grid cells
-  const gridCellCollision = closestCenterCollisions.find(collision => 
-    collision.id.toString().startsWith('grid-cell-')
-  );
-  
-  if (gridCellCollision) {
-    return [gridCellCollision];
-  }
-  
-  return closestCenterCollisions;
-};
+// Using closestCenter directly as collision detection strategy.
+// closestCenter finds the droppable whose center is closest to the pointer,
+// which works well for grid-based layouts.
 
 // =============================================================================
 // MAIN COMPONENT
@@ -140,16 +122,18 @@ export function DragDropProvider({ children, handlers, enabled = true }: DragDro
   const [activeUnit, setActiveUnit] = useState<UnitTemplate | null>(null);
   
   // Configure sensors for both mouse and touch
+  // PointerSensor handles mouse/trackpad with small distance threshold
   const pointerSensor = useSensor(PointerSensor, {
     activationConstraint: {
-      distance: 8, // Minimum distance to start drag
+      distance: 5, // Reduced distance for quicker drag start
     },
   });
   
+  // TouchSensor handles touch devices with delay to distinguish from tap
   const touchSensor = useSensor(TouchSensor, {
     activationConstraint: {
-      delay: 250, // Delay for touch to distinguish from scroll
-      tolerance: 5,
+      delay: 150, // Short delay to distinguish tap from drag
+      tolerance: 8, // Tolerance for finger movement during delay
     },
   });
   
@@ -231,7 +215,7 @@ export function DragDropProvider({ children, handlers, enabled = true }: DragDro
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={customCollisionDetection}
+      collisionDetection={closestCenter}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
@@ -241,11 +225,11 @@ export function DragDropProvider({ children, handlers, enabled = true }: DragDro
       {/* Drag Overlay for visual feedback */}
       <DragOverlay>
         {activeUnit && (
-          <div className="transform rotate-3 scale-105 opacity-90">
+          <div className="transform rotate-3 scale-105 opacity-90 animate-bounce-in max-w-[120px]">
             <UnitCard
               unit={activeUnit}
-              size="compact"
-              className="shadow-2xl border-2 border-yellow-400"
+              variant="compact"
+              className="shadow-2xl border-2 border-yellow-400 animate-pulse-glow w-full"
             />
           </div>
         )}

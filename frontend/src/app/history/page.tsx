@@ -22,7 +22,12 @@ import { ErrorPage, NetworkError } from '@/components/ErrorStates';
 /**
  * Battle filter options.
  */
-type BattleFilter = 'all' | 'victories' | 'defeats';
+type BattleFilter = 'all' | 'victories' | 'defeats' | 'draws';
+
+/**
+ * Sort options for battles.
+ */
+type SortOption = 'date_desc' | 'date_asc' | 'rating_desc' | 'rating_asc';
 
 /**
  * Battle history item with computed properties.
@@ -68,6 +73,7 @@ const FILTER_NAMES: Record<BattleFilter, string> = {
   all: 'Все бои',
   victories: 'Победы',
   defeats: 'Поражения',
+  draws: 'Ничьи',
 };
 
 /** Filter emojis */
@@ -75,11 +81,99 @@ const FILTER_EMOJIS: Record<BattleFilter, string> = {
   all: '⚔️',
   victories: '🏆',
   defeats: '💀',
+  draws: '🤝',
+};
+
+/** Sort display names */
+const SORT_NAMES: Record<SortOption, string> = {
+  date_desc: 'Новые первые',
+  date_asc: 'Старые первые',
+  rating_desc: 'Больше рейтинга',
+  rating_asc: 'Меньше рейтинга',
 };
 
 // =============================================================================
 // UTILITY FUNCTIONS
 // =============================================================================
+
+/**
+ * Get role icon for unit role.
+ * 
+ * @param role - Unit role
+ * @returns Role icon emoji
+ */
+function getRoleIcon(role: string): string {
+  const roleIcons: Record<string, string> = {
+    tank: '🛡️',
+    melee_dps: '⚔️',
+    ranged_dps: '🏹',
+    mage: '🔮',
+    support: '💚',
+    control: '✨',
+  };
+  return roleIcons[role] || '❓';
+}
+
+/**
+ * Generate team preview string from team setup.
+ * 
+ * @param teamSetup - Team setup data
+ * @returns Team preview string with role icons
+ * @example
+ * const preview = generateTeamPreview(teamSetup); // "🛡️🛡️⚔️💚"
+ */
+function generateTeamPreview(teamSetup: any): string {
+  if (!teamSetup?.units || !Array.isArray(teamSetup.units)) {
+    return '❓❓❓';
+  }
+  
+  return teamSetup.units
+    .slice(0, 4) // Show max 4 units
+    .map((unit: any) => getRoleIcon(unit.role))
+    .join('');
+}
+
+/**
+ * Get opponent display name from battle log.
+ * Uses player names if available, otherwise falls back to generic names.
+ * 
+ * @param battle - Battle log data
+ * @param playerId - Current player ID
+ * @returns Opponent display name
+ */
+function getOpponentName(battle: BattleLog, playerId: string): string {
+  const isPlayer1 = battle.player1Id === playerId;
+  const opponentId = isPlayer1 ? battle.player2Id : battle.player1Id;
+  
+  // Check if opponent is a bot
+  if (opponentId === 'bot' || opponentId.startsWith('bot-')) {
+    return 'Бот';
+  }
+  
+  // Use player names if available
+  if (isPlayer1 && (battle as any).player2Name) {
+    return (battle as any).player2Name;
+  } else if (!isPlayer1 && (battle as any).player1Name) {
+    return (battle as any).player1Name;
+  }
+  
+  // Fallback to generic name
+  return `Игрок ${opponentId.slice(-4)}`;
+}
+
+/**
+ * Get battle type icon (PvP or Bot).
+ * 
+ * @param battle - Battle log data
+ * @param playerId - Current player ID
+ * @returns Battle type icon
+ */
+function getBattleTypeIcon(battle: BattleLog, playerId: string): string {
+  const isPlayer1 = battle.player1Id === playerId;
+  const opponentId = isPlayer1 ? battle.player2Id : battle.player1Id;
+  
+  return opponentId === 'bot' || opponentId.startsWith('bot-') ? '🤖' : '👥';
+}
 
 /**
  * Convert battle log to history item with computed properties.
@@ -93,11 +187,8 @@ const FILTER_EMOJIS: Record<BattleFilter, string> = {
 function toBattleHistoryItem(battle: BattleLog, playerId: string): BattleHistoryItem {
   const isPlayer1 = battle.player1Id === playerId;
   
-  // Determine opponent
-  const opponentId = isPlayer1 ? battle.player2Id : battle.player1Id;
-  const opponent = opponentId === 'bot' || opponentId.startsWith('bot-') 
-    ? 'Бот' 
-    : `Игрок ${opponentId.slice(-4)}`;
+  // Determine opponent with enhanced name resolution
+  const opponent = getOpponentName(battle, playerId);
   
   // Determine outcome
   let outcome: 'victory' | 'defeat' | 'draw' = 'draw';
@@ -163,6 +254,8 @@ function filterBattles(battles: BattleHistoryItem[], filter: BattleFilter): Batt
       return battles.filter(item => item.outcome === 'victory');
     case 'defeats':
       return battles.filter(item => item.outcome === 'defeat');
+    case 'draws':
+      return battles.filter(item => item.outcome === 'draw');
     case 'all':
     default:
       return battles;
@@ -170,38 +263,48 @@ function filterBattles(battles: BattleHistoryItem[], filter: BattleFilter): Batt
 }
 
 /**
- * Paginate battles array.
+ * Sort battles based on sort option.
  * 
  * @param battles - Array of battle history items
- * @param page - Current page (0-based)
- * @param itemsPerPage - Items per page
- * @returns Paginated battles
+ * @param sortOption - Sort option to apply
+ * @returns Sorted battles
  * @example
- * const page1 = paginateBattles(battles, 0, 10);
+ * const sorted = sortBattles(battles, 'date_desc');
  */
-function paginateBattles(
-  battles: BattleHistoryItem[], 
-  page: number, 
-  itemsPerPage: number
-): BattleHistoryItem[] {
-  const startIndex = page * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  return battles.slice(startIndex, endIndex);
+function sortBattles(battles: BattleHistoryItem[], sortOption: SortOption): BattleHistoryItem[] {
+  const sorted = [...battles];
+  
+  switch (sortOption) {
+    case 'date_desc':
+      return sorted.sort((a, b) => new Date(b.battle.createdAt).getTime() - new Date(a.battle.createdAt).getTime());
+    case 'date_asc':
+      return sorted.sort((a, b) => new Date(a.battle.createdAt).getTime() - new Date(b.battle.createdAt).getTime());
+    case 'rating_desc':
+      return sorted.sort((a, b) => b.ratingChange - a.ratingChange);
+    case 'rating_asc':
+      return sorted.sort((a, b) => a.ratingChange - b.ratingChange);
+    default:
+      return sorted;
+  }
 }
+
+
 
 // =============================================================================
 // COMPONENTS
 // =============================================================================
 
 /**
- * Battle history item component.
+ * Enhanced battle history item component with team previews.
  */
 function BattleHistoryItemComponent({ 
   item, 
-  onClick 
+  onClick,
+  playerId
 }: { 
   item: BattleHistoryItem; 
   onClick: () => void;
+  playerId: string;
 }) {
   const outcomeConfig = {
     victory: {
@@ -228,10 +331,18 @@ function BattleHistoryItemComponent({
   };
   
   const config = outcomeConfig[item.outcome];
+  const isPlayer1 = item.battle.player1Id === playerId;
+  const battleTypeIcon = getBattleTypeIcon(item.battle, playerId);
+  
+  // Generate team previews
+  const playerTeam = isPlayer1 ? item.battle.player1TeamSnapshot : item.battle.player2TeamSnapshot;
+  const opponentTeam = isPlayer1 ? item.battle.player2TeamSnapshot : item.battle.player1TeamSnapshot;
+  
+  const playerPreview = generateTeamPreview(playerTeam);
+  const opponentPreview = generateTeamPreview(opponentTeam);
   
   return (
     <div
-      onClick={onClick}
       className={`
         p-4 rounded-lg border-2 cursor-pointer transition-all duration-200
         hover:scale-[1.02] hover:shadow-lg
@@ -245,12 +356,30 @@ function BattleHistoryItemComponent({
           <div className="text-3xl">{config.emoji}</div>
           
           <div>
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-2">
               <span className={`font-bold ${config.color}`}>
                 {config.text}
               </span>
               <span className="text-gray-400">против</span>
-              <span className="text-white font-medium">{item.opponent}</span>
+              <span className="text-white font-medium flex items-center gap-1">
+                {battleTypeIcon} {item.opponent}
+              </span>
+              {item.outcome === 'draw' && (
+                <span 
+                  className="text-xs bg-yellow-600 text-white px-2 py-1 rounded cursor-help"
+                  title="100 раундов = ничья"
+                >
+                  100 раундов
+                </span>
+              )}
+            </div>
+            
+            {/* Team previews */}
+            <div className="flex items-center gap-2 mb-2 text-sm">
+              <span className="text-blue-400">Вы:</span>
+              <span className="text-lg">{playerPreview}</span>
+              <span className="text-gray-400">vs</span>
+              <span className="text-lg">{opponentPreview}</span>
             </div>
             
             <div className="flex items-center gap-4 text-sm text-gray-400">
@@ -261,8 +390,8 @@ function BattleHistoryItemComponent({
           </div>
         </div>
         
-        {/* Rating change */}
-        <div className="text-right">
+        {/* Actions and rating */}
+        <div className="text-right flex flex-col items-end gap-2">
           <div className={`
             text-lg font-bold px-3 py-1 rounded
             ${item.ratingChange > 0 
@@ -274,7 +403,17 @@ function BattleHistoryItemComponent({
           `}>
             {item.ratingChange > 0 ? '+' : ''}{item.ratingChange}
           </div>
-          <div className="text-xs text-gray-500 mt-1">Рейтинг</div>
+          <div className="text-xs text-gray-500 mb-2">Рейтинг</div>
+          
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onClick();
+            }}
+            className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-sm transition-colors flex items-center gap-1"
+          >
+            ▶️ Смотреть повтор
+          </button>
         </div>
       </div>
     </div>
@@ -282,7 +421,7 @@ function BattleHistoryItemComponent({
 }
 
 /**
- * Filter buttons component.
+ * Filter buttons component with draws support.
  */
 function FilterButtons({ 
   currentFilter, 
@@ -294,7 +433,7 @@ function FilterButtons({
   battleCounts: Record<BattleFilter, number>;
 }) {
   return (
-    <div className="flex gap-2 mb-6">
+    <div className="flex flex-wrap gap-2 mb-6">
       {(Object.keys(FILTER_NAMES) as BattleFilter[]).map(filter => (
         <button
           key={filter}
@@ -305,13 +444,18 @@ function FilterButtons({
               ? 'bg-blue-600 text-white'
               : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
             }
+            ${filter === 'draws' ? 'relative' : ''}
           `}
+          title={filter === 'draws' ? '100 раундов = ничья' : undefined}
         >
           <span>{FILTER_EMOJIS[filter]}</span>
           <span>{FILTER_NAMES[filter]}</span>
           <span className="bg-black/20 px-2 py-1 rounded text-sm">
             {battleCounts[filter]}
           </span>
+          {filter === 'draws' && battleCounts[filter] > 0 && (
+            <span className="absolute -top-1 -right-1 w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
+          )}
         </button>
       ))}
     </div>
@@ -319,70 +463,87 @@ function FilterButtons({
 }
 
 /**
- * Pagination component.
+ * Sort controls component.
  */
-function Pagination({ 
-  pagination, 
-  onPageChange 
+function SortControls({ 
+  currentSort, 
+  onSortChange 
 }: { 
-  pagination: PaginationState;
-  onPageChange: (page: number) => void;
+  currentSort: SortOption;
+  onSortChange: (sort: SortOption) => void;
 }) {
-  if (pagination.totalPages <= 1) return null;
-  
-  const pages = Array.from({ length: pagination.totalPages }, (_, i) => i);
+  return (
+    <div className="flex items-center gap-2 mb-6">
+      <span className="text-sm text-gray-400">Сортировка:</span>
+      <select
+        value={currentSort}
+        onChange={(e) => onSortChange(e.target.value as SortOption)}
+        className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
+      >
+        {(Object.keys(SORT_NAMES) as SortOption[]).map(sort => (
+          <option key={sort} value={sort}>
+            {SORT_NAMES[sort]}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+/**
+ * Load more button component for infinite scroll.
+ */
+function LoadMoreButton({ 
+  hasMore,
+  loading,
+  onLoadMore 
+}: { 
+  hasMore: boolean;
+  loading: boolean;
+  onLoadMore: () => void;
+}) {
+  if (!hasMore) return null;
   
   return (
-    <div className="flex items-center justify-center gap-2 mt-8">
-      <button
-        onClick={() => onPageChange(pagination.currentPage - 1)}
-        disabled={pagination.currentPage === 0}
-        className="px-3 py-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+    <div className="flex justify-center mt-8">
+      <ButtonLoader
+        loading={loading}
+        onClick={onLoadMore}
+        variant="secondary"
+        size="lg"
+        loadingText="Загрузка..."
       >
-        ← Назад
-      </button>
-      
-      {pages.map(page => (
-        <button
-          key={page}
-          onClick={() => onPageChange(page)}
-          className={`
-            px-3 py-2 rounded-lg transition-colors
-            ${page === pagination.currentPage
-              ? 'bg-blue-600 text-white'
-              : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-            }
-          `}
-        >
-          {page + 1}
-        </button>
-      ))}
-      
-      <button
-        onClick={() => onPageChange(pagination.currentPage + 1)}
-        disabled={pagination.currentPage >= pagination.totalPages - 1}
-        className="px-3 py-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-      >
-        Вперёд →
-      </button>
+        Загрузить ещё
+      </ButtonLoader>
     </div>
   );
 }
 
+
+
 /**
- * Empty state component.
+ * Enhanced empty state component with matchmaking integration.
  */
 function EmptyState({ filter }: { filter: BattleFilter }) {
   const messages = {
-    all: 'У вас пока нет боёв',
+    all: 'Нет боёв',
     victories: 'У вас пока нет побед',
     defeats: 'У вас пока нет поражений',
+    draws: 'У вас пока нет ничьих',
   };
   
   const emojis = {
     all: '⚔️',
     victories: '🏆',
     defeats: '💀',
+    draws: '🤝',
+  };
+  
+  const descriptions = {
+    all: 'Начните свой первый бой!',
+    victories: 'Продолжайте сражаться, чтобы одержать первую победу!',
+    defeats: 'Пока что вы не проиграли ни одного боя. Отлично!',
+    draws: 'Ничьи случаются редко - когда бой длится 100 раундов.',
   };
   
   return (
@@ -392,19 +553,35 @@ function EmptyState({ filter }: { filter: BattleFilter }) {
         {messages[filter]}
       </h3>
       <p className="text-gray-500 mb-8">
-        {filter === 'all' 
-          ? 'Создайте команду и начните сражаться!'
-          : 'Продолжайте сражаться, чтобы увидеть результаты здесь.'
-        }
+        {descriptions[filter]}
       </p>
-      <ButtonLoader
-        loading={false}
-        onClick={() => window.location.href = '/'}
-        variant="primary"
-        size="lg"
-      >
-        {filter === 'all' ? 'Создать команду' : 'Новый бой'}
-      </ButtonLoader>
+      
+      {filter === 'all' && (
+        <div className="space-y-4">
+          <ButtonLoader
+            loading={false}
+            onClick={() => window.location.href = '/'}
+            variant="primary"
+            size="lg"
+          >
+            🎯 Найти бой
+          </ButtonLoader>
+          <div className="text-sm text-gray-400">
+            Создайте команду и начните сражаться с другими игроками!
+          </div>
+        </div>
+      )}
+      
+      {filter !== 'all' && (
+        <ButtonLoader
+          loading={false}
+          onClick={() => window.location.href = '/'}
+          variant="secondary"
+          size="lg"
+        >
+          Новый бой
+        </ButtonLoader>
+      )}
     </div>
   );
 }
@@ -426,9 +603,12 @@ export default function BattleHistoryPage() {
   
   // State
   const [battles, setBattles] = useState<BattleHistoryItem[]>([]);
+  const [displayedBattles, setDisplayedBattles] = useState<BattleHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<BattleFilter>('all');
+  const [sortOption, setSortOption] = useState<SortOption>('date_desc');
   const [pagination, setPagination] = useState<PaginationState>({
     currentPage: 0,
     itemsPerPage: ITEMS_PER_PAGE,
@@ -438,12 +618,14 @@ export default function BattleHistoryPage() {
   
   // Computed values
   const filteredBattles = filterBattles(battles, filter);
-  const paginatedBattles = paginateBattles(filteredBattles, pagination.currentPage, pagination.itemsPerPage);
+  const sortedBattles = sortBattles(filteredBattles, sortOption);
+  const hasMoreBattles = displayedBattles.length < sortedBattles.length;
   
   const battleCounts: Record<BattleFilter, number> = {
     all: battles.length,
     victories: battles.filter(b => b.outcome === 'victory').length,
     defeats: battles.filter(b => b.outcome === 'defeat').length,
+    draws: battles.filter(b => b.outcome === 'draw').length,
   };
   
   /**
@@ -481,11 +663,28 @@ export default function BattleHistoryPage() {
   }, []);
   
   /**
-   * Handle page change.
+   * Handle sort change.
    */
-  const handlePageChange = useCallback((page: number) => {
-    setPagination(prev => ({ ...prev, currentPage: page }));
+  const handleSortChange = useCallback((newSort: SortOption) => {
+    setSortOption(newSort);
   }, []);
+  
+  /**
+   * Handle load more battles.
+   */
+  const handleLoadMore = useCallback(() => {
+    setLoadingMore(true);
+    
+    // Simulate loading delay
+    setTimeout(() => {
+      const currentCount = displayedBattles.length;
+      const nextBatch = sortedBattles.slice(currentCount, currentCount + ITEMS_PER_PAGE);
+      setDisplayedBattles(prev => [...prev, ...nextBatch]);
+      setLoadingMore(false);
+    }, 500);
+  }, [displayedBattles.length, sortedBattles]);
+  
+
   
   /**
    * Handle battle click - navigate to replay.
@@ -493,6 +692,12 @@ export default function BattleHistoryPage() {
   const handleBattleClick = useCallback((battleId: string) => {
     router.push(`/battle/${battleId}`);
   }, [router]);
+  
+  // Update displayed battles when filter or sort changes
+  useEffect(() => {
+    const initialBattles = sortedBattles.slice(0, ITEMS_PER_PAGE);
+    setDisplayedBattles(initialBattles);
+  }, [filter, sortOption, battles]); // Re-run when battles, filter, or sort changes
   
   // Update pagination when filtered battles change
   useEffect(() => {
@@ -569,32 +774,40 @@ export default function BattleHistoryPage() {
               <EmptyState filter="all" />
             ) : (
               <>
-                {/* Filters */}
-                <FilterButtons
-                  currentFilter={filter}
-                  onFilterChange={handleFilterChange}
-                  battleCounts={battleCounts}
-                />
+                {/* Filters and Sort */}
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+                  <FilterButtons
+                    currentFilter={filter}
+                    onFilterChange={handleFilterChange}
+                    battleCounts={battleCounts}
+                  />
+                  <SortControls
+                    currentSort={sortOption}
+                    onSortChange={handleSortChange}
+                  />
+                </div>
                 
                 {/* Battle list */}
-                {filteredBattles.length === 0 ? (
+                {displayedBattles.length === 0 ? (
                   <EmptyState filter={filter} />
                 ) : (
                   <>
                     <div className="space-y-4">
-                      {paginatedBattles.map(item => (
+                      {displayedBattles.map(item => (
                         <BattleHistoryItemComponent
                           key={item.battle.id}
                           item={item}
                           onClick={() => handleBattleClick(item.battle.id)}
+                          playerId="current-player" // TODO: Get from auth context
                         />
                       ))}
                     </div>
                     
-                    {/* Pagination */}
-                    <Pagination
-                      pagination={pagination}
-                      onPageChange={handlePageChange}
+                    {/* Load More Button */}
+                    <LoadMoreButton
+                      hasMore={hasMoreBattles}
+                      loading={loadingMore}
+                      onLoadMore={handleLoadMore}
                     />
                   </>
                 )}

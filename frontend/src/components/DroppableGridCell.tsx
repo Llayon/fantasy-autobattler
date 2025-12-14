@@ -7,11 +7,10 @@
 
 'use client';
 
-import React from 'react';
+import React, { memo } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { Position, UnitTemplate, UnitId, UNIT_INFO } from '@/types/game';
 import { GridDropData } from './DragDropProvider';
-import { DraggableUnit } from './DraggableUnit';
 
 // =============================================================================
 // TYPES
@@ -74,6 +73,8 @@ interface DroppableGridCellProps {
   onCellClick: (position: Position) => void;
   /** Hover handler */
   onCellHover: (position: Position | null) => void;
+  /** Unique grid ID prefix for droppable IDs */
+  gridId: string;
 }
 
 // =============================================================================
@@ -143,7 +144,7 @@ function getBaseCellStyle(row: number): string {
  *   onCellClick={handleCellClick}
  * />
  */
-export function DroppableGridCell({
+const DroppableGridCell = memo(function DroppableGridCell({
   position,
   unit,
   highlight,
@@ -154,13 +155,19 @@ export function DroppableGridCell({
   isValidDropZone,
   onCellClick,
   onCellHover,
+  gridId,
 }: DroppableGridCellProps) {
   // Set up droppable functionality
+  // Each cell gets a unique ID based on grid ID and position to avoid duplicates
+  const droppableId = `grid-cell-${gridId}-${position.x}-${position.y}`;
+  
   const {
     isOver,
     setNodeRef,
+    active,
   } = useDroppable({
-    id: `grid-cell-${position.x}-${position.y}`,
+    id: droppableId,
+    // Only disable if not interactive or not in team-builder mode
     disabled: !interactive || mode !== 'team-builder',
     data: {
       type: 'grid-cell',
@@ -169,11 +176,16 @@ export function DroppableGridCell({
     } as GridDropData,
   });
   
+  // Check if there's an active drag happening
+  const isDragActive = active !== null;
+  
   // Determine cell styling
   const baseStyle = getBaseCellStyle(position.y);
   const highlightStyle = highlight ? HIGHLIGHT_STYLES[highlight.type] : '';
   const dropTargetStyle = isOver && isValidDropZone ? HIGHLIGHT_STYLES['drop-target'] : '';
   const invalidDropStyle = isOver && !isValidDropZone ? 'bg-red-500/30 border-red-500' : '';
+  // Show subtle highlight on valid zones when dragging
+  const dragActiveStyle = isDragActive && isValidDropZone && !isOver ? 'border-green-500/50 bg-green-900/10' : '';
   
   const handleClick = () => {
     if (interactive) {
@@ -196,41 +208,54 @@ export function DroppableGridCell({
   return (
     <div
       ref={setNodeRef}
+      role="gridcell"
+      aria-rowindex={position.y + 1}
+      aria-colindex={position.x + 1}
+      aria-label={`Grid cell ${position.x + 1}, ${position.y + 1}${unit ? ` - ${unit.unit.name}` : ''}${isValidDropZone ? ' - Valid drop zone' : ''}`}
+      aria-selected={isSelected}
+      aria-dropeffect={isDragActive && isValidDropZone ? 'move' : 'none'}
+      tabIndex={interactive ? 0 : -1}
+      data-droppable-id={droppableId}
+      data-position={`${position.x},${position.y}`}
+      data-valid-zone={isValidDropZone}
+      data-is-over={isOver}
+      data-drag-active={isDragActive}
       className={`
         relative aspect-square border transition-all duration-200
+        min-h-[40px] min-w-[40px] sm:min-h-[48px] sm:min-w-[48px] md:min-h-[56px] md:min-w-[56px]
         ${baseStyle}
         ${highlightStyle}
         ${dropTargetStyle}
         ${invalidDropStyle}
-        ${interactive ? 'cursor-pointer hover:bg-white/5' : ''}
-        ${unit ? 'p-1' : ''}
-        ${isOver ? 'scale-105' : ''}
+        ${dragActiveStyle}
+        ${interactive ? 'cursor-pointer hover:bg-white/5 active:bg-white/10 touch-manipulation focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-1' : ''}
+        ${unit ? 'p-0' : ''}
+        ${isOver ? 'scale-105 z-10' : ''}
       `}
       onClick={handleClick}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      onKeyDown={(e) => {
+        if (interactive && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault();
+          handleClick();
+        }
+      }}
     >
-      {/* Unit display */}
-      {unit && mode === 'team-builder' ? (
-        <DraggableUnit
-          unit={unit.unit}
-          id={`grid-unit-${unit.unit.id}-${position.x}-${position.y}`}
-          source="grid"
-          originalPosition={position}
-          size="compact"
-          className="w-full h-full"
-        />
-      ) : unit ? (
-        <UnitDisplay 
-          unit={unit} 
-          isSelected={isSelected}
-          mode={mode}
-        />
-      ) : null}
+      {/* Unit display - simple compact display for grid cells */}
+      {unit && (
+        <div className="animate-unit-place absolute inset-0">
+          <GridUnitDisplay 
+            unit={unit} 
+            isSelected={isSelected}
+            mode={mode}
+          />
+        </div>
+      )}
       
-      {/* Drop zone indicator */}
+      {/* Drop zone indicator - pointer-events-none to not block drops */}
       {isOver && (
-        <div className="absolute inset-0 flex items-center justify-center">
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className={`
             w-8 h-8 rounded-full flex items-center justify-center text-lg
             ${isValidDropZone 
@@ -243,34 +268,41 @@ export function DroppableGridCell({
         </div>
       )}
       
-      {/* Coordinates display */}
+      {/* Coordinates display - pointer-events-none to not block drops */}
       {showCoordinates && !unit && (
-        <div className="absolute top-0 left-0 text-xs text-gray-500 leading-none">
+        <div className="absolute top-0 left-0 text-xs text-gray-500 leading-none pointer-events-none">
           {position.x},{position.y}
         </div>
       )}
       
-      {/* Zone labels */}
+      {/* Zone labels - pointer-events-none to not block drops */}
       {position.x === 0 && (
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full pr-2 text-xs text-gray-400">
+        <span className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full pr-2 text-xs text-gray-400 pointer-events-none select-none">
           {getZoneType(position.y) === 'player' && 'Player'}
           {getZoneType(position.y) === 'enemy' && 'Enemy'}
-        </div>
+        </span>
       )}
     </div>
   );
-}
+});
 
 /**
- * Unit display component for grid cells.
+ * Props for GridUnitDisplay component.
  */
-interface UnitDisplayProps {
+interface GridUnitDisplayProps {
+  /** Unit to display */
   unit: GridUnit;
+  /** Whether unit is selected */
   isSelected: boolean;
+  /** Grid mode */
   mode: 'team-builder' | 'battle' | 'replay';
 }
 
-function UnitDisplay({ unit, isSelected, mode }: UnitDisplayProps) {
+/**
+ * Compact unit display for grid cells.
+ * Shows only essential info: emoji, cost badge, and HP bar.
+ */
+function GridUnitDisplay({ unit, isSelected, mode }: GridUnitDisplayProps) {
   const unitInfo = UNIT_INFO[unit.unit.id as UnitId];
   
   const maxHp = unit.unit.stats.hp;
@@ -288,40 +320,41 @@ function UnitDisplay({ unit, isSelected, mode }: UnitDisplayProps) {
   return (
     <div className={`
       relative w-full h-full flex flex-col items-center justify-center
-      rounded-lg border-2 transition-all duration-200
+      rounded border-2 transition-all duration-200 pointer-events-none
       ${teamStyle}
-      ${isSelected ? 'ring-2 ring-yellow-400 scale-105' : ''}
+      ${isSelected ? 'ring-2 ring-yellow-400' : ''}
       ${!isAlive ? 'opacity-30 grayscale' : ''}
-      ${unitInfo?.color || 'bg-gray-600'} bg-opacity-80
+      ${unitInfo?.color || 'bg-gray-600'} bg-opacity-90
+      min-h-full min-w-full
     `}>
-      {/* Unit emoji */}
-      <div className="text-lg sm:text-xl md:text-2xl">
+      {/* Unit emoji - larger size to fill cell */}
+      <div className="text-lg sm:text-xl md:text-2xl leading-none flex-1 flex items-center justify-center">
         {unitInfo?.emoji || '❓'}
       </div>
       
-      {/* Unit cost (team-builder mode) */}
+      {/* Unit cost badge (team-builder mode) */}
       {mode === 'team-builder' && (
-        <div className="absolute -top-1 -right-1 bg-yellow-500 text-black text-xs rounded-full w-4 h-4 flex items-center justify-center font-bold">
+        <div className="absolute -top-1 -right-1 bg-yellow-500 text-black text-xs sm:text-sm rounded-full w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center font-bold leading-none">
           {unit.unit.cost}
         </div>
       )}
       
-      {/* HP bar (battle/replay mode) */}
-      {(mode === 'battle' || mode === 'replay') && (
-        <div className="absolute -bottom-1 left-0 right-0 mx-1">
-          <div className="bg-gray-900 rounded-full h-1 overflow-hidden">
-            <div 
-              className="h-full bg-green-500 transition-all duration-300"
-              style={{ width: `${hpPercent}%` }}
-            />
-          </div>
+      {/* HP bar - always show in compact form */}
+      <div className="absolute bottom-0 left-0 right-0 px-1">
+        <div className="bg-gray-900/80 rounded-full h-1.5 overflow-hidden">
+          <div 
+            className={`h-full transition-all duration-300 ${
+              hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500'
+            }`}
+            style={{ width: `${hpPercent}%` }}
+          />
         </div>
-      )}
+      </div>
       
       {/* Death indicator */}
       {!isAlive && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-red-500 text-xl">💀</span>
+        <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded">
+          <span className="text-red-500 text-sm">💀</span>
         </div>
       )}
     </div>
@@ -332,4 +365,5 @@ function UnitDisplay({ unit, isSelected, mode }: UnitDisplayProps) {
 // EXPORTS
 // =============================================================================
 
+export { DroppableGridCell };
 export type { DroppableGridCellProps, GridUnit, CellHighlight, HighlightedCell };

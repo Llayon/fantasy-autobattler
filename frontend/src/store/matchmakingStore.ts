@@ -376,7 +376,11 @@ export const useMatchmakingStore = create<MatchmakingStore>((set, get) => ({
     try {
       const battle = await api.startBattle(difficulty, teamId);
       
-      // Simulate match found for bot battle
+      if (!battle || !battle.battleId) {
+        throw new Error('Invalid API response: missing battleId');
+      }
+      
+      // Set match found state for bot battle
       set({ 
         status: 'matched',
         match: {
@@ -386,6 +390,7 @@ export const useMatchmakingStore = create<MatchmakingStore>((set, get) => ({
         },
         loading: false 
       });
+      
     } catch (error) {
       const errorMessage = error instanceof ApiError 
         ? error.message 

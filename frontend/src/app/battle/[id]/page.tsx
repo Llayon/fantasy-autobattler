@@ -1,56 +1,254 @@
+/**
+ * Dynamic Battle page for Fantasy Autobattler.
+ * Displays specific battle by ID with full replay functionality.
+ * 
+ * @fileoverview Battle replay page with BattleReplay component integration.
+ */
+
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useEffect, useState, useCallback } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { Navigation, NavigationWrapper } from '@/components/Navigation';
+import { FullPageLoader } from '@/components/LoadingStates';
+import { ErrorMessage, NetworkError, useToast } from '@/components/ErrorStates';
 import { BattleReplay } from '@/components/BattleReplay';
+import { useBattleStore } from '@/store/battleStore';
+import { useMatchmakingStore } from '@/store/matchmakingStore';
 import { BattleLog } from '@/types/game';
-import { api } from '@/lib/api';
 
-export default function BattlePage() {
-  const params = useParams();
+/**
+ * Battle page props from Next.js routing.
+ */
+interface BattlePageProps {
+  /** Battle ID from URL params */
+  params: {
+    id: string;
+  };
+}
+
+/**
+ * Dynamic Battle page component for specific battle ID.
+ * Loads battle data and displays full replay with BattleReplay component.
+ * 
+ * @param props - Page props with battle ID
+ * @returns Battle replay page
+ * @example
+ * // Accessed via /battle/battle-123
+ * <BattlePage params={{ id: 'battle-123' }} />
+ */
+export default function BattlePage({ params }: BattlePageProps) {
+  const router = useRouter();
+  const urlParams = useParams();
+  const battleId = params?.id || urlParams?.id as string;
+  const { showError } = useToast();
+  
+  // Local state for battle data
   const [battle, setBattle] = useState<BattleLog | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Store state and actions
+  const { loadBattle, currentBattle, error: storeError } = useBattleStore();
+  const { reset: resetMatchmaking } = useMatchmakingStore();
 
+  /**
+   * Load battle data from API.
+   */
   useEffect(() => {
-    async function loadBattle() {
+    if (!battleId) {
+      setError('ID боя не указан');
+      setLoading(false);
+      return;
+    }
+
+    const fetchBattle = async () => {
       try {
-        const id = params.id as string;
-        const data = await api.getBattle(id);
-        setBattle(data);
-      } catch {
-        setError('Battle not found');
+        setLoading(true);
+        setError(null);
+        
+        // Load battle through store
+        await loadBattle(battleId);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Не удалось загрузить бой';
+        setError(errorMessage);
+        showError(errorMessage);
       } finally {
         setLoading(false);
       }
+    };
+
+    fetchBattle();
+  }, [battleId, loadBattle]);
+
+  /**
+   * Update local battle state when store state changes.
+   */
+  useEffect(() => {
+    if (currentBattle) {
+      setBattle(currentBattle);
+      setError(null);
+    } else if (storeError) {
+      setError(storeError);
     }
-    loadBattle();
-  }, [params.id]);
+  }, [currentBattle, storeError]);
+  
+  /**
+   * Clear matchmaking state when viewing battle replay to prevent redirect loops.
+   */
+  useEffect(() => {
+    resetMatchmaking();
+  }, [resetMatchmaking]);
 
+  /**
+   * Navigate back to battle history.
+   */
+  const handleBackToHistory = () => {
+    router.push('/history');
+  };
+
+  /**
+   * Retry loading battle data.
+   */
+  const handleRetry = useCallback(() => {
+    setError(null);
+    const fetchBattle = async () => {
+      try {
+        setLoading(true);
+        await loadBattle(battleId);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Не удалось загрузить бой';
+        setError(errorMessage);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBattle();
+  }, [battleId, loadBattle]);
+
+  // Loading state
   if (loading) {
+    return <FullPageLoader message="Загрузка боя..." icon="⚔️" />;
+  }
+
+  // Error state
+  if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-2xl text-yellow-400">⏳ Loading battle...</div>
+      <div className="min-h-screen bg-gray-900 text-white">
+        <Navigation />
+        
+        <NavigationWrapper>
+          <div className="max-w-4xl mx-auto p-6">
+            <div className="text-center mb-8">
+              <h1 className="text-4xl font-bold mb-2">⚔️ Бой #{battleId}</h1>
+              <p className="text-gray-400">Ошибка загрузки боя</p>
+            </div>
+            
+            {/* Error display */}
+            <div className="mb-6">
+              {error.includes('fetch') || error.includes('network') || error.includes('Failed to fetch') ? (
+                <NetworkError
+                  message={error}
+                  showRetry
+                  onRetry={handleRetry}
+                />
+              ) : (
+                <ErrorMessage
+                  message={error}
+                  severity="error"
+                  showRetry
+                  onRetry={handleRetry}
+                />
+              )}
+            </div>
+            
+            {/* Back button */}
+            <div className="text-center">
+              <button
+                onClick={handleBackToHistory}
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors"
+              >
+                ← Назад к истории боев
+              </button>
+            </div>
+          </div>
+        </NavigationWrapper>
       </div>
     );
   }
 
-  if (error || !battle) {
+  // Battle not found
+  if (!battle) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-2xl text-red-400 mb-4">❌ {error || 'Battle not found'}</div>
-          <a href="/" className="text-yellow-400 hover:text-yellow-300">
-            ← Back to Team Builder
-          </a>
-        </div>
+      <div className="min-h-screen bg-gray-900 text-white">
+        <Navigation />
+        
+        <NavigationWrapper>
+          <div className="max-w-4xl mx-auto p-6">
+            <div className="text-center mb-8">
+              <h1 className="text-4xl font-bold mb-2">⚔️ Бой #{battleId}</h1>
+              <p className="text-gray-400">Бой не найден</p>
+            </div>
+            
+            <div className="text-center py-16">
+              <div className="text-8xl mb-4">❓</div>
+              <h3 className="text-2xl font-bold text-gray-400 mb-2">
+                Бой не найден
+              </h3>
+              <p className="text-gray-500 mb-8">
+                Возможно, бой был удален или ID указан неверно
+              </p>
+              
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <button
+                  onClick={handleBackToHistory}
+                  className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors"
+                >
+                  ← Назад к истории боев
+                </button>
+                <button
+                  onClick={handleRetry}
+                  className="px-6 py-3 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors"
+                >
+                  🔄 Попробовать снова
+                </button>
+              </div>
+            </div>
+          </div>
+        </NavigationWrapper>
       </div>
     );
   }
 
+  // Success state - show battle replay
   return (
-    <main className="min-h-screen py-8">
-      <BattleReplay battle={battle} />
-    </main>
+    <div className="min-h-screen bg-gray-900 text-white">
+      <Navigation />
+      
+      <NavigationWrapper>
+        <div className="max-w-6xl mx-auto p-6">
+          {/* Header with back button */}
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-3xl font-bold mb-1">⚔️ Бой #{battleId}</h1>
+              <p className="text-gray-400">
+                {battle.player1Name || 'Игрок 1'} vs {battle.player2Name || 'Игрок 2'}
+              </p>
+            </div>
+            
+            <button
+              onClick={handleBackToHistory}
+              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors flex items-center gap-2"
+            >
+              ← Назад
+            </button>
+          </div>
+          
+          {/* Battle Replay Component */}
+          <BattleReplay battle={battle} />
+        </div>
+      </NavigationWrapper>
+    </div>
   );
 }

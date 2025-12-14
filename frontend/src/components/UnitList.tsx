@@ -9,7 +9,8 @@
 
 import { useState, useMemo, useCallback } from 'react';
 import { UnitTemplate, UnitRole, UnitId } from '@/types/game';
-import { UnitCard, ROLE_NAMES } from './UnitCard';
+import { UnitCard } from './UnitCard';
+import { getRoleName } from '@/lib/roleColors';
 import { DraggableUnit } from './DraggableUnit';
 import { DroppableUnitList } from './DroppableUnitList';
 
@@ -51,6 +52,8 @@ interface UnitListProps {
   filter?: UnitFilter;
   /** Callback when unit is selected */
   onUnitSelect?: (unit: UnitTemplate) => void;
+  /** Callback when unit is long pressed (for detail modal) */
+  onUnitLongPress?: (unit: UnitTemplate) => void;
   /** Units that should be disabled (already in team) */
   disabledUnits?: UnitId[];
   /** Currently selected unit */
@@ -63,6 +66,8 @@ interface UnitListProps {
   enableDragDrop?: boolean;
   /** Maximum number of units to display */
   maxUnits?: number;
+  /** Whether to hide filter and sort controls */
+  hideFilters?: boolean;
 }
 
 // =============================================================================
@@ -85,12 +90,12 @@ const SORT_OPTIONS: Record<SortOption, string> = {
  */
 const ROLE_FILTER_OPTIONS: Array<{ value: UnitRole | 'all'; label: string }> = [
   { value: 'all', label: 'Все роли' },
-  { value: 'tank', label: ROLE_NAMES.tank },
-  { value: 'melee_dps', label: ROLE_NAMES.melee_dps },
-  { value: 'ranged_dps', label: ROLE_NAMES.ranged_dps },
-  { value: 'mage', label: ROLE_NAMES.mage },
-  { value: 'support', label: ROLE_NAMES.support },
-  { value: 'control', label: ROLE_NAMES.control },
+  { value: 'tank', label: getRoleName('tank') },
+  { value: 'melee_dps', label: getRoleName('melee_dps') },
+  { value: 'ranged_dps', label: getRoleName('ranged_dps') },
+  { value: 'mage', label: getRoleName('mage') },
+  { value: 'support', label: getRoleName('support') },
+  { value: 'control', label: getRoleName('control') },
 ];
 
 /**
@@ -124,7 +129,7 @@ function filterUnits(units: UnitTemplate[], filter: UnitFilter): UnitTemplate[] 
     if (filter.search) {
       const searchLower = filter.search.toLowerCase();
       const nameMatch = unit.name.toLowerCase().includes(searchLower);
-      const roleMatch = ROLE_NAMES[unit.role].toLowerCase().includes(searchLower);
+      const roleMatch = getRoleName(unit.role).toLowerCase().includes(searchLower);
       if (!nameMatch && !roleMatch) {
         return false;
       }
@@ -200,57 +205,101 @@ function isUnitDisabled(unit: UnitTemplate, disabledUnits: UnitId[]): boolean {
 // =============================================================================
 
 /**
- * Filter controls component.
+ * Cost filter options for dropdown.
  */
-interface FilterControlsProps {
+const COST_FILTER_OPTIONS: Array<{ value: string; label: string; min?: number; max?: number }> = [
+  { value: 'all', label: 'Все' },
+  { value: 'low', label: '3-4', min: 3, max: 4 },
+  { value: 'medium', label: '5-6', min: 5, max: 6 },
+  { value: 'high', label: '7-8', min: 7, max: 8 },
+];
+
+/**
+ * Compact filter bar props.
+ */
+interface CompactFilterBarProps {
+  /** Current filter configuration */
   filter: UnitFilter;
+  /** Filter change handler */
   onFilterChange: (filter: UnitFilter) => void;
+  /** Current sort field */
+  sortBy: SortOption;
+  /** Current sort direction */
+  sortDirection: SortDirection;
+  /** Sort change handler */
+  onSortChange: (sortBy: SortOption, direction: SortDirection) => void;
+  /** Number of filtered units */
   unitCount: number;
+  /** Total number of units */
   totalCount: number;
 }
 
-function FilterControls({ filter, onFilterChange, unitCount, totalCount }: FilterControlsProps) {
-  const handleRoleChange = useCallback((role: UnitRole | 'all') => {
-    onFilterChange({ ...filter, role });
+/**
+ * Compact filter bar with Role, Cost, and Sort dropdowns in a single row.
+ * 
+ * @param props - Component props
+ * @returns Compact filter bar component
+ */
+function CompactFilterBar({
+  filter,
+  onFilterChange,
+  sortBy,
+  sortDirection,
+  onSortChange,
+  unitCount,
+  totalCount,
+}: CompactFilterBarProps) {
+  /**
+   * Handle role filter change.
+   */
+  const handleRoleChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    onFilterChange({ ...filter, role: e.target.value as UnitRole | 'all' });
   }, [filter, onFilterChange]);
-  
-  const handleSearchChange = useCallback((search: string) => {
-    onFilterChange({ ...filter, search });
+
+  /**
+   * Handle cost filter change.
+   */
+  const handleCostChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    const option = COST_FILTER_OPTIONS.find(opt => opt.value === e.target.value);
+    onFilterChange({
+      ...filter,
+      minCost: option?.min,
+      maxCost: option?.max,
+    });
   }, [filter, onFilterChange]);
-  
-  const handleCostRangeChange = useCallback((minCost?: number, maxCost?: number) => {
-    onFilterChange({ ...filter, minCost, maxCost });
-  }, [filter, onFilterChange]);
-  
-  const clearFilters = useCallback(() => {
-    onFilterChange({ role: 'all', search: '', minCost: undefined, maxCost: undefined });
-  }, [onFilterChange]);
-  
+
+  /**
+   * Handle sort change with direction toggle.
+   */
+  const handleSortChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newSortBy = e.target.value as SortOption;
+    // Toggle direction if same field selected, otherwise default to ascending
+    const newDirection = sortBy === newSortBy 
+      ? (sortDirection === 'asc' ? 'desc' : 'asc')
+      : 'asc';
+    onSortChange(newSortBy, newDirection);
+  }, [sortBy, sortDirection, onSortChange]);
+
+  /**
+   * Get current cost filter value for dropdown.
+   */
+  const getCurrentCostValue = (): string => {
+    if (!filter.minCost && !filter.maxCost) return 'all';
+    const option = COST_FILTER_OPTIONS.find(
+      opt => opt.min === filter.minCost && opt.max === filter.maxCost
+    );
+    return option?.value || 'all';
+  };
+
   return (
-    <div className="space-y-4 p-4 bg-gray-800/50 rounded-lg border border-gray-700">
-      {/* Search */}
-      <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">
-          Поиск по имени
-        </label>
-        <input
-          type="text"
-          value={filter.search || ''}
-          onChange={(e) => handleSearchChange(e.target.value)}
-          placeholder="Введите имя юнита..."
-          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
-      
+    <div className="flex flex-wrap items-center gap-3 p-2 bg-gray-800/50 rounded-lg border border-gray-700">
       {/* Role filter */}
-      <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">
-          Роль
-        </label>
+      <div className="flex items-center gap-2">
+        <label className="text-xs text-gray-400 whitespace-nowrap">Роль:</label>
         <select
           value={filter.role || 'all'}
-          onChange={(e) => handleRoleChange(e.target.value as UnitRole | 'all')}
-          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          onChange={handleRoleChange}
+          className="min-h-[36px] px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
         >
           {ROLE_FILTER_OPTIONS.map(option => (
             <option key={option.value} value={option.value}>
@@ -259,92 +308,42 @@ function FilterControls({ filter, onFilterChange, unitCount, totalCount }: Filte
           ))}
         </select>
       </div>
-      
-      {/* Cost range */}
-      <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">
-          Стоимость
-        </label>
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => handleCostRangeChange(undefined, undefined)}
-            className={`px-3 py-1 rounded-lg text-sm transition-colors ${
-              !filter.minCost && !filter.maxCost
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-            }`}
-          >
-            Все
-          </button>
-          {COST_RANGES.map(range => (
-            <button
-              key={`${range.min}-${range.max}`}
-              onClick={() => handleCostRangeChange(range.min, range.max)}
-              className={`px-3 py-1 rounded-lg text-sm transition-colors ${
-                filter.minCost === range.min && filter.maxCost === range.max
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-            >
-              {range.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      
-      {/* Results count and clear */}
-      <div className="flex items-center justify-between pt-2 border-t border-gray-600">
-        <span className="text-sm text-gray-400">
-          Показано: {unitCount} из {totalCount}
-        </span>
-        <button
-          onClick={clearFilters}
-          className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
+
+      {/* Cost filter */}
+      <div className="flex items-center gap-2">
+        <label className="text-xs text-gray-400 whitespace-nowrap">Цена:</label>
+        <select
+          value={getCurrentCostValue()}
+          onChange={handleCostChange}
+          className="min-h-[36px] px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
         >
-          Сбросить фильтры
-        </button>
+          {COST_FILTER_OPTIONS.map(option => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
       </div>
-    </div>
-  );
-}
 
-/**
- * Sort controls component.
- */
-interface SortControlsProps {
-  sortBy: SortOption;
-  direction: SortDirection;
-  onSortChange: (sortBy: SortOption, direction: SortDirection) => void;
-}
+      {/* Sort */}
+      <div className="flex items-center gap-2">
+        <label className="text-xs text-gray-400 whitespace-nowrap">Сорт:</label>
+        <select
+          value={sortBy}
+          onChange={handleSortChange}
+          className="min-h-[36px] px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+        >
+          {Object.entries(SORT_OPTIONS).map(([key, label]) => (
+            <option key={key} value={key}>
+              {label} {sortBy === key ? (sortDirection === 'asc' ? '↑' : '↓') : ''}
+            </option>
+          ))}
+        </select>
+      </div>
 
-function SortControls({ sortBy, direction, onSortChange }: SortControlsProps) {
-  const handleSortChange = useCallback((newSortBy: SortOption) => {
-    const newDirection = sortBy === newSortBy && direction === 'asc' ? 'desc' : 'asc';
-    onSortChange(newSortBy, newDirection);
-  }, [sortBy, direction, onSortChange]);
-  
-  return (
-    <div className="flex items-center gap-2 p-3 bg-gray-800/30 rounded-lg border border-gray-700">
-      <span className="text-sm font-medium text-gray-300">Сортировка:</span>
-      <div className="flex flex-wrap gap-2">
-        {Object.entries(SORT_OPTIONS).map(([key, label]) => (
-          <button
-            key={key}
-            onClick={() => handleSortChange(key as SortOption)}
-            className={`px-3 py-1 rounded-lg text-sm transition-colors flex items-center gap-1 ${
-              sortBy === key
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-            }`}
-          >
-            {label}
-            {sortBy === key && (
-              <span className="text-xs">
-                {direction === 'asc' ? '↑' : '↓'}
-              </span>
-            )}
-          </button>
-        ))}
+      {/* Results count */}
+      <div className="ml-auto text-xs text-gray-500">
+        {unitCount}/{totalCount}
       </div>
     </div>
   );
@@ -372,12 +371,14 @@ export function UnitList({
   units,
   filter = { role: 'all' },
   onUnitSelect,
+  onUnitLongPress,
   disabledUnits = [],
   selectedUnit,
   compact = false,
   className = '',
   enableDragDrop = false,
   maxUnits,
+  hideFilters = false,
 }: UnitListProps) {
   const [sortBy, setSortBy] = useState<SortOption>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -405,32 +406,41 @@ export function UnitList({
       onUnitSelect(unit);
     }
   }, [disabledUnits, onUnitSelect]);
+
+  /**
+   * Handle unit long press to show detail modal.
+   * 
+   * @param unit - Unit that was long pressed
+   */
+  const handleUnitLongPress = useCallback((unit: UnitTemplate) => {
+    if (onUnitLongPress) {
+      onUnitLongPress(unit);
+    }
+  }, [onUnitLongPress]);
   
 
   
   return (
-    <DroppableUnitList enabled={enableDragDrop} className={`space-y-4 ${className}`}>
-      {/* Filter controls */}
-      <FilterControls
-        filter={currentFilter}
-        onFilterChange={setCurrentFilter}
-        unitCount={processedUnits.length}
-        totalCount={units.length}
-      />
-      
-      {/* Sort controls */}
-      <SortControls
-        sortBy={sortBy}
-        direction={sortDirection}
-        onSortChange={handleSortChange}
-      />
+    <DroppableUnitList enabled={enableDragDrop} className={`space-y-3 ${className}`}>
+      {/* Compact filter bar - only show if not hidden */}
+      {!hideFilters && (
+        <CompactFilterBar
+          filter={currentFilter}
+          onFilterChange={setCurrentFilter}
+          sortBy={sortBy}
+          sortDirection={sortDirection}
+          onSortChange={handleSortChange}
+          unitCount={processedUnits.length}
+          totalCount={units.length}
+        />
+      )}
       
       {/* Units grid */}
       <div className={`
-        grid gap-4
+        grid gap-2 sm:gap-3 md:gap-4 animate-fade-in-scale
         ${compact 
-          ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' 
-          : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+          ? 'grid-cols-1 min-[480px]:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' 
+          : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
         }
       `}>
         {processedUnits.map((unit, index) => {
@@ -438,36 +448,43 @@ export function UnitList({
           const selected = selectedUnit?.id === unit.id;
           
           return enableDragDrop && !disabled ? (
-            <DraggableUnit
+            <div 
               key={unit.id}
-              unit={unit}
-              id={`unit-list-${unit.id}-${index}`}
-              source="list"
-              originalIndex={index}
-              selected={selected}
-              disabled={disabled}
-              size={compact ? 'compact' : 'full'}
-              onClick={() => handleUnitClick(unit)}
-              showAbilities={!compact}
-              className="relative"
-            />
+              className="animate-slide-up"
+              style={{ animationDelay: `${index * 0.05}s` }}
+            >
+              <DraggableUnit
+                unit={unit}
+                id={`unit-list-${unit.id}-${index}`}
+                source="list"
+                originalIndex={index}
+                selected={selected}
+                disabled={disabled}
+                size={compact ? 'compact' : 'full'}
+                onClick={() => handleUnitClick(unit)}
+                onLongPress={() => handleUnitLongPress(unit)}
+                showAbilities={!compact}
+                className="relative"
+              />
+            </div>
           ) : (
             <div
               key={unit.id}
-              className={`relative ${disabled ? 'opacity-50' : ''}`}
+              className={`relative animate-slide-up ${disabled ? 'opacity-50' : ''}`}
+              style={{ animationDelay: `${index * 0.05}s` }}
             >
               <UnitCard
                 unit={unit}
-                size={compact ? 'compact' : 'full'}
+                variant={compact ? 'compact' : 'list'}
                 selected={selected}
                 disabled={disabled}
                 onClick={() => handleUnitClick(unit)}
-                showAbilities={!compact}
+                onLongPress={() => handleUnitLongPress(unit)}
               />
               
               {/* Disabled overlay */}
               {disabled && (
-                <div className="absolute inset-0 bg-gray-900/50 rounded-lg flex items-center justify-center">
+                <div className="absolute inset-0 bg-gray-900/50 rounded-lg flex items-center justify-center animate-fade-in-scale">
                   <span className="text-sm font-medium text-gray-300 bg-gray-800 px-2 py-1 rounded">
                     В команде
                   </span>
