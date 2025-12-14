@@ -1,10 +1,15 @@
 /**
- * Battle Simulator v2 for Fantasy Autobattler.
- * Complete rewrite using the new modular battle system with grid-based combat,
- * pathfinding, targeting, and deterministic turn execution.
+ * Battle Simulator v3 for Fantasy Autobattler.
+ * Enhanced with ability system, status effects, and AI decision making.
  * 
  * @fileoverview Advanced battle simulation with 8×10 grid, A* pathfinding,
- * role-based AI, and comprehensive event logging for replay functionality.
+ * role-based AI, abilities, status effects, and comprehensive event logging.
+ * 
+ * Turn flow:
+ * 1. Tick status effects (duration, DoT/HoT)
+ * 2. AI decides action (ability/attack/move)
+ * 3. Execute action
+ * 4. Tick ability cooldowns
  */
 
 import { 
@@ -18,9 +23,29 @@ import {
   FinalUnitState 
 } from '../types/game.types';
 import { buildTurnQueue } from './turn-order';
-import { executeTurn, createBattleState, applyBattleEvents, checkBattleEnd, advanceToNextRound } from './actions';
+import { 
+  executeTurn, 
+  createBattleState, 
+  applyBattleEvents, 
+  checkBattleEnd, 
+  advanceToNextRound,
+  BattleState 
+} from './actions';
 import { isValidPosition } from './grid';
 import { BATTLE_LIMITS, DEPLOYMENT_ZONES } from '../config/game.constants';
+
+// Ability system imports
+import { 
+  BattleUnitWithAbilities, 
+  executeAbility, 
+  applyAbilityEvents,
+  tickStatusEffects as tickUnitStatusEffects,
+  tickAbilityCooldowns,
+  AbilityEvent
+} from './ability.executor';
+import { decideAction, UnitAction } from './ai.decision';
+import { getUnitAbility } from '../abilities/ability.data';
+
 
 // =============================================================================
 // TEAM SETUP INTERFACE
@@ -35,6 +60,14 @@ export interface TeamSetup {
   units: UnitTemplate[];
   /** Corresponding positions for each unit on the battlefield */
   positions: Position[];
+}
+
+/**
+ * Extended battle state with ability tracking.
+ */
+interface BattleStateWithAbilities extends BattleState {
+  /** Units with ability state */
+  units: BattleUnitWithAbilities[];
 }
 
 // =============================================================================
@@ -98,16 +131,16 @@ function validateTeamSetup(
 }
 
 /**
- * Create battle unit instances from team setup.
- * Converts unit templates to battle-ready units with positions and state.
+ * Create battle unit instances from team setup with ability state.
+ * Converts unit templates to battle-ready units with positions, state, and cooldowns.
  * 
  * @param teamSetup - Team configuration
  * @param teamType - Team identifier
- * @returns Array of battle-ready units
+ * @returns Array of battle-ready units with ability tracking
  * @example
  * const battleUnits = createBattleUnits(playerTeam, 'player');
  */
-function createBattleUnits(teamSetup: TeamSetup, teamType: TeamType): BattleUnit[] {
+function createBattleUnits(teamSetup: TeamSetup, teamType: TeamType): BattleUnitWithAbilities[] {
   return teamSetup.units.map((unitTemplate, index) => {
     const position = teamSetup.positions[index];
     
@@ -123,6 +156,11 @@ function createBattleUnits(teamSetup: TeamSetup, teamType: TeamType): BattleUnit
       team: teamType,
       alive: true,
       instanceId: `${teamType}_${unitTemplate.id}_${index}`,
+      // Ability state initialization
+      abilityCooldowns: {},
+      statusEffects: [],
+      isStunned: false,
+      hasTaunt: false,
     };
   });
 }
@@ -176,13 +214,175 @@ function hashTeamSetup(teamSetup: TeamSetup): number {
   return Math.abs(hash);
 }
 
+
+// =============================================================================
+// ABILITY EXECUTION HELPERS
+// =============================================================================
+
+/**
+ * Execute an ability action for a unit.
+ * Handles ability execution and event generation.
+ * 
+ * @param unit - Unit using the ability
+ * @param action - AI decision with ability info
+ * @param state - Current battle state
+ * @param seed - Random seed for deterministic behavior
+ * @returns Ability events generated
+ */
+function executeAbilityAction(
+  unit: BattleUnitWithAbilities,
+  action: UnitAction,
+  state: BattleStateWithAbilities,
+  seed: number
+): AbilityEvent[] {
+  if (!action.abilityId) {
+    return [];
+  }
+  
+  const ability = getUnitAbility(unit.id);
+  if (!ability) {
+    return [];
+  }
+  
+  // Determine target for ability
+  const target = action.target ?? action.targetPosition ?? unit;
+  
+  return executeAbility(unit, ability, target, state, seed);
+}
+
+/**
+ * Tick status effects for all units at the start of a round.
+ * Processes duration, DoT/HoT, and removes expired effects.
+ * 
+ * @param state - Current battle state
+ * @returns Updated battle state with ticked effects
+ */
+function tickAllStatusEffects(state: BattleStateWithAbilities): BattleStateWithAbilities {
+  const updatedUnits = state.units.map(unit => {
+    if (!unit.alive) return unit;
+    return tickUnitStatusEffects(unit);
+  });
+  
+  // Rebuild occupied positions
+  const occupiedPositions = new Set<string>();
+  updatedUnits.forEach(unit => {
+    if (unit.alive) {
+      occupiedPositions.add(`${unit.position.x},${unit.position.y}`);
+    }
+  });
+  
+  return {
+    ...state,
+    units: updatedUnits,
+    occupiedPositions,
+  };
+}
+
+/**
+ * Tick ability cooldowns for all units at the end of a round.
+ * Decrements all cooldowns by 1.
+ * 
+ * @param state - Current battle state
+ * @returns Updated battle state with ticked cooldowns
+ */
+function tickAllCooldowns(state: BattleStateWithAbilities): BattleStateWithAbilities {
+  const updatedUnits = state.units.map(unit => {
+    if (!unit.alive) return unit;
+    return tickAbilityCooldowns(unit);
+  });
+  
+  return {
+    ...state,
+    units: updatedUnits,
+  };
+}
+
+/**
+ * Execute a unit's turn with AI decision making and ability support.
+ * Flow: check stun → AI decision → execute action
+ * 
+ * @param unit - Unit taking the turn
+ * @param state - Current battle state
+ * @param seed - Random seed for deterministic behavior
+ * @returns Events generated during the turn and updated state
+ */
+function executeUnitTurnWithAbilities(
+  unit: BattleUnitWithAbilities,
+  state: BattleStateWithAbilities,
+  seed: number
+): { events: BattleEvent[]; state: BattleStateWithAbilities } {
+  const events: BattleEvent[] = [];
+  let currentState = state;
+  
+  // Skip turn if unit is stunned
+  if (unit.isStunned) {
+    return { events: [], state: currentState };
+  }
+  
+  // Get AI decision for this unit
+  const action = decideAction(unit, currentState);
+  
+  // Execute based on action type
+  switch (action.type) {
+    case 'ability': {
+      // Execute ability
+      const abilityEvents = executeAbilityAction(unit, action, currentState, seed);
+      
+      if (abilityEvents.length > 0) {
+        // Apply ability events to state
+        const ability = getUnitAbility(unit.id);
+        if (ability) {
+          currentState = applyAbilityEvents(
+            currentState, 
+            abilityEvents, 
+            ability, 
+            unit.instanceId
+          ) as BattleStateWithAbilities;
+        }
+        
+        // Add ability events to result
+        events.push(...abilityEvents);
+      }
+      break;
+    }
+    
+    case 'attack':
+    case 'move':
+    default: {
+      // Use legacy turn execution for basic attacks and movement
+      const turnEvents = executeTurn(unit, currentState, seed);
+      
+      if (turnEvents.length > 0) {
+        currentState = applyBattleEvents(currentState, turnEvents) as BattleStateWithAbilities;
+        events.push(...turnEvents);
+      }
+      break;
+    }
+  }
+  
+  return { events, state: currentState };
+}
+
 // =============================================================================
 // MAIN SIMULATION FUNCTION
 // =============================================================================
 
 /**
  * Simulate a complete battle between two teams.
- * Uses advanced grid-based combat with pathfinding, targeting, and deterministic AI.
+ * Uses advanced grid-based combat with pathfinding, targeting, abilities,
+ * status effects, and deterministic AI.
+ * 
+ * Turn flow per unit:
+ * 1. Check if stunned (skip if true)
+ * 2. AI decides action (ability/attack/move)
+ * 3. Execute action
+ * 
+ * Round flow:
+ * 1. Tick status effects (duration, DoT/HoT)
+ * 2. Build turn queue by initiative
+ * 3. Execute each unit's turn
+ * 4. Tick ability cooldowns
+ * 5. Check battle end condition
  * 
  * @param playerTeam - Player team setup with units and positions
  * @param enemyTeam - Enemy team setup with units and positions
@@ -212,12 +412,17 @@ export function simulateBattle(
     throw new Error(`Invalid enemy team setup: ${enemyValidation.errors.join(', ')}`);
   }
   
-  // Create battle units
+  // Create battle units with ability state
   const playerUnits = createBattleUnits(playerTeam, 'player');
   const enemyUnits = createBattleUnits(enemyTeam, 'bot');
   
   // Initialize battle state
-  let battleState = createBattleState(playerUnits, enemyUnits, seed);
+  const initialState = createBattleState(playerUnits, enemyUnits, seed);
+  let battleState: BattleStateWithAbilities = {
+    ...initialState,
+    units: [...playerUnits, ...enemyUnits],
+  };
+  
   const allEvents: BattleEvent[] = [];
   
   // Add battle start event
@@ -234,6 +439,9 @@ export function simulateBattle(
   
   // Main battle loop
   while (battleState.currentRound <= BATTLE_LIMITS.MAX_ROUNDS) {
+    // Step 1: Tick status effects at round start
+    battleState = tickAllStatusEffects(battleState);
+    
     // Add round start event
     allEvents.push({
       round: battleState.currentRound,
@@ -244,13 +452,15 @@ export function simulateBattle(
       },
     });
     
-    // Build turn queue for this round
+    // Step 2: Build turn queue for this round
     const livingUnits = battleState.units.filter(unit => unit.alive);
     const turnQueue = buildTurnQueue(livingUnits);
     
-    // Execute each unit's turn
+    // Step 3: Execute each unit's turn
     for (const unit of turnQueue) {
-      if (!unit.alive) continue; // Skip if unit died during this round
+      // Get current unit state from battle state
+      const currentUnit = battleState.units.find(u => u.instanceId === unit.instanceId);
+      if (!currentUnit || !currentUnit.alive) continue;
       
       // Generate seed for this turn (deterministic based on battle seed, round, and unit)
       const turnSeed = seed + battleState.currentRound * 1000 + hashTeamSetup({ 
@@ -258,14 +468,16 @@ export function simulateBattle(
         positions: [unit.position] 
       });
       
-      // Execute unit's turn
-      const turnEvents = executeTurn(unit, battleState, turnSeed);
+      // Execute unit's turn with ability support
+      const turnResult = executeUnitTurnWithAbilities(
+        currentUnit as BattleUnitWithAbilities, 
+        battleState, 
+        turnSeed
+      );
       
-      // Apply events to battle state
-      if (turnEvents.length > 0) {
-        battleState = applyBattleEvents(battleState, turnEvents);
-        allEvents.push(...turnEvents);
-      }
+      // Update state and collect events
+      battleState = turnResult.state;
+      allEvents.push(...turnResult.events);
       
       // Check if battle should end after this turn
       const battleEndCheck = checkBattleEnd(battleState);
@@ -299,8 +511,14 @@ export function simulateBattle(
       }
     }
     
+    // Step 4: Tick ability cooldowns at round end
+    battleState = tickAllCooldowns(battleState);
+    
     // Advance to next round
-    battleState = advanceToNextRound(battleState);
+    battleState = {
+      ...advanceToNextRound(battleState),
+      units: battleState.units,
+    } as BattleStateWithAbilities;
   }
   
   // Battle ended due to max rounds (draw)
@@ -330,83 +548,70 @@ export function simulateBattle(
   };
 }
 
+
 // =============================================================================
-// LEGACY COMPATIBILITY FUNCTIONS
+// BATTLE ANALYSIS FUNCTIONS
 // =============================================================================
 
 /**
- * Legacy battle simulation function for backward compatibility.
- * Converts old unit type arrays to new TeamSetup format.
- * 
- * @deprecated Use simulateBattle with TeamSetup instead
- * @param _playerTypes - Array of player unit type strings (unused)
- * @param _botTypes - Array of bot unit type strings (unused)
- * @returns Battle result in legacy format
- * @example
- * const result = simulateBattleLegacy(['Warrior', 'Mage'], ['Orc', 'Goblin']);
+ * Battle analysis result containing statistics and metrics.
  */
-export function simulateBattleLegacy(
-  _playerTypes: string[],
-  _botTypes: string[]
-): {
-  playerTeam: unknown[];
-  botTeam: unknown[];
-  events: unknown[];
-  winner: 'player' | 'bot' | 'draw';
-} {
-  // This is a placeholder for backward compatibility
-  // In a real implementation, you would convert the old format to new format
-  // and call the new simulateBattle function
-  
-  throw new Error('Legacy simulation not implemented. Use simulateBattle with TeamSetup format.');
-}
-
-// =============================================================================
-// BATTLE ANALYSIS UTILITIES
-// =============================================================================
-
-/**
- * Analyze battle result for statistics and insights.
- * Provides detailed breakdown of battle performance.
- * 
- * @param result - Battle result to analyze
- * @returns Battle analysis with statistics
- * @example
- * const analysis = analyzeBattleResult(battleResult);
- * console.log(`Battle lasted ${analysis.totalRounds} rounds`);
- */
-export function analyzeBattleResult(result: BattleResult): {
+export interface BattleAnalysis {
+  /** Total rounds in the battle */
   totalRounds: number;
+  /** Total number of events generated */
   totalEvents: number;
+  /** Count of events by type */
   eventsByType: Record<string, number>;
+  /** Surviving units count by team */
   survivingUnits: {
     player: number;
     bot: number;
   };
+  /** Total damage dealt by team */
   damageDealt: {
     player: number;
     bot: number;
   };
-} {
+}
+
+/**
+ * Analyze a battle result to extract statistics and metrics.
+ * Useful for debugging, balancing, and displaying battle summaries.
+ * 
+ * @param result - Battle result to analyze
+ * @returns Comprehensive battle analysis
+ * @example
+ * const result = simulateBattle(playerTeam, enemyTeam, 12345);
+ * const analysis = analyzeBattleResult(result);
+ * console.log(`Battle lasted ${analysis.totalRounds} rounds`);
+ */
+export function analyzeBattleResult(result: BattleResult): BattleAnalysis {
+  // Count events by type
   const eventsByType: Record<string, number> = {};
-  let playerDamage = 0;
-  let botDamage = 0;
-  
-  // Count events by type and calculate damage
   for (const event of result.events) {
     eventsByType[event.type] = (eventsByType[event.type] || 0) + 1;
-    
-    if (event.type === 'damage' && event.damage) {
-      const actorUnit = result.finalState.playerUnits.find(u => u.instanceId === event.actorId) ||
-                       result.finalState.botUnits.find(u => u.instanceId === event.actorId);
-      
-      if (actorUnit) {
-        const isPlayerUnit = result.finalState.playerUnits.some(u => u.instanceId === event.actorId);
-        if (isPlayerUnit) {
-          playerDamage += event.damage;
-        } else {
-          botDamage += event.damage;
-        }
+  }
+  
+  // Count surviving units
+  const survivingUnits = {
+    player: result.finalState.playerUnits.filter(u => u.alive).length,
+    bot: result.finalState.botUnits.filter(u => u.alive).length,
+  };
+  
+  // Calculate damage dealt by team
+  const damageDealt = {
+    player: 0,
+    bot: 0,
+  };
+  
+  for (const event of result.events) {
+    if (event.type === 'damage' && event.damage !== undefined && event.actorId) {
+      // Determine team from actorId
+      if (event.actorId.startsWith('player_')) {
+        damageDealt.player += event.damage;
+      } else if (event.actorId.startsWith('bot_')) {
+        damageDealt.bot += event.damage;
       }
     }
   }
@@ -415,13 +620,43 @@ export function analyzeBattleResult(result: BattleResult): {
     totalRounds: result.metadata.totalRounds,
     totalEvents: result.events.length,
     eventsByType,
-    survivingUnits: {
-      player: result.finalState.playerUnits.filter(u => u.alive).length,
-      bot: result.finalState.botUnits.filter(u => u.alive).length,
-    },
-    damageDealt: {
-      player: playerDamage,
-      bot: botDamage,
-    },
+    survivingUnits,
+    damageDealt,
   };
+}
+
+// =============================================================================
+// LEGACY COMPATIBILITY
+// =============================================================================
+
+/**
+ * Legacy battle simulation function for backward compatibility.
+ * Wraps the new simulateBattle function with the old interface.
+ * 
+ * @deprecated Use simulateBattle with TeamSetup interface instead
+ * @param playerUnits - Array of player unit templates
+ * @param playerPositions - Array of player unit positions
+ * @param enemyUnits - Array of enemy unit templates
+ * @param enemyPositions - Array of enemy unit positions
+ * @param seed - Random seed for deterministic simulation
+ * @returns Battle result
+ */
+export function simulateBattleLegacy(
+  playerUnits: UnitTemplate[],
+  playerPositions: Position[],
+  enemyUnits: UnitTemplate[],
+  enemyPositions: Position[],
+  seed: number
+): BattleResult {
+  const playerTeam: TeamSetup = {
+    units: playerUnits,
+    positions: playerPositions,
+  };
+  
+  const enemyTeam: TeamSetup = {
+    units: enemyUnits,
+    positions: enemyPositions,
+  };
+  
+  return simulateBattle(playerTeam, enemyTeam, seed);
 }
