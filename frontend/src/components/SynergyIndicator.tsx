@@ -8,7 +8,7 @@
 
 'use client';
 
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { UnitTemplate, UnitId } from '@/types/game';
 
 // =============================================================================
@@ -493,11 +493,13 @@ function SynergyBadge({ synergy, variant, isHighlighted }: SynergyBadgeProps) {
  */
 export function SynergyIndicator({
   units,
-  unitTemplates,
+  unitTemplates: _unitTemplates,
   variant = 'full',
   className = '',
   showHighlight = true,
 }: SynergyIndicatorProps) {
+  // Note: unitTemplates is available for future role lookup enhancements
+  void _unitTemplates;
   // Track previous synergies for highlight detection
   const [previousSynergyIds, setPreviousSynergyIds] = useState<Set<string>>(new Set());
   const [highlightedIds, setHighlightedIds] = useState<Set<string>>(new Set());
@@ -539,6 +541,7 @@ export function SynergyIndicator({
 
     // Update previous synergies
     setPreviousSynergyIds(currentIds);
+    return undefined;
   }, [activeSynergies, previousSynergyIds, showHighlight]);
 
   // Empty state

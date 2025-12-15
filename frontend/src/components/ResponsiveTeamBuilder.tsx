@@ -15,6 +15,7 @@ import { BudgetIndicator } from '@/components/BudgetIndicator';
 import { ButtonLoader } from '@/components/LoadingStates';
 import { TeamSummary } from '@/components/TeamSummary';
 import { DraftIndicator } from '@/components/DraftIndicator';
+import { SynergyIndicator } from '@/components/SynergyIndicator';
 
 // =============================================================================
 // HOOKS
@@ -177,11 +178,18 @@ function MobileHeader({ currentCost, teamActions, units, currentTeam }: MobileHe
       
       {/* Team summary row (compact) */}
       {currentTeam.units.length > 0 && (
-        <div className="pb-2 border-t border-gray-700/50 pt-2">
+        <div className="pb-2 border-t border-gray-700/50 pt-2 space-y-2">
           <TeamSummary
             units={currentTeam.units}
             unitTemplates={units}
             variant="compact"
+          />
+          {/* Compact synergy indicator for mobile */}
+          <SynergyIndicator
+            units={currentTeam.units}
+            unitTemplates={units}
+            variant="minimal"
+            showHighlight
           />
         </div>
       )}
@@ -342,6 +350,18 @@ function DesktopSidebar({
       <div className="mt-4">
         <DraftIndicator variant="full" />
       </div>
+
+      {/* Synergy Indicator - Prominent display */}
+      {currentTeam && currentTeam.units.length > 0 && (
+        <div className="mt-4 p-3 bg-purple-900/20 rounded-lg border border-purple-500/30">
+          <SynergyIndicator
+            units={currentTeam.units}
+            unitTemplates={units}
+            variant="full"
+            showHighlight
+          />
+        </div>
+      )}
 
       {/* Team Statistics */}
       {currentTeam && (
