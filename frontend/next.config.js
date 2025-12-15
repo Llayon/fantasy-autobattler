@@ -2,6 +2,11 @@ const withBundleAnalyzer = require('@next/bundle-analyzer')({
   enabled: process.env.ANALYZE === 'true',
 });
 
+const createNextIntlPlugin = require('next-intl/plugin');
+
+// Create next-intl plugin with custom request config path
+const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -48,4 +53,5 @@ const nextConfig = {
   },
 };
 
-module.exports = withBundleAnalyzer(nextConfig);
+// Compose plugins: withNextIntl wraps withBundleAnalyzer wraps nextConfig
+module.exports = withNextIntl(withBundleAnalyzer(nextConfig));

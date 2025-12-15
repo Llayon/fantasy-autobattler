@@ -8564,3 +8564,93 @@ SynergyDisplay:
 
 **Total Progress: 64/100 steps completed (64%)**
 
+
+
+---
+
+## Step 71: Internationalization (i18n) Setup ✅ COMPLETED
+**Date:** December 15, 2025  
+**Duration:** ~25 minutes  
+**Status:** SUCCESS
+
+### 🎯 Objectives
+- Set up next-intl for internationalization
+- Create Russian translation file with all UI strings
+- Configure locale detection
+- Prepare structure for future language additions
+
+### 🔧 Changes Made
+
+#### 1. Package Installation
+- ✅ Installed `next-intl` package
+
+#### 2. Translation Messages
+- ✅ Created `frontend/messages/ru.json` with comprehensive translations:
+  - `common` - Loading, error, buttons, etc.
+  - `navigation` - Menu items
+  - `teamBuilder` - Team building UI
+  - `units` - Unit names, roles, stats, descriptions
+  - `synergies` - Synergy types and bonuses
+  - `battle` - Matchmaking and battle UI
+  - `battleReplay` - Replay controls and events
+  - `battleResult` - Victory/defeat screens
+  - `history` - Battle history page
+  - `profile` - Player profile page
+  - `errors` - Error messages
+  - `grid` - Grid-related labels
+  - `accessibility` - Screen reader labels
+
+#### 3. i18n Configuration
+- ✅ Created `frontend/src/i18n/config.ts` - Locale configuration
+- ✅ Created `frontend/src/i18n/request.ts` - Server-side message loading
+- ✅ Created `frontend/src/i18n/provider.tsx` - Client-side provider
+- ✅ Created `frontend/src/i18n/hooks.ts` - Custom translation hooks
+- ✅ Created `frontend/src/i18n/index.ts` - Module exports
+
+#### 4. Next.js Integration
+- ✅ Updated `frontend/next.config.js` with next-intl plugin
+- ✅ Updated `frontend/src/app/layout.tsx` with I18nProvider
+
+### 📁 Files Created/Modified
+```
+frontend/
+├── messages/
+│   └── ru.json                 # Russian translations (NEW)
+├── src/
+│   ├── i18n/
+│   │   ├── config.ts           # Locale configuration (NEW)
+│   │   ├── request.ts          # Server-side config (NEW)
+│   │   ├── provider.tsx        # Client provider (NEW)
+│   │   ├── hooks.ts            # Custom hooks (NEW)
+│   │   └── index.ts            # Module exports (NEW)
+│   └── app/
+│       └── layout.tsx          # Updated with I18nProvider
+├── next.config.js              # Updated with next-intl plugin
+└── package.json                # Added next-intl dependency
+```
+
+### 🔑 Key Features
+- **Default locale**: Russian (ru)
+- **Supported locales**: Russian (ru), English (en) - structure ready
+- **Custom hooks**: Namespace-specific hooks for type safety
+- **Error handling**: Graceful fallback for missing translations
+- **Timezone**: Europe/Moscow default
+
+### 📊 Usage Example
+```typescript
+// In any client component
+import { useNavigationTranslations } from '@/i18n';
+
+function Navigation() {
+  const t = useNavigationTranslations();
+  return <nav>{t('teamBuilder')}</nav>; // "Команда"
+}
+```
+
+### ✅ Validation
+- All TypeScript diagnostics clean
+- Frontend compiles successfully
+- i18n provider integrated into layout
+- Ready for gradual migration of hardcoded strings
+
+---
