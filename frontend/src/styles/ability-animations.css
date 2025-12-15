@@ -1,0 +1,612 @@
+/**
+ * CSS Animations for Ability Effects
+ * Provides keyframe animations for all ability visual effects.
+ */
+
+/* =============================================================================
+   PROJECTILE ANIMATIONS
+   ============================================================================= */
+
+@keyframes fireballTravel {
+  0% {
+    transform: translateX(0) translateY(0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(var(--target-x)) translateY(var(--target-y)) scale(1.2);
+    opacity: 0.8;
+  }
+}
+
+@keyframes fireballExplosion {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.5);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+@keyframes explosionParticle {
+  0% {
+    transform: translate(-50%, -50%) rotate(var(--rotation, 0deg)) translateY(0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(var(--rotation, 0deg)) translateY(-40px) scale(0);
+    opacity: 0;
+  }
+}
+
+@keyframes shockwave {
+  0% {
+    transform: scale(0);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(3);
+    opacity: 0;
+  }
+}
+
+@keyframes lightningFlash {
+  0% {
+    opacity: 0;
+    stroke-width: 1;
+  }
+  10% {
+    opacity: 1;
+    stroke-width: 6;
+  }
+  50% {
+    opacity: 0.8;
+    stroke-width: 4;
+  }
+  100% {
+    opacity: 0;
+    stroke-width: 1;
+  }
+}
+
+@keyframes lightningImpact {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.5);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(0);
+    opacity: 0;
+  }
+}
+
+/* =============================================================================
+   AREA EFFECT ANIMATIONS
+   ============================================================================= */
+
+@keyframes healAura {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  20% {
+    transform: scale(0.8);
+    opacity: 0.6;
+  }
+  80% {
+    transform: scale(1.2);
+    opacity: 0.4;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+@keyframes healParticle {
+  0% {
+    transform: rotate(var(--rotation, 0deg)) translateY(0) scale(0);
+    opacity: 0;
+  }
+  20% {
+    transform: rotate(var(--rotation, 0deg)) translateY(-10px) scale(1);
+    opacity: 1;
+  }
+  80% {
+    transform: rotate(var(--rotation, 0deg)) translateY(-30px) scale(0.8);
+    opacity: 0.6;
+  }
+  100% {
+    transform: rotate(var(--rotation, 0deg)) translateY(-50px) scale(0);
+    opacity: 0;
+  }
+}
+
+@keyframes healSymbol {
+  0% {
+    transform: scale(0) rotate(0deg);
+    opacity: 0;
+  }
+  20% {
+    transform: scale(1.3) rotate(10deg);
+    opacity: 1;
+  }
+  40% {
+    transform: scale(1) rotate(-5deg);
+    opacity: 1;
+  }
+  60% {
+    transform: scale(1.1) rotate(3deg);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(0) rotate(0deg);
+    opacity: 0;
+  }
+}
+
+@keyframes buffAura {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  25% {
+    transform: scale(0.9);
+    opacity: 0.7;
+  }
+  75% {
+    transform: scale(1.3);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+
+@keyframes buffSparkle {
+  0% {
+    transform: rotate(var(--rotation, 0deg)) translateY(0) scale(0);
+    opacity: 0;
+  }
+  30% {
+    transform: rotate(var(--rotation, 0deg)) translateY(-15px) scale(1);
+    opacity: 1;
+  }
+  70% {
+    transform: rotate(var(--rotation, 0deg)) translateY(-25px) scale(0.8);
+    opacity: 0.7;
+  }
+  100% {
+    transform: rotate(var(--rotation, 0deg)) translateY(-40px) scale(0);
+    opacity: 0;
+  }
+}
+
+@keyframes buffSymbol {
+  0% {
+    transform: scale(0) translateY(0);
+    opacity: 0;
+  }
+  30% {
+    transform: scale(1.4) translateY(-5px);
+    opacity: 1;
+  }
+  60% {
+    transform: scale(1) translateY(-10px);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(0.5) translateY(-20px);
+    opacity: 0;
+  }
+}
+
+@keyframes debuffAura {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  25% {
+    transform: scale(0.8);
+    opacity: 0.8;
+  }
+  75% {
+    transform: scale(1.4);
+    opacity: 0.4;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+@keyframes debuffParticle {
+  0% {
+    transform: rotate(var(--rotation, 0deg)) translateY(0) scale(1);
+    opacity: 0;
+  }
+  25% {
+    transform: rotate(var(--rotation, 0deg)) translateY(-20px) scale(1.2);
+    opacity: 0.8;
+  }
+  75% {
+    transform: rotate(var(--rotation, 0deg)) translateY(-35px) scale(0.6);
+    opacity: 0.4;
+  }
+  100% {
+    transform: rotate(var(--rotation, 0deg)) translateY(-50px) scale(0);
+    opacity: 0;
+  }
+}
+
+@keyframes debuffSymbol {
+  0% {
+    transform: scale(0) translateY(0);
+    opacity: 0;
+  }
+  30% {
+    transform: scale(1.3) translateY(-3px);
+    opacity: 1;
+  }
+  60% {
+    transform: scale(1) translateY(-8px);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(0.6) translateY(-15px);
+    opacity: 0;
+  }
+}
+
+/* =============================================================================
+   STATUS EFFECT ANIMATIONS
+   ============================================================================= */
+
+@keyframes stunStars {
+  0% {
+    transform: rotate(0deg) translateY(-30px);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(360deg) translateY(-30px);
+    opacity: 0;
+  }
+}
+
+@keyframes stunDizzy {
+  0% {
+    transform: scale(0) rotate(0deg);
+    opacity: 0;
+  }
+  20% {
+    transform: scale(1.2) rotate(45deg);
+    opacity: 1;
+  }
+  80% {
+    transform: scale(1) rotate(315deg);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(0.5) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+@keyframes shieldBarrier {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+    border-width: 2px;
+  }
+  20% {
+    transform: scale(1.1);
+    opacity: 0.9;
+    border-width: 6px;
+  }
+  80% {
+    transform: scale(1);
+    opacity: 0.6;
+    border-width: 4px;
+  }
+  100% {
+    transform: scale(0.8);
+    opacity: 0;
+    border-width: 2px;
+  }
+}
+
+@keyframes shieldSparkle {
+  0% {
+    transform: rotate(var(--rotation, 0deg)) translateY(0) scale(0);
+    opacity: 0;
+  }
+  30% {
+    transform: rotate(var(--rotation, 0deg)) translateY(-20px) scale(1);
+    opacity: 1;
+  }
+  70% {
+    transform: rotate(var(--rotation, 0deg)) translateY(-30px) scale(0.7);
+    opacity: 0.5;
+  }
+  100% {
+    transform: rotate(var(--rotation, 0deg)) translateY(-40px) scale(0);
+    opacity: 0;
+  }
+}
+
+@keyframes shieldSymbol {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  25% {
+    transform: scale(1.3);
+    opacity: 1;
+  }
+  75% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(0.7);
+    opacity: 0;
+  }
+}
+
+/* =============================================================================
+   GENERIC ANIMATIONS
+   ============================================================================= */
+
+@keyframes genericFlash {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.5);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+@keyframes fadeInOut {
+  0% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes pulseGlow {
+  0% {
+    box-shadow: 0 0 5px currentColor;
+    opacity: 0.7;
+  }
+  50% {
+    box-shadow: 0 0 20px currentColor;
+    opacity: 1;
+  }
+  100% {
+    box-shadow: 0 0 5px currentColor;
+    opacity: 0.7;
+  }
+}
+
+@keyframes floatUp {
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-30px);
+    opacity: 0;
+  }
+}
+
+@keyframes scaleInOut {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0);
+    opacity: 0;
+  }
+}
+
+/* =============================================================================
+   UTILITY CLASSES
+   ============================================================================= */
+
+.ability-animation {
+  pointer-events: none;
+  z-index: 1000;
+}
+
+.ability-projectile {
+  position: absolute;
+  will-change: transform, opacity;
+}
+
+.ability-aura {
+  position: absolute;
+  border-radius: 50%;
+  will-change: transform, opacity;
+}
+
+.ability-particle {
+  position: absolute;
+  will-change: transform, opacity;
+}
+
+.ability-symbol {
+  position: absolute;
+  will-change: transform, opacity;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* =============================================================================
+   GRADIENT UTILITIES
+   ============================================================================= */
+
+.bg-gradient-radial {
+  background: radial-gradient(circle, var(--tw-gradient-stops));
+}
+
+/* Custom gradient stops for abilities */
+.from-fire {
+  --tw-gradient-from: #ff4500;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(255, 69, 0, 0));
+}
+
+.via-fire {
+  --tw-gradient-via: #ff6b35;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-via), var(--tw-gradient-to, rgba(255, 107, 53, 0));
+}
+
+.to-fire {
+  --tw-gradient-to: #ff8c42;
+}
+
+.from-heal {
+  --tw-gradient-from: #22c55e;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(34, 197, 94, 0));
+}
+
+.via-heal {
+  --tw-gradient-via: #16a34a;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-via), var(--tw-gradient-to, rgba(22, 163, 74, 0));
+}
+
+.to-heal {
+  --tw-gradient-to: #15803d;
+}
+
+.from-buff {
+  --tw-gradient-from: #fbbf24;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(251, 191, 36, 0));
+}
+
+.via-buff {
+  --tw-gradient-via: #f59e0b;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-via), var(--tw-gradient-to, rgba(245, 158, 11, 0));
+}
+
+.to-buff {
+  --tw-gradient-to: #d97706;
+}
+
+.from-debuff {
+  --tw-gradient-from: #a855f7;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(168, 85, 247, 0));
+}
+
+.via-debuff {
+  --tw-gradient-via: #9333ea;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-via), var(--tw-gradient-to, rgba(147, 51, 234, 0));
+}
+
+.to-debuff {
+  --tw-gradient-to: #7c3aed;
+}
+
+/* =============================================================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================================================= */
+
+@media (max-width: 768px) {
+  /* Reduce animation intensity on mobile for performance */
+  .ability-animation {
+    animation-duration: 0.8s !important;
+  }
+  
+  .ability-particle {
+    display: none; /* Hide particles on mobile to improve performance */
+  }
+  
+  /* Simplify complex animations */
+  @keyframes fireballTravel {
+    0% {
+      transform: translateX(0) translateY(0);
+      opacity: 1;
+    }
+    100% {
+      transform: translateX(var(--target-x)) translateY(var(--target-y));
+      opacity: 0.5;
+    }
+  }
+}
+
+/* =============================================================================
+   ACCESSIBILITY
+   ============================================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  /* Respect user's motion preferences */
+  .ability-animation,
+  .ability-projectile,
+  .ability-aura,
+  .ability-particle,
+  .ability-symbol {
+    animation-duration: 0.3s !important;
+    animation-iteration-count: 1 !important;
+  }
+  
+  /* Disable complex animations */
+  @keyframes fireballTravel,
+  @keyframes lightningFlash,
+  @keyframes stunStars {
+    0%, 100% {
+      opacity: 0.5;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+}
+
+/* =============================================================================
+   PERFORMANCE OPTIMIZATIONS
+   ============================================================================= */
+
+.ability-animation * {
+  /* Enable hardware acceleration for smooth animations */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Optimize for 60fps animations */
+@media (min-resolution: 2dppx) {
+  .ability-animation {
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}

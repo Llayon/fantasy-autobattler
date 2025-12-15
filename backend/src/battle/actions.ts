@@ -309,41 +309,58 @@ export function executeTurn(
   
   if (!inRange) {
     // Step 3: Move towards target if not in range
-    // Find the closest position adjacent to target where we can attack from
-    const adjacentPositions = [
-      { x: target.position.x - 1, y: target.position.y },
-      { x: target.position.x + 1, y: target.position.y },
-      { x: target.position.x, y: target.position.y - 1 },
-      { x: target.position.x, y: target.position.y + 1 },
-    ];
-    
+    // Find positions within attack range of target
     const grid = createEmptyGrid();
     const otherUnits = currentState.units.filter(u => u.alive && u.instanceId !== currentUnit.instanceId);
+    
+    // Generate all positions within attack range of target
+    const attackPositions: Position[] = [];
+    const attackRange = currentUnit.range;
+    
+    for (let dx = -attackRange; dx <= attackRange; dx++) {
+      for (let dy = -attackRange; dy <= attackRange; dy++) {
+        // Skip the target's own position
+        if (dx === 0 && dy === 0) continue;
+        
+        const pos = {
+          x: target.position.x + dx,
+          y: target.position.y + dy,
+        };
+        
+        // Check if position is valid and within Manhattan distance
+        if (manhattanDistance(pos, target.position) <= attackRange) {
+          // Check if position is on the grid
+          if (pos.x >= 0 && pos.x < 8 && pos.y >= 0 && pos.y < 10) {
+            attackPositions.push(pos);
+          }
+        }
+      }
+    }
     
     let bestPath: Position[] = [];
     let shortestDistance = Infinity;
     
-    // Try to find path to each adjacent position
-    for (const adjPos of adjacentPositions) {
-      const pathToAdjacent = findPath(
+    // Try to find path to each attack position
+    for (const attackPos of attackPositions) {
+      const pathToPosition = findPath(
         currentUnit.position,
-        adjPos,
+        attackPos,
         grid,
         otherUnits,
         currentUnit
       );
       
-      if (pathToAdjacent.length > 0) {
-        const pathDistance = pathToAdjacent.length;
+      if (pathToPosition.length > 0) {
+        const pathDistance = pathToPosition.length;
         if (pathDistance < shortestDistance) {
           shortestDistance = pathDistance;
-          bestPath = pathToAdjacent;
+          bestPath = pathToPosition;
         }
       }
     }
     
     if (bestPath.length > 1) {
-      // Execute movement
+      // Execute movement - move as far as possible along the path
       const moveEvent = executeMove(currentUnit, bestPath, currentUnit.stats.speed);
       moveEvent.round = currentState.currentRound;
       events.push(moveEvent);
@@ -356,6 +373,29 @@ export function executeTurn(
       
       // Update battle state with new position
       currentState = updateBattleState(currentState, [currentUnit]);
+    } else if (attackPositions.length === 0) {
+      // No valid attack positions found - try to move closer to target anyway
+      const pathToTarget = findPath(
+        currentUnit.position,
+        target.position,
+        grid,
+        otherUnits,
+        currentUnit
+      );
+      
+      // Move along the path even if we can't reach an attack position
+      if (pathToTarget.length > 1) {
+        const moveEvent = executeMove(currentUnit, pathToTarget, currentUnit.stats.speed);
+        moveEvent.round = currentState.currentRound;
+        events.push(moveEvent);
+        
+        currentUnit = {
+          ...currentUnit,
+          position: moveEvent.toPosition,
+        };
+        
+        currentState = updateBattleState(currentState, [currentUnit]);
+      }
     }
   }
   

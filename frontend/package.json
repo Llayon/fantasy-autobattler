@@ -21,11 +21,13 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@types/react-window": "^1.8.8",
+    "clsx": "^2.1.1",
     "immer": "^11.0.1",
     "next": "^14.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-window": "^2.2.3",
+    "tailwind-merge": "^3.4.0",
     "zustand": "^4.4.0"
   },
   "devDependencies": {

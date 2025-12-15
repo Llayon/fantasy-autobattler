@@ -16,6 +16,7 @@ import {
   DeathAnimation, 
   HealAnimation 
 } from './BattleAnimations';
+import { AbilityAnimation } from './AbilityAnimations';
 import { BattleResult } from './BattleResult';
 
 // =============================================================================
@@ -368,14 +369,12 @@ function ReplayGridCell({
         </div>
       )}
       
-      {/* Unit display */}
-      {unit && (
+      {/* Unit display - only show alive units, dead units show as gravestones briefly then disappear */}
+      {unit && unit.alive && (
         <div className={`
           absolute inset-1 rounded flex items-center justify-center text-lg font-bold cursor-pointer
           ${unit.team === 'player1' ? 'bg-blue-600 hover:bg-blue-500' : 'bg-red-600 hover:bg-red-500'}
-          ${!unit.alive ? 'opacity-30 grayscale' : ''}
           ${unit.animation?.type === 'damage' ? 'animate-pulse bg-red-400' : ''}
-          ${unit.animation?.type === 'death' ? 'animate-bounce opacity-50' : ''}
           ${unit.animation?.type === 'move' ? 'ring-2 ring-yellow-400 ring-opacity-75 animate-pulse scale-110' : ''}
           ${unit.animation?.type === 'attack' ? 'animate-ping bg-orange-500' : ''}
           transition-all duration-300 hover:scale-110
@@ -412,6 +411,13 @@ function ReplayGridCell({
               ⚔️
             </div>
           )}
+        </div>
+      )}
+      
+      {/* Dead unit gravestone - shows briefly during death animation */}
+      {unit && !unit.alive && unit.animation?.type === 'death' && (
+        <div className="absolute inset-1 rounded flex items-center justify-center text-lg opacity-50 animate-pulse">
+          💀
         </div>
       )}
     </div>
@@ -982,12 +988,21 @@ export function BattleReplay({ battle }: BattleReplayProps) {
     damages: Array<{ id: string; damage: number; position: Position }>;
     deaths: Array<{ id: string; position: Position }>;
     heals: Array<{ id: string; healing: number; position: Position }>;
+    abilities: Array<{ 
+      id: string; 
+      abilityType: 'fireball' | 'heal' | 'stun' | 'buff' | 'debuff' | 'shield' | 'lightning' | 'explosion';
+      fromPosition?: Position; 
+      toPosition: Position; 
+      radius?: number; 
+      value?: number;
+    }>;
   }>({
     moves: [],
     attacks: [],
     damages: [],
     deaths: [],
     heals: [],
+    abilities: [],
   });
   
   // Battle events - memoized to prevent dependency issues
@@ -1087,13 +1102,106 @@ export function BattleReplay({ battle }: BattleReplayProps) {
           }
         }
         break;
+        
+      case 'ability':
+        if (event.actorId && event.targetId) {
+          const caster = currentUnits.find(u => u.instanceId === event.actorId);
+          const target = currentUnits.find(u => u.instanceId === event.targetId);
+          
+          if (caster && target) {
+            // Determine ability type based on event metadata or ability name
+            let abilityType: 'fireball' | 'heal' | 'stun' | 'buff' | 'debuff' | 'shield' | 'lightning' | 'explosion' = 'fireball';
+            
+            // Map ability names to animation types
+            if (event.abilityId) {
+              switch (event.abilityId) {
+                case 'fireball':
+                  abilityType = 'fireball';
+                  break;
+                case 'chain_lightning':
+                  abilityType = 'lightning';
+                  break;
+                case 'heal':
+                  abilityType = 'heal';
+                  break;
+                case 'stun':
+                  abilityType = 'stun';
+                  break;
+                case 'shield_wall':
+                case 'taunt':
+                  abilityType = 'shield';
+                  break;
+                case 'inspire':
+                case 'rage':
+                  abilityType = 'buff';
+                  break;
+                case 'piercing_shot':
+                case 'execute':
+                  abilityType = 'debuff';
+                  break;
+                default:
+                  abilityType = 'explosion';
+              }
+            }
+            
+            setActiveAnimations(prev => ({
+              ...prev,
+              abilities: [...prev.abilities, {
+                id: animationId,
+                abilityType,
+                fromPosition: caster.position,
+                toPosition: target.position,
+                radius: event.areaSize || 1,
+                value: event.damage || event.healing || 0,
+              }],
+            }));
+          }
+        }
+        break;
+        
+      case 'buff':
+        if (event.targetId) {
+          const target = currentUnits.find(u => u.instanceId === event.targetId);
+          
+          if (target) {
+            setActiveAnimations(prev => ({
+              ...prev,
+              abilities: [...prev.abilities, {
+                id: animationId,
+                abilityType: 'buff',
+                toPosition: target.position,
+                radius: 1,
+              }],
+            }));
+          }
+        }
+        break;
+        
+      case 'debuff':
+        if (event.targetId) {
+          const target = currentUnits.find(u => u.instanceId === event.targetId);
+          
+          if (target) {
+            setActiveAnimations(prev => ({
+              ...prev,
+              abilities: [...prev.abilities, {
+                id: animationId,
+                abilityType: 'debuff',
+                toPosition: target.position,
+                radius: 1,
+              }],
+            }));
+          }
+        }
+        break;
     }
   }, []);
 
   /**
    * Apply events up to specified index and trigger animations for current event.
+   * Returns the current round number for the caller to update state.
    */
-  const applyEventsUpTo = useCallback((eventIndex: number) => {
+  const applyEventsUpTo = useCallback((eventIndex: number): number => {
     let currentUnits = [...initialUnits];
     let currentRound = 1;
     
@@ -1104,6 +1212,7 @@ export function BattleReplay({ battle }: BattleReplayProps) {
       damages: [],
       deaths: [],
       heals: [],
+      abilities: [],
     });
     
     for (let i = 0; i <= eventIndex && i < events.length; i++) {
@@ -1123,7 +1232,7 @@ export function BattleReplay({ battle }: BattleReplayProps) {
     }
     
     setUnits(currentUnits);
-    setReplayState(prev => ({ ...prev, currentRound }));
+    return currentRound;
   }, [initialUnits, events, triggerEventAnimation]);
 
   /**
@@ -1133,7 +1242,7 @@ export function BattleReplay({ battle }: BattleReplayProps) {
    * @param animationId - ID of the completed animation
    */
   const handleAnimationComplete = useCallback((
-    animationType: 'moves' | 'attacks' | 'damages' | 'deaths' | 'heals',
+    animationType: 'moves' | 'attacks' | 'damages' | 'deaths' | 'heals' | 'abilities',
     animationId: string
   ) => {
     setActiveAnimations(prev => ({
@@ -1148,8 +1257,8 @@ export function BattleReplay({ battle }: BattleReplayProps) {
   const stepForward = useCallback(() => {
     const nextIndex = replayState.currentEventIndex + 1;
     if (nextIndex < events.length) {
-      setReplayState(prev => ({ ...prev, currentEventIndex: nextIndex }));
-      applyEventsUpTo(nextIndex);
+      const currentRound = applyEventsUpTo(nextIndex);
+      setReplayState(prev => ({ ...prev, currentEventIndex: nextIndex, currentRound }));
     } else if (nextIndex === events.length) {
       // Reached the end, stop playing
       setReplayState(prev => ({ ...prev, isPlaying: false }));
@@ -1176,14 +1285,14 @@ export function BattleReplay({ battle }: BattleReplayProps) {
   }, []);
   
   const handleSeek = useCallback((eventIndex: number) => {
-    setReplayState(prev => ({ ...prev, currentEventIndex: eventIndex, isPlaying: false }));
-    applyEventsUpTo(eventIndex);
+    const currentRound = applyEventsUpTo(eventIndex);
+    setReplayState(prev => ({ ...prev, currentEventIndex: eventIndex, currentRound, isPlaying: false }));
   }, [applyEventsUpTo]);
   
   const handleSkipToEnd = useCallback(() => {
     const lastIndex = events.length - 1;
-    setReplayState(prev => ({ ...prev, currentEventIndex: lastIndex, isPlaying: false }));
-    applyEventsUpTo(lastIndex);
+    const currentRound = applyEventsUpTo(lastIndex);
+    setReplayState(prev => ({ ...prev, currentEventIndex: lastIndex, currentRound, isPlaying: false }));
     // Show battle result immediately when skipping to end
     setTimeout(() => {
       setShowBattleResult(true);
@@ -1195,8 +1304,8 @@ export function BattleReplay({ battle }: BattleReplayProps) {
    */
   const handleWatchReplay = useCallback(() => {
     setShowBattleResult(false);
-    setReplayState(prev => ({ ...prev, currentEventIndex: -1, isPlaying: false }));
-    applyEventsUpTo(-1);
+    const currentRound = applyEventsUpTo(-1);
+    setReplayState(prev => ({ ...prev, currentEventIndex: -1, currentRound, isPlaying: false }));
   }, [applyEventsUpTo]);
 
   const handleNewBattle = useCallback(() => {
@@ -1217,8 +1326,8 @@ export function BattleReplay({ battle }: BattleReplayProps) {
   const handleStepBack = useCallback(() => {
     const prevIndex = replayState.currentEventIndex - 1;
     if (prevIndex >= -1) {
-      setReplayState(prev => ({ ...prev, currentEventIndex: prevIndex, isPlaying: false }));
-      applyEventsUpTo(prevIndex);
+      const currentRound = applyEventsUpTo(prevIndex);
+      setReplayState(prev => ({ ...prev, currentEventIndex: prevIndex, currentRound, isPlaying: false }));
     }
   }, [replayState.currentEventIndex, applyEventsUpTo]);
 
@@ -1226,8 +1335,8 @@ export function BattleReplay({ battle }: BattleReplayProps) {
    * Skip to beginning of battle.
    */
   const handleSkipToStart = useCallback(() => {
-    setReplayState(prev => ({ ...prev, currentEventIndex: -1, isPlaying: false }));
-    applyEventsUpTo(-1);
+    const currentRound = applyEventsUpTo(-1);
+    setReplayState(prev => ({ ...prev, currentEventIndex: -1, currentRound, isPlaying: false }));
   }, [applyEventsUpTo]);
   
   // Auto-play effect
@@ -1313,15 +1422,31 @@ export function BattleReplay({ battle }: BattleReplayProps) {
   
   /**
    * Handle unit click on grid to show popup with stats.
+   * Uses smart positioning to keep tooltip within viewport.
    */
   const handleGridUnitClick = useCallback((unit: ReplayUnit, event: React.MouseEvent) => {
     const rect = event.currentTarget.getBoundingClientRect();
+    const tooltipWidth = 200; // Approximate tooltip width
+    const tooltipHeight = 280; // Approximate tooltip height
+    const padding = 10;
+    
+    // Calculate initial position (centered above the unit)
+    let x = rect.left + rect.width / 2;
+    let y = rect.top - padding;
+    
+    // Adjust horizontal position to stay within viewport
+    const minX = tooltipWidth / 2 + padding;
+    const maxX = window.innerWidth - tooltipWidth / 2 - padding;
+    x = Math.max(minX, Math.min(maxX, x));
+    
+    // If tooltip would go above viewport, show it below the unit instead
+    if (y - tooltipHeight < padding) {
+      y = rect.bottom + padding + tooltipHeight;
+    }
+    
     setSelectedGridUnit({
       unit,
-      position: {
-        x: rect.left + rect.width / 2,
-        y: rect.top - 10,
-      },
+      position: { x, y },
     });
   }, []);
 
@@ -1457,28 +1582,21 @@ export function BattleReplay({ battle }: BattleReplayProps) {
         <div className="lg:col-span-2">
           <div className="bg-gray-800 rounded-lg p-4">
             <h3 className="text-lg font-medium mb-4">Поле боя (8×10)</h3>
-            <div className="relative">
+            <div className="flex justify-center">
               <div 
-                className="grid gap-1 mx-auto"
+                className="relative grid gap-1"
                 style={{ 
                   gridTemplateColumns: `repeat(${GRID_WIDTH}, minmax(0, 1fr))`,
-                  maxWidth: `${GRID_WIDTH * 3.5}rem`
+                  width: `${GRID_WIDTH * 3.25}rem`
                 }}
               >
                 {grid}
-              </div>
               
-              {/* Animation Overlay */}
-              <div 
-                className="absolute top-0 left-0 pointer-events-none"
-                style={{ 
-                  width: `${GRID_WIDTH * 3.5}rem`,
-                  height: `${GRID_HEIGHT * 3.5}rem`,
-                  margin: '0 auto',
-                  left: '50%',
-                  transform: 'translateX(-50%)'
-                }}
-              >
+                {/* Animation Overlay - positioned inside grid container */}
+                <div 
+                  className="absolute inset-0 pointer-events-none overflow-hidden"
+                  style={{ zIndex: 10 }}
+                >
                 {/* Move Animations */}
                 {activeAnimations.moves.map(moveAnim => (
                   <MoveAnimation
@@ -1527,6 +1645,23 @@ export function BattleReplay({ battle }: BattleReplayProps) {
                     onComplete={() => handleAnimationComplete('heals', healAnim.id)}
                   />
                 ))}
+                
+                {/* Ability Animations */}
+                {activeAnimations.abilities.map(abilityAnim => (
+                  <AbilityAnimation
+                    key={abilityAnim.id}
+                    abilityType={abilityAnim.abilityType}
+                    config={{
+                      fromPosition: abilityAnim.fromPosition,
+                      toPosition: abilityAnim.toPosition,
+                      radius: abilityAnim.radius,
+                      value: abilityAnim.value,
+                    }}
+                    onComplete={() => handleAnimationComplete('abilities', abilityAnim.id)}
+                    duration={1200}
+                  />
+                ))}
+                </div>
               </div>
             </div>
           </div>
@@ -1663,3 +1798,6 @@ export function BattleReplay({ battle }: BattleReplayProps) {
     </div>
   );
 }
+
+
+export default BattleReplay;

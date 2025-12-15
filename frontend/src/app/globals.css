@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import ability animations */
+@import '../styles/ability-animations.css';
+
 /* Responsive Design Enhancements */
 @layer base {
   /* Safe area insets for mobile devices */

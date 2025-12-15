@@ -10,6 +10,7 @@
 import { useMemo } from 'react';
 import { UnitTemplate, UnitId, UnitRole } from '@/types/game';
 import { getRoleIcon } from '@/lib/roleColors';
+import { SynergyDisplay } from './SynergyDisplay';
 
 // =============================================================================
 // TYPES
@@ -189,52 +190,66 @@ function CompactSummary({ stats, className = '' }: CompactSummaryProps) {
  */
 interface FullSummaryProps {
   stats: TeamStats;
+  units: PlacedUnit[];
+  unitTemplates: UnitTemplate[];
   className?: string;
 }
 
-function FullSummary({ stats, className = '' }: FullSummaryProps) {
+function FullSummary({ stats, units, unitTemplates, className = '' }: FullSummaryProps) {
   const roleIcons = formatRoleDistribution(stats.roleDistribution);
 
   return (
-    <div className={`grid grid-cols-2 gap-3 text-sm ${className}`}>
-      {/* Unit count */}
-      <div className="flex items-center justify-between">
-        <span className="text-gray-400 flex items-center gap-1">
-          <span className="text-blue-400">👥</span> Units
-        </span>
-        <span className="text-white font-medium">{stats.unitCount}</span>
+    <div className={`space-y-4 ${className}`}>
+      {/* Team Statistics Grid */}
+      <div className="grid grid-cols-2 gap-3 text-sm">
+        {/* Unit count */}
+        <div className="flex items-center justify-between">
+          <span className="text-gray-400 flex items-center gap-1">
+            <span className="text-blue-400">👥</span> Units
+          </span>
+          <span className="text-white font-medium">{stats.unitCount}</span>
+        </div>
+
+        {/* Total HP */}
+        <div className="flex items-center justify-between">
+          <span className="text-gray-400 flex items-center gap-1">
+            <span className="text-red-400">❤️</span> Total HP
+          </span>
+          <span className="text-green-400 font-medium">{stats.totalHp}</span>
+        </div>
+
+        {/* Estimated DPS */}
+        <div className="flex items-center justify-between">
+          <span className="text-gray-400 flex items-center gap-1">
+            <span className="text-orange-400">⚔️</span> Est. DPS
+          </span>
+          <span className="text-orange-400 font-medium">{stats.estimatedDps}</span>
+        </div>
+
+        {/* Average Initiative */}
+        <div className="flex items-center justify-between">
+          <span className="text-gray-400 flex items-center gap-1">
+            <span className="text-yellow-400">⚡</span> Avg Init
+          </span>
+          <span className="text-yellow-400 font-medium">{stats.averageInitiative}</span>
+        </div>
+
+        {/* Role distribution - spans both columns */}
+        <div className="col-span-2 flex items-center justify-between">
+          <span className="text-gray-400 flex items-center gap-1">
+            <span className="text-purple-400">🎭</span> Roles
+          </span>
+          <span className="text-lg">{roleIcons || 'None'}</span>
+        </div>
       </div>
 
-      {/* Total HP */}
-      <div className="flex items-center justify-between">
-        <span className="text-gray-400 flex items-center gap-1">
-          <span className="text-red-400">❤️</span> Total HP
-        </span>
-        <span className="text-green-400 font-medium">{stats.totalHp}</span>
-      </div>
-
-      {/* Estimated DPS */}
-      <div className="flex items-center justify-between">
-        <span className="text-gray-400 flex items-center gap-1">
-          <span className="text-orange-400">⚔️</span> Est. DPS
-        </span>
-        <span className="text-orange-400 font-medium">{stats.estimatedDps}</span>
-      </div>
-
-      {/* Average Initiative */}
-      <div className="flex items-center justify-between">
-        <span className="text-gray-400 flex items-center gap-1">
-          <span className="text-yellow-400">⚡</span> Avg Init
-        </span>
-        <span className="text-yellow-400 font-medium">{stats.averageInitiative}</span>
-      </div>
-
-      {/* Role distribution - spans both columns */}
-      <div className="col-span-2 flex items-center justify-between">
-        <span className="text-gray-400 flex items-center gap-1">
-          <span className="text-purple-400">🎭</span> Roles
-        </span>
-        <span className="text-lg">{roleIcons || 'None'}</span>
+      {/* Synergies Section */}
+      <div className="border-t border-gray-700 pt-3">
+        <SynergyDisplay
+          units={units}
+          unitTemplates={unitTemplates}
+          variant="full"
+        />
       </div>
     </div>
   );
@@ -292,7 +307,14 @@ export function TeamSummary({
     return <CompactSummary stats={stats} className={className} />;
   }
 
-  return <FullSummary stats={stats} className={className} />;
+  return (
+    <FullSummary 
+      stats={stats} 
+      units={units}
+      unitTemplates={unitTemplates}
+      className={className} 
+    />
+  );
 }
 
 // =============================================================================

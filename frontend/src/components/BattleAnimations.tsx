@@ -105,8 +105,13 @@ const DEFAULT_CONFIG: AnimationConfig = {
   delay: 0,
 };
 
-/** Cell size in pixels for position calculations */
-const CELL_SIZE = 48; // 3rem = 48px
+/** Cell size in pixels for position calculations
+ * Grid width: 3.25rem per column = 52px
+ * Cell: w-12 = 48px, gap-1 = 4px between cells
+ * For 8 columns: 8 * 48px + 7 * 4px = 412px total
+ * Per column with gap: 412 / 8 = 51.5px ≈ 52px
+ */
+const CELL_SIZE = 52;
 
 // =============================================================================
 // UTILITY FUNCTIONS

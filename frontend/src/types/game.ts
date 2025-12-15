@@ -159,6 +159,8 @@ export interface BattleEvent {
   toPosition?: Position;
   /** Ability used */
   abilityId?: string;
+  /** Area size for AoE abilities */
+  areaSize?: number;
   /** Units killed by this event */
   killedUnits?: string[];
   /** Additional event metadata */
