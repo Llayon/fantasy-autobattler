@@ -7,14 +7,13 @@
 
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Navigation, NavigationWrapper } from '@/components/Navigation';
 import { FullPageLoader } from '@/components/LoadingStates';
-import { ErrorMessage, NetworkError, useToast } from '@/components/ErrorStates';
+import { ErrorMessage, NetworkError } from '@/components/ErrorStates';
 import { useBattleStore } from '@/store/battleStore';
 import { useMatchmakingStore } from '@/store/matchmakingStore';
-import { BattleLog } from '@/types/game';
 
 // Lazy import BattleReplay to avoid build issues
 import dynamic from 'next/dynamic';
@@ -48,12 +47,6 @@ export default function BattlePage({ params }: BattlePageProps) {
   const router = useRouter();
   const urlParams = useParams();
   const battleId = params?.id || urlParams?.id as string;
-  const { showError } = useToast();
-  
-  // Local state for battle data
-  const [battle, setBattle] = useState<BattleLog | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   
   // Refs to prevent infinite loops
   const loadedBattleIdRef = useRef<string | null>(null);
@@ -61,9 +54,19 @@ export default function BattlePage({ params }: BattlePageProps) {
   
   // Store state and actions - use selectors to prevent unnecessary re-renders
   const currentBattle = useBattleStore(state => state.currentBattle);
+  const storeLoading = useBattleStore(state => state.loading);
   const storeError = useBattleStore(state => state.error);
   const loadBattle = useBattleStore(state => state.loadBattle);
   const resetMatchmaking = useMatchmakingStore(state => state.reset);
+
+  // Derive battle from store if it matches the current battleId
+  const battle = currentBattle?.id === battleId ? currentBattle : null;
+  
+  // Derive loading state - loading if store is loading or if we haven't loaded this battle yet
+  const loading = storeLoading || (loadedBattleIdRef.current !== battleId && !battle);
+  
+  // Derive error state from store
+  const error = storeError && loadedBattleIdRef.current === battleId ? storeError : null;
 
   /**
    * Load battle data from API - only once per battleId.
@@ -71,52 +74,26 @@ export default function BattlePage({ params }: BattlePageProps) {
   useEffect(() => {
     // Skip if no battleId
     if (!battleId) {
-      setError('ID боя не указан');
-      setLoading(false);
       return;
     }
     
-    // Skip if already loaded this battle
-    if (loadedBattleIdRef.current === battleId) {
+    // Skip if already loaded this battle successfully
+    if (loadedBattleIdRef.current === battleId && battle) {
+      return;
+    }
+    
+    // Skip if currently loading
+    if (storeLoading) {
       return;
     }
 
     const fetchBattle = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        loadedBattleIdRef.current = battleId;
-        
-        // Load battle through store
-        await loadBattle(battleId);
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Не удалось загрузить бой';
-        setError(errorMessage);
-        showError(errorMessage);
-        // Reset ref on error to allow retry
-        loadedBattleIdRef.current = null;
-      } finally {
-        setLoading(false);
-      }
+      loadedBattleIdRef.current = battleId;
+      await loadBattle(battleId);
     };
 
     fetchBattle();
-  }, [battleId, loadBattle, showError]);
-
-  /**
-   * Update local battle state when store state changes.
-   * Only update if the battle ID matches to prevent stale data.
-   */
-  useEffect(() => {
-    if (currentBattle && currentBattle.id === battleId) {
-      setBattle(currentBattle);
-      setError(null);
-      setLoading(false);
-    } else if (storeError && loadedBattleIdRef.current === battleId) {
-      setError(storeError);
-      setLoading(false);
-    }
-  }, [currentBattle, storeError, battleId]);
+  }, [battleId, loadBattle, battle, storeLoading]);
   
   /**
    * Clear matchmaking state when viewing battle replay to prevent redirect loops.
@@ -142,20 +119,13 @@ export default function BattlePage({ params }: BattlePageProps) {
   const handleRetry = useCallback(() => {
     // Reset the loaded ref to allow re-fetching
     loadedBattleIdRef.current = null;
-    setError(null);
-    setLoading(true);
+    
+    // Clear store error and trigger reload
+    useBattleStore.getState().clearError();
     
     const fetchBattle = async () => {
-      try {
-        loadedBattleIdRef.current = battleId;
-        await loadBattle(battleId);
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Не удалось загрузить бой';
-        setError(errorMessage);
-        loadedBattleIdRef.current = null;
-      } finally {
-        setLoading(false);
-      }
+      loadedBattleIdRef.current = battleId;
+      await loadBattle(battleId);
     };
 
     fetchBattle();
