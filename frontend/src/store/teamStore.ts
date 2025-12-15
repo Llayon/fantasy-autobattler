@@ -373,11 +373,30 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     
     try {
       const response = await api.getTeams();
-      const activeTeam = response.teams.find(team => team.isActive) || null;
+      
+      // Find active team from server response
+      const serverActiveTeam = response.teams.find(team => team.isActive) || null;
+      
+      // Get current activeTeam from state
+      const currentActiveTeam = get().activeTeam;
+      
+      // Determine which team should be active:
+      // 1. If server has an active team, use it
+      // 2. If current activeTeam exists and is in the teams list, keep it
+      // 3. Otherwise, use the first team or null
+      let newActiveTeam: TeamResponse | null = serverActiveTeam;
+      
+      if (!newActiveTeam && currentActiveTeam) {
+        // Check if current active team is still in the list
+        const stillExists = response.teams.find(t => t.id === currentActiveTeam.id);
+        if (stillExists) {
+          newActiveTeam = stillExists;
+        }
+      }
       
       set({ 
         teams: response.teams, 
-        activeTeam,
+        activeTeam: newActiveTeam,
         loading: false 
       });
     } catch (error) {
@@ -712,7 +731,8 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
         // Refresh teams list to get updated data from server
         await get().loadTeams();
         
-        // Update active team
+        // IMPORTANT: Set activeTeam AFTER loadTeams to ensure it's not overwritten
+        // loadTeams may set activeTeam to null if server doesn't return isActive flag
         set({
           activeTeam: activatedTeam,
           loading: false,
@@ -720,9 +740,13 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
         
         return activatedTeam;
       } catch (activateError) {
-        // If activation fails, still refresh teams list
+        // If activation fails, still set the saved team as active for immediate use
+        // This ensures the user can start a battle right away
         await get().loadTeams();
-        set({ loading: false });
+        set({ 
+          activeTeam: savedTeam,
+          loading: false 
+        });
         return savedTeam;
       }
     } catch (error) {
