@@ -149,10 +149,14 @@ export interface BattleEvent {
   targetIds?: string[];
   /** Damage dealt */
   damage?: number;
+  /** Total damage dealt (for ability events) */
+  totalDamage?: number;
   /** Multiple damage values (for multi-target) */
   damages?: number[];
   /** Healing amount */
   healing?: number;
+  /** Total healing done (for ability events) */
+  totalHealing?: number;
   /** Movement from position */
   fromPosition?: Position;
   /** Movement to position */
@@ -163,6 +167,8 @@ export interface BattleEvent {
   areaSize?: number;
   /** Units killed by this event */
   killedUnits?: string[];
+  /** Whether attack was dodged (for attack events) */
+  dodged?: boolean;
   /** Additional event metadata */
   metadata?: Record<string, unknown>;
 }

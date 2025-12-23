@@ -14,6 +14,7 @@ import { FullPageLoader } from '@/components/LoadingStates';
 import { ErrorMessage, NetworkError } from '@/components/ErrorStates';
 import { useBattleStore } from '@/store/battleStore';
 import { useMatchmakingStore } from '@/store/matchmakingStore';
+import { usePlayerStore } from '@/store/playerStore';
 
 // Lazy import BattleReplay to avoid build issues
 import dynamic from 'next/dynamic';
@@ -58,6 +59,7 @@ export default function BattlePage({ params }: BattlePageProps) {
   const storeError = useBattleStore(state => state.error);
   const loadBattle = useBattleStore(state => state.loadBattle);
   const resetMatchmaking = useMatchmakingStore(state => state.reset);
+  const player = usePlayerStore(state => state.player);
 
   // Derive battle from store if it matches the current battleId
   const battle = currentBattle?.id === battleId ? currentBattle : null;
@@ -231,27 +233,8 @@ export default function BattlePage({ params }: BattlePageProps) {
       <Navigation />
       
       <NavigationWrapper>
-        <div className="max-w-6xl mx-auto p-6">
-          {/* Header with back button */}
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-3xl font-bold mb-1">⚔️ Бой #{battleId}</h1>
-              <p className="text-gray-400">
-                {battle.player1Name || 'Игрок 1'} vs {battle.player2Name || 'Игрок 2'}
-              </p>
-            </div>
-            
-            <button
-              onClick={handleBackToHistory}
-              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors flex items-center gap-2"
-            >
-              ← Назад
-            </button>
-          </div>
-          
-          {/* Battle Replay Component */}
-          <BattleReplay battle={battle} />
-        </div>
+        {/* Battle Replay Component - no wrapper, full width */}
+        <BattleReplay battle={battle} playerId={player?.id} />
       </NavigationWrapper>
     </div>
   );

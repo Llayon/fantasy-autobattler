@@ -36,5 +36,16 @@ export {
   useAccessibilityTranslations,
 } from './hooks';
 
+// Formatting utilities exports
+export {
+  useNumberFormatter,
+  useDateFormatter,
+  useRelativeTimeFormatter,
+  useGameFormatter,
+  getLocaleConfig as getFormatterLocaleConfig,
+  uses24HourFormat,
+  getDateFormat,
+} from './formatters';
+
 // Re-export next-intl hooks for convenience
 export { useTranslations, useLocale, useMessages, useTimeZone } from 'next-intl';

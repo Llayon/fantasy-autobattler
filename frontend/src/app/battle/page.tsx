@@ -7,7 +7,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Navigation, NavigationWrapper } from '@/components/Navigation';
@@ -435,6 +435,11 @@ export default function BattlePage() {
   const { showSuccess, showError } = useToast();
   const [waitTime, setWaitTime] = useState(0);
   
+  // Ref to track if battle was started on this page (not from navigation)
+  const battleStartedOnPageRef = useRef(false);
+  // Ref to track if initial cleanup was done
+  const initialCleanupDoneRef = useRef(false);
+  
   // Store state
   const activeTeam = useTeamStore(selectActiveTeam);
   const teams = useTeamStore(selectTeams);
@@ -479,8 +484,9 @@ export default function BattlePage() {
   }, [isInQueue, queueEntry]);
   
   // Handle match found - redirect to battle
+  // Only redirect if battle was started on this page (not stale state from navigation)
   useEffect(() => {
-    if (hasMatch && match) {
+    if (hasMatch && match && battleStartedOnPageRef.current) {
       const timer = setTimeout(() => {
         // Clear match state before redirect to prevent loops
         useMatchmakingStore.getState().reset();
@@ -493,38 +499,47 @@ export default function BattlePage() {
     return undefined;
   }, [hasMatch, match, router]);
   
-  // Load teams on mount
+  // Load teams on mount and clear stale match state from previous sessions
   useEffect(() => {
-    loadTeams();
-  }, [loadTeams]);
-  
-  // Clear matchmaking state on unmount to prevent redirect loops
-  useEffect(() => {
-    return () => {
-      // Clear any pending match state when leaving the page
-      const { status, match } = useMatchmakingStore.getState();
-      if (status === 'matched' && match) {
+    // Only run cleanup once on initial mount
+    if (!initialCleanupDoneRef.current) {
+      initialCleanupDoneRef.current = true;
+      
+      // Clear any stale match state from previous sessions
+      // This prevents redirect loops when navigating to /battle page via navigation
+      const { status, match: staleMatch } = useMatchmakingStore.getState();
+      if (status === 'matched' && staleMatch) {
         useMatchmakingStore.getState().reset();
       }
-    };
-  }, []);
+    }
+    
+    loadTeams();
+  }, [loadTeams]);
   
   /**
    * Handle joining PvP queue.
    */
   const handleJoinQueue = useCallback(async () => {
+    // Prevent multiple clicks while joining queue
+    if (loading) {
+      return;
+    }
+    
     if (!activeTeam) {
       showError('Выберите активную команду для участия в PvP');
       return;
     }
     
     try {
+      // Mark that battle was started on this page (for redirect logic)
+      battleStartedOnPageRef.current = true;
       await joinQueue(activeTeam.id);
       showSuccess('Поиск противника начат!');
     } catch (error) {
+      battleStartedOnPageRef.current = false;
       showError('Не удалось присоединиться к очереди');
     }
-  }, [activeTeam, joinQueue, showSuccess, showError]);
+  }, [activeTeam, joinQueue, showSuccess, showError, loading]);
 
   /**
    * Handle leaving PvP queue.
@@ -533,6 +548,7 @@ export default function BattlePage() {
     try {
       await leaveQueue();
       setWaitTime(0);
+      battleStartedOnPageRef.current = false;
       showSuccess('Поиск отменён');
     } catch (error) {
       showError('Не удалось отменить поиск');
@@ -543,6 +559,11 @@ export default function BattlePage() {
    * Handle starting bot battle.
    */
   const handleStartBotBattle = useCallback(async (difficulty: 'easy' | 'medium' | 'hard') => {
+    // Prevent multiple clicks while battle is being created
+    if (loading) {
+      return;
+    }
+    
     if (!activeTeam) {
       showError('Выберите активную команду для боя с ботом');
       return;
@@ -555,12 +576,15 @@ export default function BattlePage() {
         hard: 'сложным'
       };
       
+      // Mark that battle was started on this page (for redirect logic)
+      battleStartedOnPageRef.current = true;
       await startBotBattle(activeTeam.id, difficulty);
       showSuccess(`Бой с ${difficultyNames[difficulty]} ботом создан!`);
     } catch (error) {
+      battleStartedOnPageRef.current = false;
       showError('Не удалось начать бой с ботом');
     }
-  }, [activeTeam, startBotBattle, showSuccess, showError]);
+  }, [activeTeam, startBotBattle, showSuccess, showError, loading]);
   
   /**
    * Handle clearing error state.

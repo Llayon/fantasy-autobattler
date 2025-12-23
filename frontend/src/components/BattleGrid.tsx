@@ -406,6 +406,9 @@ function getGridConfig(variant: GridVariant) {
         cellSize: 'w-11 h-11 sm:w-12 sm:h-12', // 44px minimum for touch targets
         showLegend: false,
         showZoomHint: false,
+        // Invert rows so row 1 (front line, closer to enemy) is at top
+        // and row 0 (back line) is at bottom - matches battle view perspective
+        invertRows: true,
       };
     case 'preview':
       return {
@@ -416,6 +419,7 @@ function getGridConfig(variant: GridVariant) {
         cellSize: 'w-4 h-4', // Very small for previews
         showLegend: false,
         showZoomHint: false,
+        invertRows: false,
       };
     case 'full':
     default:
@@ -427,6 +431,7 @@ function getGridConfig(variant: GridVariant) {
         cellSize: 'aspect-square', // Full size, responsive
         showLegend: true,
         showZoomHint: true,
+        invertRows: false,
       };
   }
 }
@@ -465,6 +470,8 @@ export function BattleGrid({
   const gridConfig = useMemo(() => getGridConfig(variant), [variant]);
   
   // Create grid cells
+  // When invertRows is true, render rows in reverse order (higher Y first)
+  // This makes row 1 (front line) appear at top and row 0 (back line) at bottom
   const gridCells = useMemo(() => {
     const cells: Array<{
       position: Position;
@@ -473,7 +480,12 @@ export function BattleGrid({
       isSelected: boolean;
     }> = [];
     
-    for (let y = gridConfig.startRow; y <= gridConfig.endRow; y++) {
+    // Determine row iteration order based on invertRows setting
+    const rowStart = gridConfig.invertRows ? gridConfig.endRow : gridConfig.startRow;
+    const rowEnd = gridConfig.invertRows ? gridConfig.startRow : gridConfig.endRow;
+    const rowStep = gridConfig.invertRows ? -1 : 1;
+    
+    for (let y = rowStart; gridConfig.invertRows ? y >= rowEnd : y <= rowEnd; y += rowStep) {
       for (let x = 0; x < gridConfig.width; x++) {
         const position = { x, y };
         const unit = getUnitAtPosition(units, position);

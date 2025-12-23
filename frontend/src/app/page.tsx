@@ -7,7 +7,7 @@
 
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Position, UnitTemplate, UnitId, TeamResponse } from '@/types/game';
 import { DragDropProvider, DragDropHandlers } from '@/components/DragDropProvider';
@@ -33,6 +33,7 @@ import {
   selectMatchmakingStatus,
   selectMatch,
   selectMatchmakingError,
+  selectMatchmakingLoading,
   initializeStores
 } from '@/store';
 
@@ -113,6 +114,11 @@ export default function TeamBuilderPage() {
     unit: UnitTemplate | null;
   }>({ isOpen: false, unit: null });
   
+  // Ref to track if battle was started on this page
+  const battleStartedOnPageRef = useRef(false);
+  // Ref to track if initial cleanup was done
+  const initialCleanupDoneRef = useRef(false);
+  
   // Store selectors
   const player = usePlayerStore(selectPlayer);
   const playerLoading = usePlayerStore(selectPlayerLoading);
@@ -128,6 +134,7 @@ export default function TeamBuilderPage() {
   const matchmakingStatus = useMatchmakingStore(selectMatchmakingStatus);
   const match = useMatchmakingStore(selectMatch);
   const matchmakingError = useMatchmakingStore(selectMatchmakingError);
+  const matchmakingLoading = useMatchmakingStore(selectMatchmakingLoading);
   
   // Store actions
   const { initPlayer } = usePlayerStore();
@@ -141,9 +148,18 @@ export default function TeamBuilderPage() {
     loadTeamToDraft
   } = useTeamStore();
   
-  // Initialize stores on mount
+  // Initialize stores on mount and clear stale matchmaking state
   useEffect(() => {
     const init = async () => {
+      // Clear stale matchmaking state on mount (prevents redirect loops)
+      if (!initialCleanupDoneRef.current) {
+        initialCleanupDoneRef.current = true;
+        const { status, match: staleMatch } = useMatchmakingStore.getState();
+        if (status === 'matched' && staleMatch) {
+          useMatchmakingStore.getState().reset();
+        }
+      }
+      
       await initPlayer();
       await initializeStores();
       
@@ -161,9 +177,9 @@ export default function TeamBuilderPage() {
     }
   }, [units.length, currentTeam.units.length, createNewTeam]);
 
-  // Navigate to battle when match is found
+  // Navigate to battle when match is found (only if battle was started on this page)
   useEffect(() => {
-    if (matchmakingStatus === 'matched' && match?.battleId) {
+    if (matchmakingStatus === 'matched' && match?.battleId && battleStartedOnPageRef.current) {
       router.push(`/battle/${match.battleId}`);
     }
   }, [matchmakingStatus, match?.battleId, router]);
@@ -305,6 +321,12 @@ export default function TeamBuilderPage() {
   }, [createNewTeam]);
   
   const handleStartBattle = useCallback(async () => {
+    // Prevent multiple clicks while battle is being created
+    const { loading: isMatchmakingLoading } = useMatchmakingStore.getState();
+    if (isMatchmakingLoading) {
+      return;
+    }
+    
     if (!currentTeam.isValid || currentTeam.units.length === 0) {
       return;
     }
@@ -315,9 +337,16 @@ export default function TeamBuilderPage() {
       return; // Save failed
     }
 
+    // Mark that battle was started on this page (for redirect logic)
+    battleStartedOnPageRef.current = true;
+    
     // Start bot battle for now (can be changed to PvP later)
     const { startBotBattle } = useMatchmakingStore.getState();
-    await startBotBattle(savedTeam.id, 'medium');
+    try {
+      await startBotBattle(savedTeam.id, 'medium');
+    } catch (error) {
+      battleStartedOnPageRef.current = false;
+    }
   }, [currentTeam.isValid, currentTeam.units.length, saveTeam]);
 
   const handleShowTeams = useCallback(() => {
@@ -421,8 +450,8 @@ export default function TeamBuilderPage() {
     onStartBattle: handleStartBattle,
     onShowTeams: handleShowTeams,
     canSave: currentTeam.isValid && currentTeam.units.length > 0,
-    canBattle: currentTeam.isValid && currentTeam.units.length > 0,
-    loading: teamLoading,
+    canBattle: currentTeam.isValid && currentTeam.units.length > 0 && !matchmakingLoading,
+    loading: teamLoading || matchmakingLoading,
     teamCount: teams.length,
   };
 

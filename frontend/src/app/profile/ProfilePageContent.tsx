@@ -10,7 +10,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePlayerStore } from '@/store/playerStore';
-import { TeamResponse, Player } from '@/types/game';
+import { useUIStore } from '@/store/uiStore';
+import { TeamResponse, Player, UNIT_INFO, UnitId } from '@/types/game';
 import { api, ApiError } from '@/lib/api';
 import { Navigation, NavigationWrapper } from '@/components/Navigation';
 import { FullPageLoader, ButtonLoader } from '@/components/LoadingStates';
@@ -662,14 +663,9 @@ function TeamPreview({
   team: TeamResponse;
   position: { x: number; y: number };
 }) {
-  const roleCount = team.units.reduce((acc, unit) => {
-    acc[unit.role] = (acc[unit.role] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-
   return (
     <div
-      className="fixed z-50 bg-gray-900 border border-gray-600 rounded-lg p-3 shadow-xl"
+      className="fixed z-50 bg-gray-900 border border-gray-600 rounded-lg p-3 shadow-xl max-w-xs"
       style={{
         left: position.x,
         top: position.y,
@@ -679,13 +675,21 @@ function TeamPreview({
       <div className="text-sm">
         <div className="font-bold text-white mb-2">{team.name}</div>
         
-        <div className="grid grid-cols-3 gap-2 mb-2">
-          {Object.entries(roleCount).map(([role, count]) => (
-            <div key={role} className="flex items-center gap-1">
-              <span className="text-lg">{getRoleIcon(role)}</span>
-              <span className="text-gray-300">×{count}</span>
-            </div>
-          ))}
+        {/* Unit list with emojis */}
+        <div className="flex flex-wrap gap-1 mb-2">
+          {team.units.map((unit, index) => {
+            const unitInfo = UNIT_INFO[unit.unitId as UnitId];
+            return (
+              <div 
+                key={index} 
+                className="flex items-center gap-1 bg-gray-800 px-2 py-1 rounded"
+                title={`${unit.name} - ${unit.cost} очков`}
+              >
+                <span className="text-base">{unitInfo?.emoji || '❓'}</span>
+                <span className="text-xs text-gray-300">{unit.name}</span>
+              </div>
+            );
+          })}
         </div>
         
         <div className="text-xs text-gray-400 border-t border-gray-700 pt-2">
@@ -788,13 +792,20 @@ function TeamsCard({
                     {team.units.length} юнитов • {team.totalCost}/30 очков
                   </div>
                   
-                  {/* Role icons preview */}
+                  {/* Unit emoji preview */}
                   <div className="flex gap-1">
-                    {team.units.slice(0, 6).map((unit, index) => (
-                      <span key={index} className="text-sm" title={unit.name}>
-                        {getRoleIcon(unit.role)}
-                      </span>
-                    ))}
+                    {team.units.slice(0, 6).map((unit, index) => {
+                      const unitInfo = UNIT_INFO[unit.unitId as UnitId];
+                      return (
+                        <span 
+                          key={index} 
+                          className="text-lg" 
+                          title={`${unit.name} (${getRoleIcon(unit.role)})`}
+                        >
+                          {unitInfo?.emoji || '❓'}
+                        </span>
+                      );
+                    })}
                     {team.units.length > 6 && (
                       <span className="text-xs text-gray-400">+{team.units.length - 6}</span>
                     )}
@@ -895,6 +906,91 @@ function WinRateChart({ battles }: { battles: RecentBattleResult[] }) {
           </div>
         </div>
         <span>Новые</span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Settings card component with UI preferences.
+ */
+function SettingsCard() {
+  const { showDebugInfo, toggleDebugInfo, showAdvancedStats, toggleAdvancedStats, animationSpeed, setAnimationSpeed } = useUIStore();
+
+  return (
+    <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+      <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+        ⚙️ Настройки
+      </h2>
+      
+      <div className="space-y-4">
+        {/* Debug Mode Toggle */}
+        <div className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg">
+          <div>
+            <div className="font-medium text-white">Режим отладки</div>
+            <div className="text-sm text-gray-400">Показывать координаты на сетке поля боя</div>
+          </div>
+          <button
+            onClick={toggleDebugInfo}
+            className={`
+              relative w-14 h-7 rounded-full transition-colors duration-200
+              ${showDebugInfo ? 'bg-blue-600' : 'bg-gray-600'}
+            `}
+            title={showDebugInfo ? 'Отключить режим отладки' : 'Включить режим отладки'}
+          >
+            <div
+              className={`
+                absolute top-1 left-1 w-5 h-5 bg-white rounded-full transition-transform duration-200
+                ${showDebugInfo ? 'transform translate-x-7' : ''}
+              `}
+            />
+          </button>
+        </div>
+
+        {/* Advanced Stats Toggle */}
+        <div className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg">
+          <div>
+            <div className="font-medium text-white">Расширенная статистика</div>
+            <div className="text-sm text-gray-400">Показывать дополнительные параметры юнитов</div>
+          </div>
+          <button
+            onClick={toggleAdvancedStats}
+            className={`
+              relative w-14 h-7 rounded-full transition-colors duration-200
+              ${showAdvancedStats ? 'bg-blue-600' : 'bg-gray-600'}
+            `}
+            title={showAdvancedStats ? 'Отключить расширенную статистику' : 'Включить расширенную статистику'}
+          >
+            <div
+              className={`
+                absolute top-1 left-1 w-5 h-5 bg-white rounded-full transition-transform duration-200
+                ${showAdvancedStats ? 'transform translate-x-7' : ''}
+              `}
+            />
+          </button>
+        </div>
+
+        {/* Animation Speed Slider */}
+        <div className="p-3 bg-gray-700/50 rounded-lg">
+          <div className="mb-3">
+            <div className="font-medium text-white">Скорость анимации</div>
+            <div className="text-sm text-gray-400">Настройка скорости воспроизведения боя</div>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-400">0.25x</span>
+            <input
+              type="range"
+              min="0.25"
+              max="4"
+              step="0.25"
+              value={animationSpeed}
+              onChange={(e) => setAnimationSpeed(parseFloat(e.target.value))}
+              className="flex-1 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer slider"
+            />
+            <span className="text-sm text-gray-400">4x</span>
+            <span className="text-white font-medium min-w-[3rem] text-right">{animationSpeed}x</span>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -1161,6 +1257,7 @@ export default function ProfilePageContent() {
               onTeamClick={handleTeamClick}
               onCreateTeam={() => router.push('/')}
             />
+            <SettingsCard />
           </div>
         </div>
         </div>

@@ -7,7 +7,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { BattleLog, BattleEvent, Position, UnitTemplate, UNIT_INFO, UnitId } from '@/types/game';
 import { 
   MoveAnimation, 
@@ -18,6 +18,8 @@ import {
 } from './BattleAnimations';
 import { AbilityAnimation } from './AbilityAnimations';
 import { BattleResult } from './BattleResult';
+import { getAbilityById, getAbilityIcon } from '@/lib/abilityData';
+import { useUIStore } from '@/store/uiStore';
 
 // =============================================================================
 // TYPES
@@ -76,6 +78,8 @@ interface ReplayState {
 interface BattleReplayProps {
   /** Battle log data for replay */
   battle: BattleLog;
+  /** Current player ID for statistics calculation */
+  playerId?: string;
 }
 
 // =============================================================================
@@ -282,11 +286,53 @@ function applyEventToUnits(units: ReplayUnit[], event: BattleEvent): ReplayUnit[
             type: 'damage',
             damage: event.damage,
           };
+          // Mark as dead if HP reaches 0
+          if (updatedUnit.currentHp <= 0) {
+            updatedUnit.alive = false;
+          }
+        }
+        break;
+        
+      case 'heal':
+        if (event.targetId === unit.instanceId && event.healing) {
+          updatedUnit.currentHp = Math.min(unit.maxHp, unit.currentHp + event.healing);
         }
         break;
         
       case 'death':
-        if (event.targetId === unit.instanceId || event.killedUnits?.includes(unit.instanceId)) {
+        // Death events use actorId (not targetId) for the dying unit, plus killedUnits array
+        if (event.actorId === unit.instanceId || 
+            event.targetId === unit.instanceId || 
+            event.killedUnits?.includes(unit.instanceId)) {
+          updatedUnit.alive = false;
+          updatedUnit.currentHp = 0;
+          updatedUnit.animation = {
+            type: 'death',
+          };
+        }
+        break;
+        
+      case 'ability':
+        // Handle ability damage and kills
+        if (event.targetId === unit.instanceId || event.targetIds?.includes(unit.instanceId)) {
+          // Apply damage from ability if this unit is a target
+          if (event.totalDamage && event.targetIds) {
+            // Distribute damage among targets (simplified - equal distribution)
+            const damagePerTarget = Math.floor(event.totalDamage / event.targetIds.length);
+            updatedUnit.currentHp = Math.max(0, unit.currentHp - damagePerTarget);
+          } else if (event.totalDamage && event.targetId === unit.instanceId) {
+            // Single target ability
+            updatedUnit.currentHp = Math.max(0, unit.currentHp - event.totalDamage);
+          }
+          
+          // Apply healing from ability
+          if (event.totalHealing && event.targetId === unit.instanceId) {
+            updatedUnit.currentHp = Math.min(unit.maxHp, unit.currentHp + event.totalHealing);
+          }
+        }
+        
+        // Check if this unit was killed by the ability
+        if (event.killedUnits?.includes(unit.instanceId)) {
           updatedUnit.alive = false;
           updatedUnit.currentHp = 0;
           updatedUnit.animation = {
@@ -314,7 +360,9 @@ function ReplayGridCell({
   onUnitClick,
   isMovementSource = false,
   isMovementTarget = false,
-  movementPath = []
+  movementPath = [],
+  showDebugInfo = false,
+  isActiveUnit = false
 }: { 
   position: Position; 
   unit?: ReplayUnit; 
@@ -323,6 +371,8 @@ function ReplayGridCell({
   isMovementSource?: boolean;
   isMovementTarget?: boolean;
   movementPath?: Position[];
+  showDebugInfo?: boolean;
+  isActiveUnit?: boolean;
 }) {
   const isPlayerZone = position.y <= 1;
   const isEnemyZone = position.y >= 8;
@@ -351,10 +401,12 @@ function ReplayGridCell({
   
   return (
     <div className={cellClasses} onClick={handleCellClick}>
-      {/* Grid coordinates */}
-      <div className="absolute top-0 left-0 text-xs text-gray-500 leading-none">
-        {position.x},{position.y}
-      </div>
+      {/* Debug coordinates - only shown when debug mode is enabled */}
+      {showDebugInfo && (
+        <div className="absolute top-0 left-0 text-[8px] text-gray-500 px-0.5">
+          {position.x},{position.y}
+        </div>
+      )}
       
       {/* Movement indicators */}
       {isMovementSource && (
@@ -371,47 +423,55 @@ function ReplayGridCell({
       
       {/* Unit display - only show alive units, dead units show as gravestones briefly then disappear */}
       {unit && unit.alive && (
-        <div className={`
-          absolute inset-1 rounded flex items-center justify-center text-lg font-bold cursor-pointer
-          ${unit.team === 'player1' ? 'bg-blue-600 hover:bg-blue-500' : 'bg-red-600 hover:bg-red-500'}
-          ${unit.animation?.type === 'damage' ? 'animate-pulse bg-red-400' : ''}
-          ${unit.animation?.type === 'move' ? 'ring-2 ring-yellow-400 ring-opacity-75 animate-pulse scale-110' : ''}
-          ${unit.animation?.type === 'attack' ? 'animate-ping bg-orange-500' : ''}
-          transition-all duration-300 hover:scale-110
-        `}
-        title={`${unit.template.name} - Click for details`}
-        >
-          {UNIT_INFO[unit.template.id]?.emoji || '❓'}
+        <>
+          {/* Active unit indicator - pulsing yellow border outside the unit */}
+          {isActiveUnit && (
+            <div className="absolute -inset-1 border-2 border-yellow-400 rounded animate-pulse pointer-events-none" />
+          )}
           
-          {/* HP bar */}
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-700 rounded-b">
-            <div 
-              className="h-full bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 rounded-b transition-all duration-500"
-              style={{ width: `${(unit.currentHp / unit.maxHp) * 100}%` }}
-            />
+          <div className={`
+            absolute inset-1 rounded flex items-center justify-center text-lg font-bold cursor-pointer
+            ${unit.team === 'player1' ? 'bg-blue-600 hover:bg-blue-500' : 'bg-red-600 hover:bg-red-500'}
+            ${unit.animation?.type === 'damage' ? 'animate-pulse bg-red-400' : ''}
+            ${unit.animation?.type === 'move' ? 'ring-2 ring-yellow-400 ring-opacity-75 animate-pulse scale-110' : ''}
+            ${unit.animation?.type === 'attack' ? 'animate-ping bg-orange-500' : ''}
+            ${isActiveUnit ? 'scale-105' : ''}
+            transition-all duration-300 hover:scale-110
+          `}
+          title={`${unit.template.name} - Click for details`}
+          >
+            {UNIT_INFO[unit.template.id]?.emoji || '❓'}
+            
+            {/* HP bar */}
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-700 rounded-b">
+              <div 
+                className="h-full bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 rounded-b transition-all duration-500"
+                style={{ width: `${(unit.currentHp / unit.maxHp) * 100}%` }}
+              />
+            </div>
+            
+            {/* Damage indicator */}
+            {unit.animation?.type === 'damage' && unit.animation.damage && (
+              <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 text-red-400 font-bold text-sm animate-bounce bg-black/50 px-1 rounded">
+                -{unit.animation.damage}
+              </div>
+            )}
+            
+            {/* Movement indicator */}
+            {unit.animation?.type === 'move' && unit.animation.fromPosition && unit.animation.toPosition && (
+              <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 text-yellow-400 font-bold text-xs animate-pulse bg-black/50 px-1 rounded">
+                ({unit.animation.fromPosition.x},{unit.animation.fromPosition.y}) → ({unit.animation.toPosition.x},{unit.animation.toPosition.y})
+              </div>
+            )}
+            
+            {/* Attack indicator */}
+            {unit.animation?.type === 'attack' && (
+              <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 text-orange-400 font-bold animate-bounce">
+                ⚔️
+              </div>
+            )}
           </div>
-          
-          {/* Damage indicator */}
-          {unit.animation?.type === 'damage' && unit.animation.damage && (
-            <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 text-red-400 font-bold text-sm animate-bounce bg-black/50 px-1 rounded">
-              -{unit.animation.damage}
-            </div>
-          )}
-          
-          {/* Movement indicator */}
-          {unit.animation?.type === 'move' && unit.animation.fromPosition && unit.animation.toPosition && (
-            <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 text-yellow-400 font-bold text-xs animate-pulse bg-black/50 px-1 rounded">
-              ({unit.animation.fromPosition.x},{unit.animation.fromPosition.y}) → ({unit.animation.toPosition.x},{unit.animation.toPosition.y})
-            </div>
-          )}
-          
-          {/* Attack indicator */}
-          {unit.animation?.type === 'attack' && (
-            <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 text-orange-400 font-bold animate-bounce">
-              ⚔️
-            </div>
-          )}
-        </div>
+        </>
       )}
       
       {/* Dead unit gravestone - shows briefly during death animation */}
@@ -499,8 +559,8 @@ function TurnOrderBar({
               <div
                 key={unit.instanceId}
                 className={`
-                  flex-shrink-0 cursor-pointer transition-all duration-200 hover:scale-105
-                  ${isActive ? 'ring-2 ring-yellow-400 ring-opacity-75' : ''}
+                  flex-shrink-0 cursor-pointer transition-all duration-200 hover:scale-105 relative
+                  ${isActive ? 'ring-2 ring-yellow-400 ring-opacity-75 scale-110' : ''}
                 `}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -508,12 +568,19 @@ function TurnOrderBar({
                 }}
                 title={`${unit.template.name} - Click for stats`}
               >
+                {/* Active unit arrow indicator */}
+                {isActive && (
+                  <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 text-yellow-400 text-xl animate-bounce">
+                    ▼
+                  </div>
+                )}
+                
                 {/* Unit icon - increased to 48x48px */}
                 <div
                   className={`
                     w-12 h-12 rounded-lg border-2 flex items-center justify-center relative
                     ${unit.team === 'player1' ? 'border-blue-400 bg-blue-600/20' : 'border-red-400 bg-red-600/20'}
-                    ${isActive ? 'animate-pulse' : ''}
+                    ${isActive ? 'border-yellow-400 bg-yellow-500/20 animate-pulse' : ''}
                   `}
                 >
                   <span className="text-xl">{UNIT_INFO[unit.template.id]?.emoji || '❓'}</span>
@@ -613,6 +680,171 @@ function TurnOrderBar({
 }
 
 /**
+ * Event marker for progress bar.
+ */
+interface EventMarker {
+  /** Event index */
+  index: number;
+  /** Event type */
+  type: 'death' | 'ability' | 'round_start';
+  /** Marker icon */
+  icon: string;
+  /** Marker color */
+  color: string;
+  /** Tooltip description */
+  description: string;
+}
+
+/**
+ * Progress bar with event markers component.
+ * Shows clickable markers for key events (deaths, abilities, round starts).
+ */
+function ProgressBarWithMarkers({
+  events,
+  currentEventIndex,
+  totalEvents,
+  onSeek,
+  units,
+}: {
+  events: BattleEvent[];
+  currentEventIndex: number;
+  totalEvents: number;
+  onSeek: (eventIndex: number) => void;
+  units: ReplayUnit[];
+}) {
+  const [hoveredMarker, setHoveredMarker] = useState<EventMarker | null>(null);
+  const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number } | null>(null);
+
+  /**
+   * Extract key event markers from events array.
+   * 
+   * @returns Array of event markers
+   */
+  const markers = useMemo((): EventMarker[] => {
+    const result: EventMarker[] = [];
+    
+    events.forEach((event, index) => {
+      if (event.type === 'death') {
+        const targetName = event.targetId ? getUnitDisplayName(event.targetId, units) : 'Юнит';
+        result.push({
+          index,
+          type: 'death',
+          icon: '💀',
+          color: 'bg-red-500',
+          description: `Смерть: ${targetName}`,
+        });
+      } else if (event.type === 'ability') {
+        const actorName = event.actorId ? getUnitDisplayName(event.actorId, units) : 'Юнит';
+        const ability = event.abilityId ? getAbilityById(event.abilityId) : undefined;
+        const abilityName = ability?.name || 'способность';
+        result.push({
+          index,
+          type: 'ability',
+          icon: '✨',
+          color: 'bg-yellow-500',
+          description: `${actorName}: ${abilityName}`,
+        });
+      } else if (event.type === 'round_start') {
+        result.push({
+          index,
+          type: 'round_start',
+          icon: '|',
+          color: 'bg-gray-400',
+          description: `Раунд ${event.round}`,
+        });
+      }
+    });
+    
+    return result;
+  }, [events, units]);
+
+  /**
+   * Handle marker click to seek to event.
+   */
+  const handleMarkerClick = (marker: EventMarker) => {
+    onSeek(marker.index);
+  };
+
+  /**
+   * Handle marker hover to show tooltip.
+   */
+  const handleMarkerHover = (marker: EventMarker, event: React.MouseEvent) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    setTooltipPosition({
+      x: rect.left + rect.width / 2,
+      y: rect.top - 10,
+    });
+    setHoveredMarker(marker);
+  };
+
+  /**
+   * Handle marker leave to hide tooltip.
+   */
+  const handleMarkerLeave = () => {
+    setHoveredMarker(null);
+    setTooltipPosition(null);
+  };
+
+  const progress = totalEvents > 0 ? (Math.max(0, currentEventIndex + 1) / totalEvents) * 100 : 0;
+
+  return (
+    <div className="relative">
+      {/* Progress bar container */}
+      <div className="w-full bg-gray-700 rounded-full h-6 relative overflow-visible">
+        {/* Progress fill */}
+        <div 
+          className="bg-blue-600 h-6 rounded-full transition-all duration-300 relative z-10"
+          style={{ width: `${progress}%` }}
+        />
+        
+        {/* Event markers */}
+        {markers.map((marker, idx) => {
+          const position = (marker.index / totalEvents) * 100;
+          const isRoundStart = marker.type === 'round_start';
+          
+          return (
+            <div
+              key={`${marker.type}-${marker.index}-${idx}`}
+              className={`
+                absolute top-0 transform -translate-x-1/2 cursor-pointer transition-all duration-200
+                ${isRoundStart ? 'h-6 w-0.5' : 'h-6 w-6 rounded-full flex items-center justify-center text-xs'}
+                ${marker.color}
+                hover:scale-125 hover:z-30
+                ${marker.index === currentEventIndex ? 'ring-2 ring-white scale-125 z-20' : 'z-10'}
+              `}
+              style={{ left: `${position}%` }}
+              onClick={() => handleMarkerClick(marker)}
+              onMouseEnter={(e) => handleMarkerHover(marker, e)}
+              onMouseLeave={handleMarkerLeave}
+              title={marker.description}
+            >
+              {!isRoundStart && marker.icon}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Tooltip */}
+      {hoveredMarker && tooltipPosition && (
+        <div
+          className="fixed z-50 bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 shadow-xl text-sm whitespace-nowrap"
+          style={{
+            left: tooltipPosition.x,
+            top: tooltipPosition.y,
+            transform: 'translate(-50%, -100%)',
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-lg">{hoveredMarker.icon}</span>
+            <span className="text-white">{hoveredMarker.description}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
  * Replay controls component.
  */
 function ReplayControls({
@@ -626,6 +858,10 @@ function ReplayControls({
   onSeek,
   onSkipToStart,
   onSkipToEnd,
+  events,
+  units,
+  keyMomentsOnly,
+  onToggleKeyMoments,
 }: {
   replayState: ReplayState;
   totalEvents: number;
@@ -637,6 +873,10 @@ function ReplayControls({
   onSeek: (eventIndex: number) => void;
   onSkipToStart: () => void;
   onSkipToEnd: () => void;
+  events: BattleEvent[];
+  units: ReplayUnit[];
+  keyMomentsOnly: boolean;
+  onToggleKeyMoments: () => void;
 }) {
   const progress = totalEvents > 0 ? (Math.max(0, replayState.currentEventIndex + 1) / totalEvents) * 100 : 0;
   
@@ -713,8 +953,25 @@ function ReplayControls({
           ))}
         </div>
 
-        {/* Keyboard shortcuts help */}
+        {/* Key Moments Only toggle */}
         <div className="flex items-center gap-2 ml-4">
+          <button
+            onClick={onToggleKeyMoments}
+            className={`
+              px-3 py-2 rounded-lg text-sm transition-colors flex items-center gap-2
+              ${keyMomentsOnly 
+                ? 'bg-yellow-600 text-white hover:bg-yellow-500' 
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }
+            `}
+            title="Показывать только ключевые моменты (смерти, способности)"
+          >
+            {keyMomentsOnly ? '⭐ Ключевые' : '📋 Все'}
+          </button>
+        </div>
+
+        {/* Keyboard shortcuts help */}
+        <div className="flex items-center gap-2 ml-auto">
           <button
             className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg transition-colors text-sm"
             title="Горячие клавиши: Пробел (играть/пауза), ← → (шаги), Home/End (начало/конец), 1-4 (скорость)"
@@ -724,9 +981,9 @@ function ReplayControls({
         </div>
       </div>
       
-      {/* Progress bar */}
+      {/* Progress bar with markers */}
       <div className="mb-2">
-        <div className="flex justify-between text-sm text-gray-400 mb-1">
+        <div className="flex justify-between text-sm text-gray-400 mb-2">
           <span>
             Событие {Math.max(0, replayState.currentEventIndex + 1)} из {totalEvents}
             {replayState.currentEventIndex === -1 && (
@@ -735,15 +992,23 @@ function ReplayControls({
             {replayState.currentEventIndex === totalEvents - 1 && totalEvents > 0 && (
               <span className="text-green-400 ml-2">🏁 Конец</span>
             )}
+            {keyMomentsOnly && (
+              <span className="text-yellow-400 ml-2">⭐ Только ключевые моменты</span>
+            )}
           </span>
           <span>{Math.round(progress)}%</span>
         </div>
-        <div className="w-full bg-gray-700 rounded-full h-2">
-          <div 
-            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
+        
+        {/* Enhanced progress bar with event markers */}
+        <ProgressBarWithMarkers
+          events={events}
+          currentEventIndex={replayState.currentEventIndex}
+          totalEvents={totalEvents}
+          onSeek={onSeek}
+          units={units}
+        />
+        
+        {/* Slider for fine control */}
         <input
           type="range"
           min="-1"
@@ -756,6 +1021,22 @@ function ReplayControls({
           }}
           title={`Событие ${Math.max(0, replayState.currentEventIndex + 1)} из ${totalEvents}`}
         />
+        
+        {/* Legend for markers */}
+        <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
+          <div className="flex items-center gap-1">
+            <span className="text-base">💀</span>
+            <span>Смерть</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-base">✨</span>
+            <span>Способность</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-gray-400">|</span>
+            <span>Раунд</span>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -773,6 +1054,44 @@ function EventLog({
   currentEventIndex: number;
   units: ReplayUnit[];
 }) {
+  // Ref for current event to enable auto-scroll
+  const currentEventRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * Get team affiliation from actorId.
+   * 
+   * @param actorId - Unit instance ID
+   * @returns Team affiliation ('player1' | 'player2' | null)
+   */
+  const getTeamFromActorId = (actorId: string | undefined): 'player1' | 'player2' | null => {
+    if (!actorId) return null;
+    const unit = units.find(u => u.instanceId === actorId);
+    return unit?.team || null;
+  };
+
+  /**
+   * Get team color dot classes.
+   * 
+   * @param team - Team affiliation
+   * @returns CSS classes for team color dot
+   */
+  const getTeamDotColor = (team: 'player1' | 'player2' | null): string => {
+    if (team === 'player1') return 'bg-blue-500';
+    if (team === 'player2') return 'bg-red-500';
+    return 'bg-gray-500';
+  };
+
+  /**
+   * Auto-scroll to current event when it changes.
+   */
+  useEffect(() => {
+    if (currentEventRef.current) {
+      currentEventRef.current.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'center' 
+      });
+    }
+  }, [currentEventIndex]);
   /**
    * Get event color based on type.
    */
@@ -827,6 +1146,10 @@ function EventLog({
 
   /**
    * Format event description with unit names instead of IDs.
+   * Includes ability names and effect details for ability events.
+   * 
+   * @param event - Battle event to format
+   * @returns Human-readable event description
    */
   const formatEventDescription = (event: BattleEvent): string => {
     const actorName = event.actorId ? getUnitDisplayName(event.actorId, units) : '';
@@ -834,6 +1157,10 @@ function EventLog({
 
     switch (event.type) {
       case 'attack':
+        // Show dodge indicator if attack was dodged
+        if (event.dodged) {
+          return `${actorName} атакует ${targetName} — Уклонение! 💨`;
+        }
         return `${actorName} атакует ${targetName}`;
       case 'damage':
         return `${targetName} получает ${event.damage} урона`;
@@ -843,8 +1170,18 @@ function EventLog({
         return `${actorName} перемещается`;
       case 'death':
         return `${targetName} погибает`;
-      case 'ability':
-        return `${actorName} использует способность`;
+      case 'ability': {
+        // Get ability name from abilityId
+        const abilityId = event.abilityId;
+        const ability = abilityId ? getAbilityById(abilityId) : undefined;
+        const abilityName = ability?.name || 'способность';
+        const abilityIcon = ability?.icon ? getAbilityIcon(ability.icon) : '✨';
+        
+        if (targetName && targetName !== actorName) {
+          return `${abilityIcon} ${actorName} использует "${abilityName}" на ${targetName}`;
+        }
+        return `${abilityIcon} ${actorName} использует "${abilityName}"`;
+      }
       case 'round_start':
         return `Начинается раунд ${event.round}`;
       case 'battle_end':
@@ -882,49 +1219,104 @@ function EventLog({
             
             {/* Round events */}
             <div className="space-y-1 ml-2">
-              {roundEvents.map(({ event, index }) => (
-                <div
-                  key={index}
-                  className={`
-                    text-sm p-2 rounded border-l-4 transition-all duration-200
-                    ${index === currentEventIndex 
-                      ? 'bg-blue-900/30 border-blue-400 ring-1 ring-blue-400/50' 
-                      : `bg-gray-700/20 ${getEventBorderColor(event.type)}`
-                    }
-                  `}
-                >
-                  <div className={`font-medium ${getEventColor(event.type)}`}>
-                    {formatEventDescription(event)}
+              {roundEvents.map(({ event, index }) => {
+                const team = getTeamFromActorId(event.actorId);
+                const showTeamDot = team !== null; // Only show dot for events with actorId
+                
+                return (
+                  <div
+                    key={index}
+                    ref={index === currentEventIndex ? currentEventRef : null}
+                    className={`
+                      text-sm p-2 rounded border-l-4 transition-all duration-200
+                      ${index === currentEventIndex 
+                        ? 'bg-blue-900/30 border-blue-400 ring-1 ring-blue-400/50' 
+                        : `bg-gray-700/20 ${getEventBorderColor(event.type)}`
+                      }
+                    `}
+                  >
+                    <div className="flex items-center gap-2">
+                      {/* Team color indicator dot */}
+                      {showTeamDot && (
+                        <div 
+                          className={`w-2 h-2 rounded-full flex-shrink-0 ${getTeamDotColor(team)}`}
+                          title={team === 'player1' ? 'Команда 1' : 'Команда 2'}
+                        />
+                      )}
+                      
+                      <div className={`font-medium ${getEventColor(event.type)} flex-1`}>
+                        {formatEventDescription(event)}
+                      </div>
+                    </div>
+                    
+                    {/* Additional event details */}
+                    <div className="mt-1 space-y-1 ml-4">
+                      {/* Dodge indicator for attack events */}
+                      {event.type === 'attack' && event.dodged && (
+                        <div className="text-cyan-300 text-xs font-medium">
+                          💨 Атака уклонена!
+                        </div>
+                      )}
+                      
+                      {event.damage && (
+                        <div className="text-red-300 text-xs">
+                          💥 -{event.damage} HP
+                        </div>
+                      )}
+                      
+                      {event.healing && (
+                        <div className="text-green-300 text-xs">
+                          💚 +{event.healing} HP
+                        </div>
+                      )}
+                      
+                      {/* Ability-specific details */}
+                      {event.type === 'ability' && event.abilityId && (
+                        <div className="text-yellow-200 text-xs space-y-0.5">
+                          {(() => {
+                            const ability = getAbilityById(event.abilityId);
+                            if (!ability) return null;
+                            return (
+                              <>
+                                <div className="text-gray-400 italic">
+                                  {ability.description}
+                                </div>
+                                {event.totalDamage && event.totalDamage > 0 && (
+                                  <div className="text-red-300">
+                                    💥 Урон: {event.totalDamage}
+                                  </div>
+                                )}
+                                {event.totalHealing && event.totalHealing > 0 && (
+                                  <div className="text-green-300">
+                                    💚 Лечение: {event.totalHealing}
+                                  </div>
+                                )}
+                                {event.targetIds && event.targetIds.length > 1 && (
+                                  <div className="text-blue-300">
+                                    🎯 Цели: {event.targetIds.map(id => getUnitDisplayName(id, units)).join(', ')}
+                                  </div>
+                                )}
+                              </>
+                            );
+                          })()}
+                        </div>
+                      )}
+                      
+                      {event.fromPosition && event.toPosition && (
+                        <div className="text-blue-300 text-xs">
+                          🚶 ({event.fromPosition.x},{event.fromPosition.y}) → ({event.toPosition.x},{event.toPosition.y})
+                        </div>
+                      )}
+                      
+                      {event.killedUnits && event.killedUnits.length > 0 && (
+                        <div className="text-purple-300 text-xs">
+                          💀 Погибли: {event.killedUnits.map(id => getUnitDisplayName(id, units)).join(', ')}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  
-                  {/* Additional event details */}
-                  <div className="mt-1 space-y-1">
-                    {event.damage && (
-                      <div className="text-red-300 text-xs">
-                        💥 -{event.damage} HP
-                      </div>
-                    )}
-                    
-                    {event.healing && (
-                      <div className="text-green-300 text-xs">
-                        💚 +{event.healing} HP
-                      </div>
-                    )}
-                    
-                    {event.fromPosition && event.toPosition && (
-                      <div className="text-blue-300 text-xs">
-                        🚶 ({event.fromPosition.x},{event.fromPosition.y}) → ({event.toPosition.x},{event.toPosition.y})
-                      </div>
-                    )}
-                    
-                    {event.killedUnits && event.killedUnits.length > 0 && (
-                      <div className="text-purple-300 text-xs">
-                        💀 Погибли: {event.killedUnits.map(id => getUnitDisplayName(id, units)).join(', ')}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         ))}
@@ -946,9 +1338,15 @@ function EventLog({
  * @example
  * <BattleReplay battle={battleLog} />
  */
-export function BattleReplay({ battle }: BattleReplayProps) {
+export function BattleReplay({ battle, playerId }: BattleReplayProps) {
   // Safety check for required battle data - moved to top to avoid conditional hooks
   const isValidBattle = battle && battle.id;
+  
+  // Get debug mode from UI store
+  const showDebugInfo = useUIStore((state) => state.showDebugInfo);
+  
+  // Determine current player ID - use provided playerId or fallback to player1Id
+  const currentPlayerId = playerId || battle.player1Id;
   
   // Initialize units from battle log
   const initialUnits = useMemo(() => {
@@ -968,6 +1366,9 @@ export function BattleReplay({ battle }: BattleReplayProps) {
     speed: 1,
     currentRound: 1,
   });
+  
+  // Key moments only mode state
+  const [keyMomentsOnly, setKeyMomentsOnly] = useState(false);
   
   // Battle result display state
   const [showBattleResult, setShowBattleResult] = useState(false);
@@ -1338,6 +1739,30 @@ export function BattleReplay({ battle }: BattleReplayProps) {
     const currentRound = applyEventsUpTo(-1);
     setReplayState(prev => ({ ...prev, currentEventIndex: -1, currentRound, isPlaying: false }));
   }, [applyEventsUpTo]);
+
+  /**
+   * Toggle key moments only mode.
+   * When enabled, only shows death and ability events.
+   */
+  const handleToggleKeyMoments = useCallback(() => {
+    setKeyMomentsOnly(prev => !prev);
+    // Pause playback when toggling
+    setReplayState(prev => ({ ...prev, isPlaying: false }));
+  }, []);
+
+  /**
+   * Get filtered events based on key moments mode.
+   * 
+   * @returns Filtered events array
+   */
+  const filteredEvents = useMemo(() => {
+    if (!keyMomentsOnly) return events;
+    
+    // Filter to only show key moments: death and ability events
+    return events.filter(event => 
+      event.type === 'death' || event.type === 'ability'
+    );
+  }, [events, keyMomentsOnly]);
   
   // Auto-play effect
   useEffect(() => {
@@ -1473,6 +1898,7 @@ export function BattleReplay({ battle }: BattleReplayProps) {
     
     // Get current event for movement indicators and path
     const currentEvent = events[replayState.currentEventIndex];
+    const activeUnitId = currentEvent?.actorId;
     let movementPath: Position[] = [];
     
     // Build movement path if current event is movement
@@ -1485,7 +1911,8 @@ export function BattleReplay({ battle }: BattleReplayProps) {
     for (let y = 0; y < GRID_HEIGHT; y++) {
       for (let x = 0; x < GRID_WIDTH; x++) {
         const position = { x, y };
-        const unit = units.find(u => u.position.x === x && u.position.y === y);
+        // Only find alive units at this position (dead units should not be displayed)
+        const unit = units.find(u => u.position.x === x && u.position.y === y && u.alive);
         
         // Check if this position is involved in current movement
         let isMovementSource = false;
@@ -1496,6 +1923,9 @@ export function BattleReplay({ battle }: BattleReplayProps) {
           isMovementTarget = currentEvent.toPosition?.x === x && currentEvent.toPosition?.y === y;
         }
         
+        // Check if this unit is the active unit (currently taking action)
+        const isActiveUnit = unit?.instanceId === activeUnitId;
+        
         cells.push(
           <ReplayGridCell
             key={`${x}-${y}`}
@@ -1505,13 +1935,15 @@ export function BattleReplay({ battle }: BattleReplayProps) {
             isMovementSource={isMovementSource}
             isMovementTarget={isMovementTarget}
             movementPath={movementPath}
+            showDebugInfo={showDebugInfo}
+            isActiveUnit={isActiveUnit}
           />
         );
       }
     }
     
     return cells;
-  }, [units, events, replayState.currentEventIndex, handleGridUnitClick]);
+  }, [units, events, replayState.currentEventIndex, handleGridUnitClick, showDebugInfo]);
   
   // Early return after all hooks are defined
   if (!isValidBattle) {
@@ -1533,34 +1965,23 @@ export function BattleReplay({ battle }: BattleReplayProps) {
   
   return (
     <div className="max-w-7xl mx-auto p-6 bg-gray-900 text-white">
-      {/* Header */}
+      {/* Compact header in Figma style */}
       <div className="mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-3xl font-bold">⚔️ Повтор боя</h1>
-          <button
-            onClick={() => window.history.back()}
-            className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors"
-          >
-            ← Назад
-          </button>
-        </div>
-        
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-          <div>
-            <span className="text-gray-400">Игрок 1:</span>
-            <div className="font-medium">{getPlayerName(battle, 'player1')}</div>
+        <div className="flex items-center justify-center gap-6 py-4 bg-gray-800/50 rounded-lg">
+          <div className="flex flex-col items-end">
+            <span className="text-blue-400 font-bold text-lg">{getPlayerName(battle, 'player1')}</span>
+            <span className="text-gray-500 text-sm">Уровень 15</span>
           </div>
-          <div>
-            <span className="text-gray-400">Игрок 2:</span>
-            <div className="font-medium">{getPlayerName(battle, 'player2')}</div>
+          
+          <div className="px-6 py-2 bg-yellow-600/20 border border-yellow-600/50 rounded-lg">
+            <span className="text-yellow-400 font-bold">
+              {battle.winner === 'player1' ? '👑 Победа' : battle.winner === 'player2' ? '👑 Победа' : '🤝 Ничья'}
+            </span>
           </div>
-          <div>
-            <span className="text-gray-400">Победитель:</span>
-            <div className="font-medium">{getWinnerName(battle)}</div>
-          </div>
-          <div>
-            <span className="text-gray-400">Статус:</span>
-            <div className="font-medium capitalize">{battle.status}</div>
+          
+          <div className="flex flex-col items-start">
+            <span className="text-red-400 font-bold text-lg">{getPlayerName(battle, 'player2')}</span>
+            <span className="text-gray-500 text-sm">Уровень 15</span>
           </div>
         </div>
       </div>
@@ -1581,7 +2002,6 @@ export function BattleReplay({ battle }: BattleReplayProps) {
         {/* Battle grid */}
         <div className="lg:col-span-2">
           <div className="bg-gray-800 rounded-lg p-4">
-            <h3 className="text-lg font-medium mb-4">Поле боя (8×10)</h3>
             <div className="flex justify-center">
               <div 
                 className="relative grid gap-1"
@@ -1679,6 +2099,10 @@ export function BattleReplay({ battle }: BattleReplayProps) {
               onSeek={handleSeek}
               onSkipToStart={handleSkipToStart}
               onSkipToEnd={handleSkipToEnd}
+              events={events}
+              units={units}
+              keyMomentsOnly={keyMomentsOnly}
+              onToggleKeyMoments={handleToggleKeyMoments}
             />
           </div>
         </div>
@@ -1784,7 +2208,7 @@ export function BattleReplay({ battle }: BattleReplayProps) {
       {/* Battle Result Screen */}
       <BattleResult
         battle={battle}
-        playerId={battle.player1Id} // TODO: Get actual current player ID
+        playerId={currentPlayerId}
         ratingChange={{
           oldRating: 1200,
           newRating: battle.winner === 'player1' ? 1215 : 1185,

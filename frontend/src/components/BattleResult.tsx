@@ -87,6 +87,7 @@ const DEFAULT_RATING_CHANGE: RatingChange = {
 
 /**
  * Calculate battle statistics from battle events.
+ * Uses Sets to track unique deaths and avoid double-counting.
  * 
  * @param battle - Battle log data
  * @param playerId - Current player ID
@@ -96,7 +97,23 @@ const DEFAULT_RATING_CHANGE: RatingChange = {
  */
 function calculateBattleStatistics(battle: BattleLog, playerId: string): BattleStatistics {
   const events = battle.events || [];
-  const isPlayer1 = battle.player1Id === playerId;
+  
+  // Determine if current player is player1 or player2
+  // If playerId doesn't match either, default to player1 perspective
+  const isPlayer1 = battle.player1Id === playerId || battle.player2Id !== playerId;
+  
+  // Debug: Log player identification
+  if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+    // eslint-disable-next-line no-console
+    console.log('[BattleResult] Player identification:', {
+      playerId,
+      player1Id: battle.player1Id,
+      player2Id: battle.player2Id,
+      isPlayer1,
+      matchesPlayer1: battle.player1Id === playerId,
+      matchesPlayer2: battle.player2Id === playerId,
+    });
+  }
   
   let playerDamageDealt = 0;
   let playerDamageReceived = 0;
@@ -106,12 +123,26 @@ function calculateBattleStatistics(battle: BattleLog, playerId: string): BattleS
   let opponentUnitsLost = 0;
   let maxRound = 0;
   
-  // Get unit team mappings
+  // Get unit team mappings based on instanceId patterns from battle simulator
+  // Backend generates: player_${unitId}_${index} for player1, bot_${unitId}_${index} for player2
   const playerUnits = new Set<string>();
   const opponentUnits = new Set<string>();
   
-  // Map units to teams based on instanceId patterns
+  // Map player1 team units (always have 'player_' prefix in instanceId)
   if (battle.player1TeamSnapshot?.units) {
+    // Debug: Log team snapshot structure
+    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+      // eslint-disable-next-line no-console
+      console.log('[BattleResult] player1TeamSnapshot:', {
+        units: battle.player1TeamSnapshot.units.map((u, i) => ({
+          index: i,
+          id: u.id,
+          name: u.name,
+          generatedInstanceId: `player_${u.id}_${i}`,
+        })),
+      });
+    }
+    
     battle.player1TeamSnapshot.units.forEach((unit, index) => {
       const instanceId = `player_${unit.id}_${index}`;
       if (isPlayer1) {
@@ -122,6 +153,7 @@ function calculateBattleStatistics(battle: BattleLog, playerId: string): BattleS
     });
   }
   
+  // Map player2 team units (always have 'bot_' prefix in instanceId)
   if (battle.player2TeamSnapshot?.units) {
     battle.player2TeamSnapshot.units.forEach((unit, index) => {
       const instanceId = `bot_${unit.id}_${index}`;
@@ -133,10 +165,24 @@ function calculateBattleStatistics(battle: BattleLog, playerId: string): BattleS
     });
   }
   
+  // Use Sets to track unique deaths (avoid double counting from death + ability events)
+  const playerDeaths = new Set<string>();
+  const opponentDeaths = new Set<string>();
+  
+  // Debug: Log unit mappings
+  if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+    // eslint-disable-next-line no-console
+    console.log('[BattleResult] Unit mappings:', {
+      playerUnits: Array.from(playerUnits),
+      opponentUnits: Array.from(opponentUnits),
+    });
+  }
+  
   // Process events to calculate statistics
   events.forEach(event => {
     maxRound = Math.max(maxRound, event.round);
     
+    // Count damage from regular attacks
     if (event.type === 'damage' && event.damage && event.targetId) {
       if (playerUnits.has(event.targetId)) {
         playerDamageReceived += event.damage;
@@ -147,17 +193,86 @@ function calculateBattleStatistics(battle: BattleLog, playerId: string): BattleS
       }
     }
     
+    // Count damage from abilities
+    if (event.type === 'ability' && event.totalDamage) {
+      // Determine who cast the ability based on actorId
+      const isPlayerAbility = playerUnits.has(event.actorId);
+      if (isPlayerAbility) {
+        playerDamageDealt += event.totalDamage;
+        opponentDamageReceived += event.totalDamage;
+      } else {
+        opponentDamageDealt += event.totalDamage;
+        playerDamageReceived += event.totalDamage;
+      }
+    }
+    
+    // Count deaths ONLY from death events (not from ability events)
+    // Death events are the authoritative source for unit deaths
+    // Ability events may also have killedUnits but those deaths will have
+    // corresponding death events, so we only count from death events
     if (event.type === 'death') {
-      const killedIds = event.killedUnits || (event.targetId ? [event.targetId] : []);
+      // Death events have killedUnits array with the dead unit's instanceId
+      // Fallback to actorId if killedUnits is empty (for backward compatibility)
+      const killedIds = (event.killedUnits && event.killedUnits.length > 0) 
+        ? event.killedUnits 
+        : (event.actorId ? [event.actorId] : []);
+      
+      // Debug: Log death event
+      if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+        // eslint-disable-next-line no-console
+        console.log('[BattleResult] Death event:', {
+          killedIds,
+          actorId: event.actorId,
+          killedUnits: event.killedUnits,
+          isPlayerUnit: killedIds.map(id => playerUnits.has(id)),
+          isOpponentUnit: killedIds.map(id => opponentUnits.has(id)),
+        });
+      }
+      
       killedIds.forEach(killedId => {
         if (playerUnits.has(killedId)) {
-          playerUnitsLost++;
+          playerDeaths.add(killedId);
         } else if (opponentUnits.has(killedId)) {
-          opponentUnitsLost++;
+          opponentDeaths.add(killedId);
+        } else if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+          // Debug: Log unmatched death
+          // eslint-disable-next-line no-console
+          console.warn('[BattleResult] Death event for unknown unit:', {
+            killedId,
+            playerUnitsArray: Array.from(playerUnits),
+            opponentUnitsArray: Array.from(opponentUnits),
+          });
+        }
+      });
+    }
+    
+    // Also count deaths from ability events (abilities can kill units)
+    // Using Set ensures no double-counting if both death and ability events exist
+    if (event.type === 'ability' && event.killedUnits && event.killedUnits.length > 0) {
+      event.killedUnits.forEach(killedId => {
+        if (playerUnits.has(killedId)) {
+          playerDeaths.add(killedId);
+        } else if (opponentUnits.has(killedId)) {
+          opponentDeaths.add(killedId);
         }
       });
     }
   });
+  
+  // Get final death counts from Sets
+  playerUnitsLost = playerDeaths.size;
+  opponentUnitsLost = opponentDeaths.size;
+  
+  // Debug: Log final death counts
+  if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+    // eslint-disable-next-line no-console
+    console.log('[BattleResult] Final death counts:', {
+      playerDeaths: Array.from(playerDeaths),
+      opponentDeaths: Array.from(opponentDeaths),
+      playerUnitsLost,
+      opponentUnitsLost,
+    });
+  }
   
   // Estimate battle duration (assuming 3 seconds per round)
   const estimatedSeconds = maxRound * 3;

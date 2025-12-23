@@ -45,6 +45,7 @@ import {
 } from './ability.executor';
 import { decideAction, UnitAction } from './ai.decision';
 import { getUnitAbility } from '../abilities/ability.data';
+import { isActiveAbility } from '../types/ability.types';
 
 
 // =============================================================================
@@ -241,6 +242,12 @@ function executeAbilityAction(
   
   const ability = getUnitAbility(unit.id);
   if (!ability) {
+    return [];
+  }
+  
+  // Passive abilities cannot be executed as actions - they trigger automatically
+  // This is a safety check in case AI incorrectly decides to use a passive ability
+  if (!isActiveAbility(ability)) {
     return [];
   }
   

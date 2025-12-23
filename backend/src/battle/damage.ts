@@ -15,20 +15,23 @@ import { BATTLE_LIMITS } from '../config/game.constants';
 // =============================================================================
 
 /**
- * Simple hash-based deterministic random number generator.
- * Uses a hash function to generate consistent pseudo-random values.
+ * Mulberry32 - a fast, high-quality 32-bit PRNG.
+ * Produces well-distributed pseudo-random numbers from a seed.
  * 
  * @param seed - Seed value for random generation
  * @returns Random number between 0 and 1
+ * @example
+ * const random = seededRandom(12345); // Returns ~0.4234
+ * const random2 = seededRandom(12346); // Returns ~0.8912
  */
 function seededRandom(seed: number): number {
-  // Simple hash function for better distribution
-  let hash = seed;
-  hash = ((hash << 13) ^ hash) >>> 0;
-  hash = (hash * (hash * hash * 15731 + 789221) + 1376312589) >>> 0;
+  // Mulberry32 algorithm - produces excellent distribution
+  let t = (seed + 0x6d2b79f5) | 0;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  const result = ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   
-  // Return normalized value [0, 1)
-  return (hash >>> 0) / 4294967296;
+  return result;
 }
 
 // =============================================================================

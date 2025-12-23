@@ -140,7 +140,12 @@ function buildDecisionContext(
   );
   
   const ability = getUnitAbility(unit.id);
-  const abilityReady = ability !== undefined && canUseAbility(unit, ability, state);
+  
+  // Only consider ability ready if it's an ACTIVE ability and can be used
+  // Passive abilities trigger automatically and should not be used as actions
+  const abilityReady = ability !== undefined && 
+    isActiveAbility(ability) && 
+    canUseAbility(unit, ability, state);
   
   return {
     allies,

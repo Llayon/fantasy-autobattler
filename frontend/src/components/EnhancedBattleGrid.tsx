@@ -172,6 +172,8 @@ export function EnhancedBattleGrid({
   const effectiveGridHeight = compactMode ? 2 : GRID_HEIGHT;
   
   // Create grid cells with units
+  // In compactMode (team builder), invert rows so row 1 (front line) is at top
+  // and row 0 (back line) is at bottom - matches battle view perspective
   const gridCells = useMemo(() => {
     const cells: Array<{
       position: Position;
@@ -181,7 +183,13 @@ export function EnhancedBattleGrid({
       isValidDropZone: boolean;
     }> = [];
     
-    for (let y = 0; y < effectiveGridHeight; y++) {
+    // In compact mode, render rows in reverse order (row 1 first, then row 0)
+    // This makes the front line (row 1, closer to enemy) appear at top
+    const rowOrder = compactMode 
+      ? Array.from({ length: effectiveGridHeight }, (_, i) => effectiveGridHeight - 1 - i)
+      : Array.from({ length: effectiveGridHeight }, (_, i) => i);
+    
+    for (const y of rowOrder) {
       for (let x = 0; x < GRID_WIDTH; x++) {
         const position = { x, y };
         const unit = getUnitAtPosition(units, position);
@@ -211,7 +219,7 @@ export function EnhancedBattleGrid({
     }
     
     return cells;
-  }, [units, highlightedCells, selectedUnit, hoveredCell, mode, effectiveGridHeight]);
+  }, [units, highlightedCells, selectedUnit, hoveredCell, mode, effectiveGridHeight, compactMode]);
   
   const handleCellClick = useCallback((position: Position) => {
     onCellClick?.(position);
@@ -227,10 +235,21 @@ export function EnhancedBattleGrid({
       ${!disableZoom ? 'touch-pan-x touch-pan-y' : ''}
       ${className}
     `}>
+      {/* Row labels for compact mode (team builder) */}
+      {compactMode && mode === 'team-builder' && (
+        <div className="flex justify-between items-center mb-1 px-1 text-xs text-gray-400">
+          <span className="flex items-center gap-1">
+            <span className="text-red-400">⚔️</span>
+            <span>Фронт (к врагу)</span>
+          </span>
+          <span className="text-gray-500">← перетащите юнитов →</span>
+        </div>
+      )}
+      
       {/* Grid container */}
       <div 
         role="grid"
-        aria-label={`Battle grid ${GRID_WIDTH} by ${effectiveGridHeight} cells. ${mode === 'team-builder' ? 'Place units in player zone (rows 0-1)' : 'Battle field view'}`}
+        aria-label={`Battle grid ${GRID_WIDTH} by ${effectiveGridHeight} cells. ${mode === 'team-builder' ? 'Place units in player zone. Top row is front line (closer to enemy), bottom row is back line.' : 'Battle field view'}`}
         aria-rowcount={effectiveGridHeight}
         aria-colcount={GRID_WIDTH}
         className={`
@@ -263,6 +282,16 @@ export function EnhancedBattleGrid({
         
 
       </div>
+      
+      {/* Row labels for compact mode - bottom */}
+      {compactMode && mode === 'team-builder' && (
+        <div className="flex justify-between items-center mt-1 px-1 text-xs text-gray-400">
+          <span className="flex items-center gap-1">
+            <span className="text-blue-400">🛡️</span>
+            <span>Тыл (защита)</span>
+          </span>
+        </div>
+      )}
       
       {/* Zone legend */}
       {/* Zone legend - hide in compact mode */}

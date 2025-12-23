@@ -91,6 +91,49 @@ function positionToKey(position: Position): string {
 }
 
 /**
+ * Generate a unique seed for a specific attack.
+ * Combines base seed with round, attacker, and target info to ensure
+ * each attack has a unique seed for dodge calculation.
+ * This prevents the same dodge result for all attacks in a battle.
+ * 
+ * @param baseSeed - Base battle seed
+ * @param round - Current battle round
+ * @param attackerId - Attacker's instance ID
+ * @param targetId - Target's instance ID
+ * @returns Unique seed for this specific attack
+ * @example
+ * const attackSeed = generateAttackSeed(12345, 3, 'player_knight_0', 'bot_rogue_1');
+ */
+function generateAttackSeed(
+  baseSeed: number,
+  round: number,
+  attackerId: string,
+  targetId: string
+): number {
+  // Hash the attacker and target IDs
+  let attackerHash = 0;
+  for (let i = 0; i < attackerId.length; i++) {
+    attackerHash = ((attackerHash << 5) - attackerHash + attackerId.charCodeAt(i)) >>> 0;
+  }
+  
+  let targetHash = 0;
+  for (let i = 0; i < targetId.length; i++) {
+    targetHash = ((targetHash << 5) - targetHash + targetId.charCodeAt(i)) >>> 0;
+  }
+  
+  // Combine all components into a unique seed
+  // Using prime multipliers for better distribution
+  const combinedSeed = (
+    baseSeed * 31 +
+    round * 127 +
+    attackerHash * 17 +
+    targetHash * 13
+  ) >>> 0;
+  
+  return combinedSeed;
+}
+
+/**
  * Update battle state with new unit positions and states.
  * Creates a new immutable state object with updated units.
  * 
@@ -404,20 +447,35 @@ export function executeTurn(
   const nowInRange = newDistance <= currentUnit.range;
   
   if (nowInRange && canTarget(currentUnit, target)) {
-    // Execute attack
-    const attackEvent = executeAttack(currentUnit, target, seed);
+    // Generate unique seed for this specific attack by combining:
+    // - base seed
+    // - current round
+    // - attacker instanceId hash
+    // - target instanceId hash
+    // This ensures each attack has a unique seed for dodge calculation
+    const attackSeed = generateAttackSeed(
+      seed, 
+      currentState.currentRound, 
+      currentUnit.instanceId, 
+      target.instanceId
+    );
+    
+    // Execute attack with unique seed
+    const attackEvent = executeAttack(currentUnit, target, attackSeed);
     attackEvent.round = currentState.currentRound;
     events.push(attackEvent);
     
-    // Create damage event
-    const damageEvent: BattleEvent = {
-      round: currentState.currentRound,
-      type: 'damage',
-      actorId: currentUnit.instanceId,
-      targetId: target.instanceId,
-      damage: attackEvent.damage,
-    };
-    events.push(damageEvent);
+    // Only create damage event if attack was not dodged (damage > 0)
+    if (attackEvent.damage > 0) {
+      const damageEvent: BattleEvent = {
+        round: currentState.currentRound,
+        type: 'damage',
+        actorId: currentUnit.instanceId,
+        targetId: target.instanceId,
+        damage: attackEvent.damage,
+      };
+      events.push(damageEvent);
+    }
     
     // Check if target was killed
     if (attackEvent.killed) {

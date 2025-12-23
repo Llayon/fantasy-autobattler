@@ -31,9 +31,10 @@ export interface TeamResponse {
   name: string;
   units: Array<{
     unitId: string;
-    unitName: string;
+    name: string;
     position: { x: number; y: number };
     cost: number;
+    role: string;
   }>;
   totalCost: number;
   isActive: boolean;
@@ -383,9 +384,10 @@ export class TeamService {
       const template = getUnitTemplate(unit.unitId as UnitId);
       return {
         unitId: unit.unitId,
-        unitName: template?.name ?? 'Unknown Unit',
+        name: template?.name ?? 'Unknown Unit',
         position: unit.position,
         cost: template?.cost ?? 0,
+        role: template?.role ?? 'tank',
       };
     });
 
