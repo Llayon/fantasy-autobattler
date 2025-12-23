@@ -22,6 +22,7 @@ const MOCK_UNITS: UnitTemplate[] = [
     role: 'tank',
     cost: 5,
     stats: { hp: 120, atk: 15, armor: 8, speed: 2, initiative: 10, dodge: 5, atkCount: 1 },
+    range: 1,
     abilities: [],
   },
   {
@@ -30,6 +31,7 @@ const MOCK_UNITS: UnitTemplate[] = [
     role: 'tank',
     cost: 6,
     stats: { hp: 140, atk: 12, armor: 10, speed: 1, initiative: 8, dodge: 3, atkCount: 1 },
+    range: 1,
     abilities: [],
   },
   {
@@ -38,6 +40,7 @@ const MOCK_UNITS: UnitTemplate[] = [
     role: 'tank',
     cost: 5,
     stats: { hp: 100, atk: 20, armor: 5, speed: 3, initiative: 12, dodge: 8, atkCount: 1 },
+    range: 1,
     abilities: [],
   },
   // Mages
@@ -47,6 +50,7 @@ const MOCK_UNITS: UnitTemplate[] = [
     role: 'mage',
     cost: 4,
     stats: { hp: 60, atk: 25, armor: 2, speed: 2, initiative: 15, dodge: 10, atkCount: 1 },
+    range: 3,
     abilities: [],
   },
   {
@@ -55,6 +59,7 @@ const MOCK_UNITS: UnitTemplate[] = [
     role: 'mage',
     cost: 5,
     stats: { hp: 70, atk: 30, armor: 1, speed: 2, initiative: 14, dodge: 8, atkCount: 1 },
+    range: 3,
     abilities: [],
   },
   {
@@ -63,6 +68,7 @@ const MOCK_UNITS: UnitTemplate[] = [
     role: 'mage',
     cost: 6,
     stats: { hp: 65, atk: 28, armor: 3, speed: 3, initiative: 16, dodge: 12, atkCount: 1 },
+    range: 4,
     abilities: [],
   },
   // Melee DPS
@@ -72,6 +78,7 @@ const MOCK_UNITS: UnitTemplate[] = [
     role: 'melee_dps',
     cost: 4,
     stats: { hp: 80, atk: 22, armor: 3, speed: 4, initiative: 18, dodge: 20, atkCount: 1 },
+    range: 1,
     abilities: [],
   },
   {
@@ -80,6 +87,7 @@ const MOCK_UNITS: UnitTemplate[] = [
     role: 'melee_dps',
     cost: 5,
     stats: { hp: 85, atk: 24, armor: 4, speed: 3, initiative: 17, dodge: 18, atkCount: 1 },
+    range: 1,
     abilities: [],
   },
   // Ranged DPS
@@ -89,6 +97,7 @@ const MOCK_UNITS: UnitTemplate[] = [
     role: 'ranged_dps',
     cost: 3,
     stats: { hp: 70, atk: 20, armor: 2, speed: 3, initiative: 14, dodge: 15, atkCount: 1 },
+    range: 4,
     abilities: [],
   },
   {
@@ -97,6 +106,7 @@ const MOCK_UNITS: UnitTemplate[] = [
     role: 'ranged_dps',
     cost: 4,
     stats: { hp: 75, atk: 24, armor: 3, speed: 2, initiative: 13, dodge: 12, atkCount: 1 },
+    range: 5,
     abilities: [],
   },
   // Support
@@ -106,6 +116,7 @@ const MOCK_UNITS: UnitTemplate[] = [
     role: 'support',
     cost: 4,
     stats: { hp: 65, atk: 12, armor: 4, speed: 2, initiative: 12, dodge: 8, atkCount: 1 },
+    range: 2,
     abilities: [],
   },
   {
@@ -114,6 +125,7 @@ const MOCK_UNITS: UnitTemplate[] = [
     role: 'support',
     cost: 3,
     stats: { hp: 55, atk: 10, armor: 2, speed: 3, initiative: 16, dodge: 12, atkCount: 1 },
+    range: 2,
     abilities: [],
   },
   // Control
@@ -123,6 +135,7 @@ const MOCK_UNITS: UnitTemplate[] = [
     role: 'control',
     cost: 5,
     stats: { hp: 50, atk: 18, armor: 1, speed: 2, initiative: 20, dodge: 15, atkCount: 1 },
+    range: 3,
     abilities: [],
   },
 ];
@@ -207,7 +220,7 @@ const TEST_SCENARIOS: TestScenario[] = [
 // =============================================================================
 
 export default function TestSynergiesPage() {
-  const [selectedScenario, setSelectedScenario] = useState<TestScenario>(TEST_SCENARIOS[0]!);
+  const [selectedScenario, setSelectedScenario] = useState<TestScenario>(() => TEST_SCENARIOS[0] as TestScenario);
   const [customUnits, setCustomUnits] = useState<Array<{ unitId: UnitId; position: { x: number; y: number } }>>([]);
 
   /**
@@ -269,11 +282,10 @@ export default function TestSynergiesPage() {
                   <button
                     key={index}
                     onClick={() => handleScenarioSelect(scenario)}
-                    className={`w-full text-left p-3 rounded-lg border transition-colors ${
-                      selectedScenario === scenario
+                    className={`w-full text-left p-3 rounded-lg border transition-colors ${selectedScenario === scenario
                         ? 'bg-blue-900/30 border-blue-500 text-blue-300'
                         : 'bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700'
-                    }`}
+                      }`}
                   >
                     <div className="font-medium">{scenario.name}</div>
                     <div className="text-sm text-gray-400 mt-1">
@@ -292,7 +304,7 @@ export default function TestSynergiesPage() {
               <h2 className="text-xl font-semibold text-green-400 mb-4">
                 🛠️ Конструктор команды
               </h2>
-              
+
               {/* Unit Selection */}
               <div className="mb-4">
                 <h3 className="text-sm font-medium text-gray-300 mb-2">Добавить юнита:</h3>

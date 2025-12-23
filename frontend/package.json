@@ -10,6 +10,9 @@
     "format": "prettier --write \"src/**/*.{ts,tsx}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage",
     "validate": "npm run lint && npm run typecheck && npm run build",
     "analyze": "ANALYZE=true npm run build",
     "analyze:server": "BUNDLE_ANALYZE=server npm run build",
@@ -33,6 +36,9 @@
   },
   "devDependencies": {
     "@next/bundle-analyzer": "^16.0.10",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.1",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20.0.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
@@ -42,9 +48,13 @@
     "critters": "^0.0.23",
     "eslint": "^8.0.0",
     "eslint-config-next": "^14.0.0",
+    "fast-check": "^4.5.2",
+    "jest": "^30.2.0",
+    "jest-environment-jsdom": "^30.2.0",
     "postcss": "^8.4.0",
     "prettier": "^3.0.0",
     "tailwindcss": "^3.4.0",
+    "ts-jest": "^29.4.6",
     "typescript": "^5.0.0"
   }
 }

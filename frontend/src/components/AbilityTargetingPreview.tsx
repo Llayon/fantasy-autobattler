@@ -18,7 +18,7 @@ import { Position, UnitTemplate, UnitStats } from '@/types/game';
 /**
  * Ability targeting type classification.
  */
-export type AbilityTargetType = 
+export type AbilityTargetType =
   | 'self'           // Targets the caster
   | 'enemy'          // Single enemy target
   | 'ally'           // Single ally target
@@ -182,7 +182,7 @@ function getCellsInRange(
   gridHeight: number
 ): Position[] {
   const cells: Position[] = [];
-  
+
   for (let x = 0; x < gridWidth; x++) {
     for (let y = 0; y < gridHeight; y++) {
       const distance = manhattanDistance(center, { x, y });
@@ -191,7 +191,7 @@ function getCellsInRange(
       }
     }
   }
-  
+
   return cells;
 }
 
@@ -211,7 +211,7 @@ function getCellsInAoE(
   gridHeight: number
 ): Position[] {
   const cells: Position[] = [];
-  
+
   for (let x = 0; x < gridWidth; x++) {
     for (let y = 0; y < gridHeight; y++) {
       const distance = manhattanDistance(center, { x, y });
@@ -220,7 +220,7 @@ function getCellsInAoE(
       }
     }
   }
-  
+
   return cells;
 }
 
@@ -238,25 +238,25 @@ function calculateEstimatedDamage(
   targetArmor: number = 0
 ): number {
   let totalDamage = 0;
-  
+
   for (const effect of ability.effects) {
     if (effect.type === 'damage') {
       let damage = effect.value ?? 0;
-      
+
       // Add attack scaling
       if (effect.attackScaling) {
         damage += casterStats.atk * effect.attackScaling;
       }
-      
+
       // Apply armor reduction for physical damage
       if (effect.damageType === 'physical') {
         damage = Math.max(1, damage - targetArmor);
       }
-      
+
       totalDamage += damage;
     }
   }
-  
+
   return Math.round(totalDamage);
 }
 
@@ -272,19 +272,19 @@ function calculateEstimatedHealing(
   casterStats: UnitStats
 ): number {
   let totalHealing = 0;
-  
+
   for (const effect of ability.effects) {
     if (effect.type === 'heal') {
       let healing = effect.value ?? 0;
-      
+
       if (effect.attackScaling) {
         healing += casterStats.atk * effect.attackScaling;
       }
-      
+
       totalHealing += healing;
     }
   }
-  
+
   return Math.round(totalHealing);
 }
 
@@ -296,7 +296,7 @@ function calculateEstimatedHealing(
  */
 function getEffectDescription(ability: AbilityPreviewData): string {
   const descriptions: string[] = [];
-  
+
   for (const effect of ability.effects) {
     switch (effect.type) {
       case 'damage':
@@ -319,7 +319,7 @@ function getEffectDescription(ability: AbilityPreviewData): string {
         break;
     }
   }
-  
+
   return descriptions.join(', ');
 }
 
@@ -353,10 +353,10 @@ interface CellHighlightProps {
 function CellHighlight({ position, type, cellSize, damage, healing }: CellHighlightProps): JSX.Element {
   const bgColor = HIGHLIGHT_COLORS[type];
   const borderColor = HIGHLIGHT_COLORS[`${type}Border` as keyof typeof HIGHLIGHT_COLORS] || bgColor;
-  
+
   // Determine if we should show damage/healing text based on cell size
   const showText = cellSize >= 32;
-  
+
   return (
     <div
       className="absolute pointer-events-none transition-all duration-200"
@@ -400,18 +400,18 @@ interface AbilityTooltipProps {
   affectedCount: number;
 }
 
-function AbilityTooltip({ 
-  ability, 
-  estimatedDamage, 
+function AbilityTooltip({
+  ability,
+  estimatedDamage,
   estimatedHealing,
-  affectedCount 
+  affectedCount
 }: AbilityTooltipProps): JSX.Element {
   return (
     <div className="absolute top-2 right-2 bg-gray-900/95 border border-gray-600 rounded-lg p-3 shadow-xl z-50 max-w-xs">
       <div className="text-sm">
         <div className="font-bold text-white mb-1">{ability.name}</div>
         <div className="text-gray-300 text-xs mb-2">{ability.description}</div>
-        
+
         <div className="space-y-1 text-xs">
           {ability.type === 'active' && (
             <>
@@ -431,28 +431,28 @@ function AbilityTooltip({
               </div>
             </>
           )}
-          
+
           {estimatedDamage !== undefined && estimatedDamage > 0 && (
             <div className="flex justify-between">
               <span className="text-gray-400">Урон:</span>
               <span className="text-red-400">~{estimatedDamage}</span>
             </div>
           )}
-          
+
           {estimatedHealing !== undefined && estimatedHealing > 0 && (
             <div className="flex justify-between">
               <span className="text-gray-400">Лечение:</span>
               <span className="text-green-400">~{estimatedHealing}</span>
             </div>
           )}
-          
+
           {affectedCount > 0 && (
             <div className="flex justify-between">
               <span className="text-gray-400">Целей:</span>
               <span className="text-purple-400">{affectedCount}</span>
             </div>
           )}
-          
+
           <div className="pt-1 border-t border-gray-700 mt-1">
             <span className="text-gray-500">{getEffectDescription(ability)}</span>
           </div>
@@ -497,22 +497,19 @@ export function AbilityTargetingPreview({
   // Note: _onCellHover is available for parent components that need callback
   // but this overlay component doesn't handle mouse events directly
   void _onCellHover;
-  // Don't render if not active or missing required data
-  if (!isActive || !ability || !casterUnit || !casterPosition) {
-    return null;
-  }
-  
+
+  // All hooks must be called unconditionally (before any early returns)
   // Calculate range cells
   const rangeCells = useMemo(() => {
-    if (ability.type === 'passive' || ability.targetType === 'self') {
+    if (!ability || !casterPosition || ability.type === 'passive' || ability.targetType === 'self') {
       return [];
     }
     return getCellsInRange(casterPosition, ability.range, gridWidth, gridHeight);
   }, [ability, casterPosition, gridWidth, gridHeight]);
-  
+
   // Calculate AoE cells based on hovered position
   const aoeCells = useMemo(() => {
-    if (!ability.areaSize || !hoveredCell) {
+    if (!ability || !casterPosition || !ability.areaSize || !hoveredCell) {
       return [];
     }
     // Check if hovered cell is within range
@@ -522,22 +519,25 @@ export function AbilityTargetingPreview({
     }
     return getCellsInAoE(hoveredCell, ability.areaSize, gridWidth, gridHeight);
   }, [ability, casterPosition, hoveredCell, gridWidth, gridHeight]);
-  
+
   // Find affected units
   const affectedUnits = useMemo(() => {
-    const targetCells = aoeCells.length > 0 ? aoeCells : 
-      (hoveredCell && manhattanDistance(casterPosition, hoveredCell) <= ability.range) 
-        ? [hoveredCell] 
+    if (!ability || !casterPosition) {
+      return [];
+    }
+    const targetCells = aoeCells.length > 0 ? aoeCells :
+      (hoveredCell && manhattanDistance(casterPosition, hoveredCell) <= ability.range)
+        ? [hoveredCell]
         : [];
-    
+
     return units.filter(unit => {
       // Check if unit is in target cells
       const inTargetArea = targetCells.some(
         cell => cell.x === unit.position.x && cell.y === unit.position.y
       );
-      
+
       if (!inTargetArea) return false;
-      
+
       // Filter by target type
       switch (ability.targetType) {
         case 'enemy':
@@ -552,27 +552,38 @@ export function AbilityTargetingPreview({
       }
     });
   }, [ability, aoeCells, hoveredCell, casterPosition, units]);
-  
+
   // Calculate estimated damage/healing
   const estimatedDamage = useMemo(() => {
+    if (!ability || !casterUnit) {
+      return 0;
+    }
     const avgArmor = affectedUnits.length > 0
       ? affectedUnits.reduce((sum, u) => sum + u.stats.armor, 0) / affectedUnits.length
       : 5;
     return calculateEstimatedDamage(ability, casterUnit.stats, avgArmor);
   }, [ability, casterUnit, affectedUnits]);
-  
+
   const estimatedHealing = useMemo(() => {
+    if (!ability || !casterUnit) {
+      return 0;
+    }
     return calculateEstimatedHealing(ability, casterUnit.stats);
   }, [ability, casterUnit]);
-  
+
+  // Don't render if not active or missing required data
+  if (!isActive || !ability || !casterUnit || !casterPosition) {
+    return null;
+  }
+
   return (
-    <div 
+    <div
       className="absolute inset-0 pointer-events-none"
       style={{ zIndex: 5 }}
     >
       {/* Caster position highlight */}
       <CellHighlight position={casterPosition} type="caster" cellSize={cellSize} />
-      
+
       {/* Range cells */}
       {rangeCells.map((cell, index) => (
         <CellHighlight
@@ -582,7 +593,7 @@ export function AbilityTargetingPreview({
           cellSize={cellSize}
         />
       ))}
-      
+
       {/* AoE cells */}
       {aoeCells.map((cell, index) => (
         <CellHighlight
@@ -592,7 +603,7 @@ export function AbilityTargetingPreview({
           cellSize={cellSize}
         />
       ))}
-      
+
       {/* Affected units */}
       {affectedUnits.map((unit, index) => (
         <CellHighlight
@@ -604,7 +615,7 @@ export function AbilityTargetingPreview({
           healing={unit.team === 'player' ? estimatedHealing : undefined}
         />
       ))}
-      
+
       {/* Ability info tooltip - only show for larger grids */}
       {cellSize >= 40 && (
         <AbilityTooltip
@@ -629,29 +640,29 @@ export function AbilityTargetingLegend(): JSX.Element {
   return (
     <div className="flex flex-wrap gap-3 text-xs text-gray-400">
       <div className="flex items-center gap-1">
-        <div 
-          className="w-4 h-4 rounded" 
+        <div
+          className="w-4 h-4 rounded"
           style={{ backgroundColor: HIGHLIGHT_COLORS.caster, border: `1px solid ${HIGHLIGHT_COLORS.casterBorder}` }}
         />
         <span>Позиция юнита</span>
       </div>
       <div className="flex items-center gap-1">
-        <div 
-          className="w-4 h-4 rounded" 
+        <div
+          className="w-4 h-4 rounded"
           style={{ backgroundColor: HIGHLIGHT_COLORS.range, border: `1px solid ${HIGHLIGHT_COLORS.rangeBorder}` }}
         />
         <span>Дальность</span>
       </div>
       <div className="flex items-center gap-1">
-        <div 
-          className="w-4 h-4 rounded" 
+        <div
+          className="w-4 h-4 rounded"
           style={{ backgroundColor: HIGHLIGHT_COLORS.aoe, border: `1px solid ${HIGHLIGHT_COLORS.aoeBorder}` }}
         />
         <span>Область AoE</span>
       </div>
       <div className="flex items-center gap-1">
-        <div 
-          className="w-4 h-4 rounded" 
+        <div
+          className="w-4 h-4 rounded"
           style={{ backgroundColor: HIGHLIGHT_COLORS.affectedEnemy, border: `1px solid ${HIGHLIGHT_COLORS.affectedEnemyBorder}` }}
         />
         <span>Враг под ударом</span>

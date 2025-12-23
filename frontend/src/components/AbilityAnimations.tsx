@@ -58,15 +58,6 @@ interface AreaEffectAnimationProps {
   duration?: number;
 }
 
-/**
- * Status effect animation props for buffs/debuffs.
- */
-interface StatusEffectAnimationProps extends BaseAnimationProps {
-  /** Type of status effect */
-  effectType: 'buff' | 'debuff' | 'heal' | 'stun' | 'shield' | 'damage';
-  /** Effect value (damage, heal amount, etc.) */
-  value?: number;
-}
 
 // =============================================================================
 // CONSTANTS
@@ -103,21 +94,7 @@ function gridToPixels(position: Position): { x: number; y: number } {
   };
 }
 
-/**
- * Calculate distance between two positions.
- * 
- * @param from - Starting position
- * @param to - Target position
- * @returns Distance in pixels
- */
-function calculateDistance(from: Position, to: Position): number {
-  const fromPixels = gridToPixels(from);
-  const toPixels = gridToPixels(to);
-  return Math.sqrt(
-    Math.pow(toPixels.x - fromPixels.x, 2) + 
-    Math.pow(toPixels.y - fromPixels.y, 2)
-  );
-}
+
 
 /**
  * Calculate angle between two positions.
@@ -150,28 +127,28 @@ export function FireballAnimation({
   duration = DEFAULT_DURATION,
 }: ProjectileAnimationProps): JSX.Element {
   const [phase, setPhase] = useState<'travel' | 'explosion'>('travel');
-  
+
   const fromPixels = gridToPixels(fromPosition);
   const toPixels = gridToPixels(toPosition);
   const angle = calculateAngle(fromPosition, toPosition);
-  
+
   useEffect(() => {
     // Travel phase
     const travelTimer = setTimeout(() => {
       setPhase('explosion');
     }, duration * 0.7); // 70% of duration for travel
-    
+
     // Complete animation
     const completeTimer = setTimeout(() => {
       onComplete();
     }, duration);
-    
+
     return () => {
       clearTimeout(travelTimer);
       clearTimeout(completeTimer);
     };
   }, [duration, onComplete]);
-  
+
   return (
     <div className="absolute inset-0 pointer-events-none">
       {/* Fireball projectile */}
@@ -190,13 +167,13 @@ export function FireballAnimation({
           {/* Fire trail */}
           <div className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-400 to-red-500 animate-pulse" />
           <div className="absolute inset-1 rounded-full bg-gradient-to-r from-white to-yellow-300 opacity-75" />
-          
+
           {/* Flame particles */}
           <div className="absolute -top-1 -left-1 w-2 h-2 bg-orange-400 rounded-full animate-bounce opacity-60" />
           <div className="absolute -bottom-1 -right-1 w-1 h-1 bg-red-500 rounded-full animate-pulse opacity-80" />
         </div>
       )}
-      
+
       {/* Explosion effect */}
       {phase === 'explosion' && (
         <div
@@ -207,13 +184,13 @@ export function FireballAnimation({
           }}
         >
           {/* Main explosion */}
-          <div 
+          <div
             className="w-16 h-16 rounded-full bg-gradient-radial from-white via-yellow-400 to-red-500 opacity-90"
             style={{
               animation: `fireballExplosion ${duration * 0.3}ms ${EASING.easeOut} forwards`,
             }}
           />
-          
+
           {/* Explosion particles */}
           {[...Array(8)].map((_, i) => (
             <div
@@ -228,9 +205,9 @@ export function FireballAnimation({
               }}
             />
           ))}
-          
+
           {/* Shockwave */}
-          <div 
+          <div
             className="absolute inset-0 rounded-full border-2 border-orange-300 opacity-50"
             style={{
               animation: `shockwave ${duration * 0.3}ms ${EASING.easeOut} forwards`,
@@ -256,12 +233,12 @@ export function LightningAnimation({
 }: ProjectileAnimationProps): JSX.Element {
   const fromPixels = gridToPixels(fromPosition);
   const toPixels = gridToPixels(toPosition);
-  
+
   useEffect(() => {
     const timer = setTimeout(onComplete, duration);
     return () => clearTimeout(timer);
   }, [duration, onComplete]);
-  
+
   return (
     <div className="absolute inset-0 pointer-events-none">
       {/* Lightning bolt */}
@@ -284,7 +261,7 @@ export function LightningAnimation({
             animation: `lightningFlash ${duration}ms ${EASING.easeOut} forwards`,
           }}
         />
-        
+
         <defs>
           <linearGradient id="lightningGradient" x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" stopColor="#ffffff" />
@@ -293,7 +270,7 @@ export function LightningAnimation({
           </linearGradient>
         </defs>
       </svg>
-      
+
       {/* Lightning impact */}
       <div
         className="absolute w-8 h-8 rounded-full bg-blue-300 opacity-75"
@@ -326,12 +303,12 @@ export function HealAuraAnimation({
 }: AreaEffectAnimationProps): JSX.Element {
   const pixels = gridToPixels(position);
   const auraSize = radius * CELL_SIZE * 2;
-  
+
   useEffect(() => {
     const timer = setTimeout(onComplete, duration);
     return () => clearTimeout(timer);
   }, [duration, onComplete]);
-  
+
   return (
     <div className="absolute inset-0 pointer-events-none">
       {/* Healing aura */}
@@ -345,7 +322,7 @@ export function HealAuraAnimation({
           animation: `healAura ${duration}ms ${EASING.easeOut} forwards`,
         }}
       />
-      
+
       {/* Healing particles */}
       {[...Array(12)].map((_, i) => (
         <div
@@ -364,7 +341,7 @@ export function HealAuraAnimation({
           <div className="absolute inset-1 rounded-full bg-white opacity-60" />
         </div>
       ))}
-      
+
       {/* Healing cross symbol */}
       <div
         className="absolute text-2xl text-green-400 font-bold"
@@ -395,12 +372,12 @@ export function BuffAuraAnimation({
 }: AreaEffectAnimationProps): JSX.Element {
   const pixels = gridToPixels(position);
   const auraSize = radius * CELL_SIZE * 2;
-  
+
   useEffect(() => {
     const timer = setTimeout(onComplete, duration);
     return () => clearTimeout(timer);
   }, [duration, onComplete]);
-  
+
   return (
     <div className="absolute inset-0 pointer-events-none">
       {/* Golden aura */}
@@ -414,7 +391,7 @@ export function BuffAuraAnimation({
           animation: `buffAura ${duration}ms ${EASING.easeOut} forwards`,
         }}
       />
-      
+
       {/* Golden sparkles */}
       {[...Array(16)].map((_, i) => (
         <div
@@ -431,7 +408,7 @@ export function BuffAuraAnimation({
           ✨
         </div>
       ))}
-      
+
       {/* Buff symbol */}
       <div
         className="absolute text-2xl text-yellow-400 font-bold"
@@ -462,12 +439,12 @@ export function DebuffAuraAnimation({
 }: AreaEffectAnimationProps): JSX.Element {
   const pixels = gridToPixels(position);
   const auraSize = radius * CELL_SIZE * 2;
-  
+
   useEffect(() => {
     const timer = setTimeout(onComplete, duration);
     return () => clearTimeout(timer);
   }, [duration, onComplete]);
-  
+
   return (
     <div className="absolute inset-0 pointer-events-none">
       {/* Dark aura */}
@@ -481,7 +458,7 @@ export function DebuffAuraAnimation({
           animation: `debuffAura ${duration}ms ${EASING.easeOut} forwards`,
         }}
       />
-      
+
       {/* Dark particles */}
       {[...Array(10)].map((_, i) => (
         <div
@@ -496,7 +473,7 @@ export function DebuffAuraAnimation({
           }}
         />
       ))}
-      
+
       {/* Debuff symbol */}
       <div
         className="absolute text-2xl text-purple-400 font-bold"
@@ -528,12 +505,12 @@ export function StunAnimation({
   duration = DEFAULT_DURATION,
 }: BaseAnimationProps): JSX.Element {
   const pixels = gridToPixels(position);
-  
+
   useEffect(() => {
     const timer = setTimeout(onComplete, duration);
     return () => clearTimeout(timer);
   }, [duration, onComplete]);
-  
+
   return (
     <div className="absolute inset-0 pointer-events-none">
       {/* Circling stars */}
@@ -552,7 +529,7 @@ export function StunAnimation({
           ⭐
         </div>
       ))}
-      
+
       {/* Dizzy effect */}
       <div
         className="absolute text-3xl text-yellow-400"
@@ -580,12 +557,12 @@ export function ShieldAnimation({
   duration = DEFAULT_DURATION,
 }: BaseAnimationProps): JSX.Element {
   const pixels = gridToPixels(position);
-  
+
   useEffect(() => {
     const timer = setTimeout(onComplete, duration);
     return () => clearTimeout(timer);
   }, [duration, onComplete]);
-  
+
   return (
     <div className="absolute inset-0 pointer-events-none">
       {/* Shield barrier */}
@@ -597,7 +574,7 @@ export function ShieldAnimation({
           animation: `shieldBarrier ${duration}ms ${EASING.easeOut} forwards`,
         }}
       />
-      
+
       {/* Shield sparkles */}
       {[...Array(8)].map((_, i) => (
         <div
@@ -612,7 +589,7 @@ export function ShieldAnimation({
           }}
         />
       ))}
-      
+
       {/* Shield symbol */}
       <div
         className="absolute text-2xl text-blue-400"
@@ -681,7 +658,7 @@ export function AbilityAnimation({
           type="fireball"
         />
       );
-      
+
     case 'lightning':
       return (
         <LightningAnimation
@@ -692,7 +669,7 @@ export function AbilityAnimation({
           type="lightning"
         />
       );
-      
+
     case 'heal':
       return (
         <HealAuraAnimation
@@ -703,7 +680,7 @@ export function AbilityAnimation({
           type="heal_aura"
         />
       );
-      
+
     case 'buff':
       return (
         <BuffAuraAnimation
@@ -714,7 +691,7 @@ export function AbilityAnimation({
           type="buff_aura"
         />
       );
-      
+
     case 'debuff':
       return (
         <DebuffAuraAnimation
@@ -725,7 +702,7 @@ export function AbilityAnimation({
           type="debuff_aura"
         />
       );
-      
+
     case 'stun':
       return (
         <StunAnimation
@@ -734,7 +711,7 @@ export function AbilityAnimation({
           duration={duration}
         />
       );
-      
+
     case 'shield':
       return (
         <ShieldAnimation
@@ -743,7 +720,7 @@ export function AbilityAnimation({
           duration={duration}
         />
       );
-      
+
     default:
       // Fallback: simple flash effect
       return (

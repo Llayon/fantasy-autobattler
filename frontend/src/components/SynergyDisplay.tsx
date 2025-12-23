@@ -94,7 +94,7 @@ interface SynergyDisplayProps {
 const UNIT_ROLES: Record<UnitId, string> = {
   // Tanks
   knight: 'tank',
-  guardian: 'tank', 
+  guardian: 'tank',
   berserker: 'tank',
   // Melee DPS
   rogue: 'melee_dps',
@@ -229,7 +229,7 @@ const SYNERGIES: Synergy[] = [
  */
 function countUnitsByRole(units: PlacedUnit[]): Map<string, number> {
   const counts = new Map<string, number>();
-  
+
   for (const unit of units) {
     const role = UNIT_ROLES[unit.unitId];
     if (role) {
@@ -237,7 +237,7 @@ function countUnitsByRole(units: PlacedUnit[]): Map<string, number> {
       counts.set(role, currentCount + 1);
     }
   }
-  
+
   return counts;
 }
 
@@ -291,10 +291,10 @@ function calculateSynergies(units: PlacedUnit[]): ActiveSynergy[] {
   if (units.length === 0) {
     return [];
   }
-  
+
   const roleCounts = countUnitsByRole(units);
   const activeSynergies: ActiveSynergy[] = [];
-  
+
   for (const synergy of SYNERGIES) {
     if (checkSynergyRequirements(synergy, roleCounts)) {
       // Special case: Glass Cannon requires NO tanks
@@ -304,14 +304,14 @@ function calculateSynergies(units: PlacedUnit[]): ActiveSynergy[] {
           continue; // Skip if team has tanks
         }
       }
-      
+
       activeSynergies.push({
         ...synergy,
         contributingUnits: getContributingUnits(synergy, units),
       });
     }
   }
-  
+
   return activeSynergies;
 }
 
@@ -331,14 +331,14 @@ function formatSynergyBonus(bonus: SynergyBonus): string {
     dodge: 'Уклонение',
     all: 'все характеристики',
   };
-  
+
   const percentText = `+${Math.round(bonus.percentage * 100)}%`;
   const statName = statNames[bonus.stat] || bonus.stat;
-  
+
   if (bonus.flat !== undefined) {
     return `${percentText} ${statName} (+${bonus.flat})`;
   }
-  
+
   return `${percentText} ${statName}`;
 }
 
@@ -422,7 +422,7 @@ function SynergyCard({ synergy, variant }: SynergyCardProps) {
  */
 export function SynergyDisplay({
   units,
-  unitTemplates,
+  unitTemplates: _unitTemplates,
   variant = 'full',
   className = '',
 }: SynergyDisplayProps) {

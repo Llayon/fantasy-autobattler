@@ -9,17 +9,21 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { BattleLog, BattleEvent, Position, UnitTemplate, UNIT_INFO, UnitId } from '@/types/game';
-import { 
-  MoveAnimation, 
-  AttackAnimation, 
-  DamageNumber, 
-  DeathAnimation, 
-  HealAnimation 
+import {
+  MoveAnimation,
+  AttackAnimation,
+  DamageNumber,
+  DeathAnimation,
+  HealAnimation
 } from './BattleAnimations';
 import { AbilityAnimation } from './AbilityAnimations';
 import { BattleResult } from './BattleResult';
 import { getAbilityById, getAbilityIcon } from '@/lib/abilityData';
 import { useUIStore } from '@/store/uiStore';
+import { getHpBarColor } from '@/lib/hpBarUtils';
+
+// Re-export for backwards compatibility
+export { getHpBarColor } from '@/lib/hpBarUtils';
 
 // =============================================================================
 // TYPES
@@ -125,23 +129,7 @@ function getPlayerName(battle: BattleLog, player: 'player1' | 'player2'): string
   }
 }
 
-/**
- * Get winner display name from battle log.
- * 
- * @param battle - Battle log data
- * @returns Winner display name or 'Ничья'
- */
-function getWinnerName(battle: BattleLog): string {
-  if (!battle.winner) return 'Неизвестно';
-  
-  if (battle.winner === 'draw') return 'Ничья';
-  
-  if (battle.winner === 'player1') {
-    return getPlayerName(battle, 'player1');
-  } else {
-    return getPlayerName(battle, 'player2');
-  }
-}
+
 
 /**
  * Get unit display name from instanceId.
@@ -156,7 +144,7 @@ function getUnitDisplayName(instanceId: string, units: ReplayUnit[]): string {
   if (unit) {
     return unit.template.name;
   }
-  
+
   // Fallback: extract unit type from instanceId
   const parts = instanceId.split('_');
   if (parts.length >= 2) {
@@ -166,7 +154,7 @@ function getUnitDisplayName(instanceId: string, units: ReplayUnit[]): string {
       return unitId.charAt(0).toUpperCase() + unitId.slice(1);
     }
   }
-  
+
   return instanceId;
 }
 
@@ -179,23 +167,23 @@ function getUnitDisplayName(instanceId: string, units: ReplayUnit[]): string {
  */
 function extractInitialUnits(battle: BattleLog): ReplayUnit[] {
   const units: ReplayUnit[] = [];
-  
+
   try {
     // Extract player1 team (TeamSetup structure: { units: UnitTemplate[], positions: Position[] })
     if (battle.player1TeamSnapshot?.units && battle.player1TeamSnapshot?.positions) {
       const team1 = battle.player1TeamSnapshot;
-      
+
       // Ensure arrays have same length
       const unitCount = Math.min(team1.units.length, team1.positions.length);
-      
+
       for (let i = 0; i < unitCount; i++) {
         const unitTemplate = team1.units[i];
         const position = team1.positions[i];
-        
+
         if (unitTemplate?.id && position) {
           // Generate instanceId that matches battle events: ${teamType}_${unitTemplate.id}_${index}
           const instanceId = `player_${unitTemplate.id}_${i}`;
-          
+
           units.push({
             instanceId,
             template: unitTemplate,
@@ -208,22 +196,22 @@ function extractInitialUnits(battle: BattleLog): ReplayUnit[] {
         }
       }
     }
-    
+
     // Extract player2 team (TeamSetup structure: { units: UnitTemplate[], positions: Position[] })
     if (battle.player2TeamSnapshot?.units && battle.player2TeamSnapshot?.positions) {
       const team2 = battle.player2TeamSnapshot;
-      
+
       // Ensure arrays have same length
       const unitCount = Math.min(team2.units.length, team2.positions.length);
-      
+
       for (let i = 0; i < unitCount; i++) {
         const unitTemplate = team2.units[i];
         const position = team2.positions[i];
-        
+
         if (unitTemplate?.id && position) {
           // Generate instanceId that matches battle events: ${teamType}_${unitTemplate.id}_${index}
           const instanceId = `bot_${unitTemplate.id}_${i}`;
-          
+
           units.push({
             instanceId,
             template: unitTemplate,
@@ -239,7 +227,7 @@ function extractInitialUnits(battle: BattleLog): ReplayUnit[] {
   } catch (error) {
     // Error will be visible in debug panel below
   }
-  
+
   return units;
 }
 
@@ -253,10 +241,10 @@ function extractInitialUnits(battle: BattleLog): ReplayUnit[] {
 function applyEventToUnits(units: ReplayUnit[], event: BattleEvent): ReplayUnit[] {
   return units.map(unit => {
     const updatedUnit = { ...unit };
-    
+
     // Clear previous animations
     delete updatedUnit.animation;
-    
+
     // Apply event effects
     switch (event.type) {
       case 'move':
@@ -269,7 +257,7 @@ function applyEventToUnits(units: ReplayUnit[], event: BattleEvent): ReplayUnit[
           updatedUnit.position = event.toPosition;
         }
         break;
-        
+
       case 'attack':
         if (event.actorId === unit.instanceId && event.targetId) {
           updatedUnit.animation = {
@@ -278,7 +266,7 @@ function applyEventToUnits(units: ReplayUnit[], event: BattleEvent): ReplayUnit[
           };
         }
         break;
-        
+
       case 'damage':
         if (event.targetId === unit.instanceId && event.damage) {
           updatedUnit.currentHp = Math.max(0, unit.currentHp - event.damage);
@@ -292,18 +280,18 @@ function applyEventToUnits(units: ReplayUnit[], event: BattleEvent): ReplayUnit[
           }
         }
         break;
-        
+
       case 'heal':
         if (event.targetId === unit.instanceId && event.healing) {
           updatedUnit.currentHp = Math.min(unit.maxHp, unit.currentHp + event.healing);
         }
         break;
-        
+
       case 'death':
         // Death events use actorId (not targetId) for the dying unit, plus killedUnits array
-        if (event.actorId === unit.instanceId || 
-            event.targetId === unit.instanceId || 
-            event.killedUnits?.includes(unit.instanceId)) {
+        if (event.actorId === unit.instanceId ||
+          event.targetId === unit.instanceId ||
+          event.killedUnits?.includes(unit.instanceId)) {
           updatedUnit.alive = false;
           updatedUnit.currentHp = 0;
           updatedUnit.animation = {
@@ -311,7 +299,7 @@ function applyEventToUnits(units: ReplayUnit[], event: BattleEvent): ReplayUnit[
           };
         }
         break;
-        
+
       case 'ability':
         // Handle ability damage and kills
         if (event.targetId === unit.instanceId || event.targetIds?.includes(unit.instanceId)) {
@@ -324,13 +312,13 @@ function applyEventToUnits(units: ReplayUnit[], event: BattleEvent): ReplayUnit[
             // Single target ability
             updatedUnit.currentHp = Math.max(0, unit.currentHp - event.totalDamage);
           }
-          
+
           // Apply healing from ability
           if (event.totalHealing && event.targetId === unit.instanceId) {
             updatedUnit.currentHp = Math.min(unit.maxHp, unit.currentHp + event.totalHealing);
           }
         }
-        
+
         // Check if this unit was killed by the ability
         if (event.killedUnits?.includes(unit.instanceId)) {
           updatedUnit.alive = false;
@@ -341,7 +329,7 @@ function applyEventToUnits(units: ReplayUnit[], event: BattleEvent): ReplayUnit[
         }
         break;
     }
-    
+
     return updatedUnit;
   });
 }
@@ -353,9 +341,9 @@ function applyEventToUnits(units: ReplayUnit[], event: BattleEvent): ReplayUnit[
 /**
  * Grid cell component for battle replay with unit interaction.
  */
-function ReplayGridCell({ 
-  position, 
-  unit, 
+function ReplayGridCell({
+  position,
+  unit,
   onClick,
   onUnitClick,
   isMovementSource = false,
@@ -363,9 +351,9 @@ function ReplayGridCell({
   movementPath = [],
   showDebugInfo = false,
   isActiveUnit = false
-}: { 
-  position: Position; 
-  unit?: ReplayUnit; 
+}: {
+  position: Position;
+  unit?: ReplayUnit;
   onClick?: () => void;
   onUnitClick?: (unit: ReplayUnit, event: React.MouseEvent) => void;
   isMovementSource?: boolean;
@@ -377,7 +365,7 @@ function ReplayGridCell({
   const isPlayerZone = position.y <= 1;
   const isEnemyZone = position.y >= 8;
   const isOnMovementPath = movementPath.some(p => p.x === position.x && p.y === position.y);
-  
+
   const cellClasses = [
     'relative w-12 h-12 border border-gray-600 transition-all duration-300',
     isPlayerZone ? 'bg-blue-900/20' : isEnemyZone ? 'bg-red-900/20' : 'bg-gray-800/50',
@@ -398,7 +386,7 @@ function ReplayGridCell({
       onClick();
     }
   };
-  
+
   return (
     <div className={cellClasses} onClick={handleCellClick}>
       {/* Debug coordinates - only shown when debug mode is enabled */}
@@ -407,20 +395,20 @@ function ReplayGridCell({
           {position.x},{position.y}
         </div>
       )}
-      
+
       {/* Movement indicators */}
       {isMovementSource && (
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-yellow-400 text-2xl animate-pulse">📍</div>
         </div>
       )}
-      
+
       {isMovementTarget && (
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-green-400 text-2xl animate-bounce">🎯</div>
         </div>
       )}
-      
+
       {/* Unit display - only show alive units, dead units show as gravestones briefly then disappear */}
       {unit && unit.alive && (
         <>
@@ -428,7 +416,7 @@ function ReplayGridCell({
           {isActiveUnit && (
             <div className="absolute -inset-1 border-2 border-yellow-400 rounded animate-pulse pointer-events-none" />
           )}
-          
+
           <div className={`
             absolute inset-1 rounded flex items-center justify-center text-lg font-bold cursor-pointer
             ${unit.team === 'player1' ? 'bg-blue-600 hover:bg-blue-500' : 'bg-red-600 hover:bg-red-500'}
@@ -438,32 +426,32 @@ function ReplayGridCell({
             ${isActiveUnit ? 'scale-105' : ''}
             transition-all duration-300 hover:scale-110
           `}
-          title={`${unit.template.name} - Click for details`}
+            title={`${unit.template.name} - Click for details`}
           >
             {UNIT_INFO[unit.template.id]?.emoji || '❓'}
-            
-            {/* HP bar */}
-            <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-700 rounded-b">
-              <div 
-                className="h-full bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 rounded-b transition-all duration-500"
+
+            {/* HP bar - 3px height with conditional colors */}
+            <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-gray-700 rounded-b">
+              <div
+                className={`h-full rounded-b transition-all duration-300 ${getHpBarColor((unit.currentHp / unit.maxHp) * 100)}`}
                 style={{ width: `${(unit.currentHp / unit.maxHp) * 100}%` }}
               />
             </div>
-            
+
             {/* Damage indicator */}
             {unit.animation?.type === 'damage' && unit.animation.damage && (
               <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 text-red-400 font-bold text-sm animate-bounce bg-black/50 px-1 rounded">
                 -{unit.animation.damage}
               </div>
             )}
-            
+
             {/* Movement indicator */}
             {unit.animation?.type === 'move' && unit.animation.fromPosition && unit.animation.toPosition && (
               <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 text-yellow-400 font-bold text-xs animate-pulse bg-black/50 px-1 rounded">
                 ({unit.animation.fromPosition.x},{unit.animation.fromPosition.y}) → ({unit.animation.toPosition.x},{unit.animation.toPosition.y})
               </div>
             )}
-            
+
             {/* Attack indicator */}
             {unit.animation?.type === 'attack' && (
               <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 text-orange-400 font-bold animate-bounce">
@@ -473,7 +461,7 @@ function ReplayGridCell({
           </div>
         </>
       )}
-      
+
       {/* Dead unit gravestone - shows briefly during death animation */}
       {unit && !unit.alive && unit.animation?.type === 'death' && (
         <div className="absolute inset-1 rounded flex items-center justify-center text-lg opacity-50 animate-pulse">
@@ -487,14 +475,14 @@ function ReplayGridCell({
 /**
  * Turn order bar component with enhanced unit display.
  */
-function TurnOrderBar({ 
-  units, 
-  currentRound, 
-  currentEventIndex, 
+function TurnOrderBar({
+  units,
+  currentRound,
+  currentEventIndex,
   events,
   battle
-}: { 
-  units: ReplayUnit[]; 
+}: {
+  units: ReplayUnit[];
   currentRound: number;
   currentEventIndex: number;
   events: BattleEvent[];
@@ -502,13 +490,13 @@ function TurnOrderBar({
 }) {
   const [selectedUnit, setSelectedUnit] = useState<ReplayUnit | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number } | null>(null);
-  
+
   const aliveUnits = units.filter(unit => unit.alive);
-  
+
   // Determine current active unit based on current event
   const currentEvent = events[currentEventIndex];
   const activeUnitId = currentEvent?.actorId;
-  
+
   /**
    * Handle unit click to show tooltip with stats.
    */
@@ -520,7 +508,7 @@ function TurnOrderBar({
     });
     setSelectedUnit(unit);
   }, []);
-  
+
   /**
    * Close tooltip when clicking outside.
    */
@@ -528,7 +516,7 @@ function TurnOrderBar({
     setSelectedUnit(null);
     setTooltipPosition(null);
   }, []);
-  
+
   // Close tooltip on outside click
   useEffect(() => {
     const handleClickOutside = () => handleCloseTooltip();
@@ -538,7 +526,7 @@ function TurnOrderBar({
     }
     return undefined;
   }, [selectedUnit, handleCloseTooltip]);
-  
+
   return (
     <div className="bg-gray-800 rounded-lg p-4 mb-4">
       <div className="flex items-center justify-between mb-3">
@@ -547,14 +535,14 @@ function TurnOrderBar({
           Живых юнитов: {aliveUnits.length}
         </div>
       </div>
-      
+
       <div className="flex gap-3 overflow-x-auto pb-2">
         {aliveUnits
           .sort((a, b) => b.template.stats.initiative - a.template.stats.initiative)
           .map(unit => {
             const isActive = unit.instanceId === activeUnitId;
             const hpPercent = (unit.currentHp / unit.maxHp) * 100;
-            
+
             return (
               <div
                 key={unit.instanceId}
@@ -574,7 +562,7 @@ function TurnOrderBar({
                     ▼
                   </div>
                 )}
-                
+
                 {/* Unit icon - increased to 48x48px */}
                 <div
                   className={`
@@ -584,23 +572,21 @@ function TurnOrderBar({
                   `}
                 >
                   <span className="text-xl">{UNIT_INFO[unit.template.id]?.emoji || '❓'}</span>
-                  
+
                   {/* Initiative indicator */}
                   <div className="absolute -top-1 -right-1 bg-yellow-500 text-black text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
                     {unit.template.stats.initiative}
                   </div>
                 </div>
-                
+
                 {/* HP bar - 4px height */}
                 <div className="w-12 h-1 bg-gray-700 rounded-full mt-1 overflow-hidden">
-                  <div 
-                    className={`h-full transition-all duration-300 ${
-                      hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500'
-                    }`}
+                  <div
+                    className={`h-full transition-all duration-300 ${getHpBarColor(hpPercent)}`}
                     style={{ width: `${hpPercent}%` }}
                   />
                 </div>
-                
+
                 {/* HP text */}
                 <div className="text-xs text-center text-gray-400 mt-1">
                   {unit.currentHp}/{unit.maxHp}
@@ -609,7 +595,7 @@ function TurnOrderBar({
             );
           })}
       </div>
-      
+
       {/* Unit stats tooltip */}
       {selectedUnit && tooltipPosition && (
         <div
@@ -625,7 +611,7 @@ function TurnOrderBar({
               <span className="text-lg">{UNIT_INFO[selectedUnit.template.id]?.emoji}</span>
               {selectedUnit.template.name}
             </div>
-            
+
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div>
                 <span className="text-gray-400">HP:</span>
@@ -664,7 +650,7 @@ function TurnOrderBar({
                 </span>
               </div>
             </div>
-            
+
             <div className="mt-2 pt-2 border-t border-gray-700">
               <div className="text-xs text-gray-400">
                 Team: <span className={selectedUnit.team === 'player1' ? 'text-blue-400' : 'text-red-400'}>
@@ -722,7 +708,7 @@ function ProgressBarWithMarkers({
    */
   const markers = useMemo((): EventMarker[] => {
     const result: EventMarker[] = [];
-    
+
     events.forEach((event, index) => {
       if (event.type === 'death') {
         const targetName = event.targetId ? getUnitDisplayName(event.targetId, units) : 'Юнит';
@@ -754,7 +740,7 @@ function ProgressBarWithMarkers({
         });
       }
     });
-    
+
     return result;
   }, [events, units]);
 
@@ -792,16 +778,16 @@ function ProgressBarWithMarkers({
       {/* Progress bar container */}
       <div className="w-full bg-gray-700 rounded-full h-6 relative overflow-visible">
         {/* Progress fill */}
-        <div 
+        <div
           className="bg-blue-600 h-6 rounded-full transition-all duration-300 relative z-10"
           style={{ width: `${progress}%` }}
         />
-        
+
         {/* Event markers */}
         {markers.map((marker, idx) => {
           const position = (marker.index / totalEvents) * 100;
           const isRoundStart = marker.type === 'round_start';
-          
+
           return (
             <div
               key={`${marker.type}-${marker.index}-${idx}`}
@@ -879,7 +865,7 @@ function ReplayControls({
   onToggleKeyMoments: () => void;
 }) {
   const progress = totalEvents > 0 ? (Math.max(0, replayState.currentEventIndex + 1) / totalEvents) * 100 : 0;
-  
+
   return (
     <div className="bg-gray-800 rounded-lg p-4">
       <div className="flex items-center gap-2 mb-4">
@@ -902,7 +888,7 @@ function ReplayControls({
         >
           ⏪
         </button>
-        
+
         {/* Play/Pause */}
         <button
           onClick={replayState.isPlaying ? onPause : onPlay}
@@ -911,7 +897,7 @@ function ReplayControls({
         >
           {replayState.isPlaying ? '⏸️ Пауза' : '▶️ Играть'}
         </button>
-        
+
         {/* Step forward */}
         <button
           onClick={onStep}
@@ -931,7 +917,7 @@ function ReplayControls({
         >
           ⏭️
         </button>
-        
+
         {/* Speed control */}
         <div className="flex items-center gap-2 ml-4">
           <span className="text-sm text-gray-400">Скорость:</span>
@@ -941,8 +927,8 @@ function ReplayControls({
               onClick={() => onSpeedChange(speed as PlaybackSpeed)}
               className={`
                 px-3 py-1 rounded text-sm transition-colors relative
-                ${replayState.speed === speed 
-                  ? 'bg-blue-600 text-white' 
+                ${replayState.speed === speed
+                  ? 'bg-blue-600 text-white'
                   : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                 }
               `}
@@ -959,8 +945,8 @@ function ReplayControls({
             onClick={onToggleKeyMoments}
             className={`
               px-3 py-2 rounded-lg text-sm transition-colors flex items-center gap-2
-              ${keyMomentsOnly 
-                ? 'bg-yellow-600 text-white hover:bg-yellow-500' 
+              ${keyMomentsOnly
+                ? 'bg-yellow-600 text-white hover:bg-yellow-500'
                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
               }
             `}
@@ -980,7 +966,7 @@ function ReplayControls({
           </button>
         </div>
       </div>
-      
+
       {/* Progress bar with markers */}
       <div className="mb-2">
         <div className="flex justify-between text-sm text-gray-400 mb-2">
@@ -998,7 +984,7 @@ function ReplayControls({
           </span>
           <span>{Math.round(progress)}%</span>
         </div>
-        
+
         {/* Enhanced progress bar with event markers */}
         <ProgressBarWithMarkers
           events={events}
@@ -1007,7 +993,7 @@ function ReplayControls({
           onSeek={onSeek}
           units={units}
         />
-        
+
         {/* Slider for fine control */}
         <input
           type="range"
@@ -1021,7 +1007,7 @@ function ReplayControls({
           }}
           title={`Событие ${Math.max(0, replayState.currentEventIndex + 1)} из ${totalEvents}`}
         />
-        
+
         {/* Legend for markers */}
         <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
           <div className="flex items-center gap-1">
@@ -1045,12 +1031,12 @@ function ReplayControls({
 /**
  * Enhanced event log component with color coding and readable names.
  */
-function EventLog({ 
-  events, 
+function EventLog({
+  events,
   currentEventIndex,
   units
-}: { 
-  events: BattleEvent[]; 
+}: {
+  events: BattleEvent[];
   currentEventIndex: number;
   units: ReplayUnit[];
 }) {
@@ -1086,9 +1072,9 @@ function EventLog({
    */
   useEffect(() => {
     if (currentEventRef.current) {
-      currentEventRef.current.scrollIntoView({ 
-        behavior: 'smooth', 
-        block: 'center' 
+      currentEventRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
       });
     }
   }, [currentEventIndex]);
@@ -1176,7 +1162,7 @@ function EventLog({
         const ability = abilityId ? getAbilityById(abilityId) : undefined;
         const abilityName = ability?.name || 'способность';
         const abilityIcon = ability?.icon ? getAbilityIcon(ability.icon) : '✨';
-        
+
         if (targetName && targetName !== actorName) {
           return `${abilityIcon} ${actorName} использует "${abilityName}" на ${targetName}`;
         }
@@ -1204,7 +1190,7 @@ function EventLog({
   return (
     <div className="bg-gray-800 rounded-lg p-4 h-64 overflow-y-auto">
       <h3 className="text-lg font-medium mb-3">Журнал событий</h3>
-      
+
       <div className="space-y-3">
         {Object.entries(eventsByRound).map(([round, roundEvents]) => (
           <div key={round}>
@@ -1216,21 +1202,21 @@ function EventLog({
               </span>
               <div className="h-px bg-gray-600 flex-1" />
             </div>
-            
+
             {/* Round events */}
             <div className="space-y-1 ml-2">
               {roundEvents.map(({ event, index }) => {
                 const team = getTeamFromActorId(event.actorId);
                 const showTeamDot = team !== null; // Only show dot for events with actorId
-                
+
                 return (
                   <div
                     key={index}
                     ref={index === currentEventIndex ? currentEventRef : null}
                     className={`
                       text-sm p-2 rounded border-l-4 transition-all duration-200
-                      ${index === currentEventIndex 
-                        ? 'bg-blue-900/30 border-blue-400 ring-1 ring-blue-400/50' 
+                      ${index === currentEventIndex
+                        ? 'bg-blue-900/30 border-blue-400 ring-1 ring-blue-400/50'
                         : `bg-gray-700/20 ${getEventBorderColor(event.type)}`
                       }
                     `}
@@ -1238,17 +1224,17 @@ function EventLog({
                     <div className="flex items-center gap-2">
                       {/* Team color indicator dot */}
                       {showTeamDot && (
-                        <div 
+                        <div
                           className={`w-2 h-2 rounded-full flex-shrink-0 ${getTeamDotColor(team)}`}
                           title={team === 'player1' ? 'Команда 1' : 'Команда 2'}
                         />
                       )}
-                      
+
                       <div className={`font-medium ${getEventColor(event.type)} flex-1`}>
                         {formatEventDescription(event)}
                       </div>
                     </div>
-                    
+
                     {/* Additional event details */}
                     <div className="mt-1 space-y-1 ml-4">
                       {/* Dodge indicator for attack events */}
@@ -1257,19 +1243,19 @@ function EventLog({
                           💨 Атака уклонена!
                         </div>
                       )}
-                      
+
                       {event.damage && (
                         <div className="text-red-300 text-xs">
                           💥 -{event.damage} HP
                         </div>
                       )}
-                      
+
                       {event.healing && (
                         <div className="text-green-300 text-xs">
                           💚 +{event.healing} HP
                         </div>
                       )}
-                      
+
                       {/* Ability-specific details */}
                       {event.type === 'ability' && event.abilityId && (
                         <div className="text-yellow-200 text-xs space-y-0.5">
@@ -1301,13 +1287,13 @@ function EventLog({
                           })()}
                         </div>
                       )}
-                      
+
                       {event.fromPosition && event.toPosition && (
                         <div className="text-blue-300 text-xs">
                           🚶 ({event.fromPosition.x},{event.fromPosition.y}) → ({event.toPosition.x},{event.toPosition.y})
                         </div>
                       )}
-                      
+
                       {event.killedUnits && event.killedUnits.length > 0 && (
                         <div className="text-purple-300 text-xs">
                           💀 Погибли: {event.killedUnits.map(id => getUnitDisplayName(id, units)).join(', ')}
@@ -1341,13 +1327,13 @@ function EventLog({
 export function BattleReplay({ battle, playerId }: BattleReplayProps) {
   // Safety check for required battle data - moved to top to avoid conditional hooks
   const isValidBattle = battle && battle.id;
-  
+
   // Get debug mode from UI store
   const showDebugInfo = useUIStore((state) => state.showDebugInfo);
-  
+
   // Determine current player ID - use provided playerId or fallback to player1Id
   const currentPlayerId = playerId || battle.player1Id;
-  
+
   // Initialize units from battle log
   const initialUnits = useMemo(() => {
     if (!isValidBattle) return [];
@@ -1358,7 +1344,7 @@ export function BattleReplay({ battle, playerId }: BattleReplayProps) {
       return [];
     }
   }, [battle, isValidBattle]);
-  
+
   // Replay state
   const [replayState, setReplayState] = useState<ReplayState>({
     currentEventIndex: -1,
@@ -1366,22 +1352,22 @@ export function BattleReplay({ battle, playerId }: BattleReplayProps) {
     speed: 1,
     currentRound: 1,
   });
-  
+
   // Key moments only mode state
   const [keyMomentsOnly, setKeyMomentsOnly] = useState(false);
-  
+
   // Battle result display state
   const [showBattleResult, setShowBattleResult] = useState(false);
-  
+
   // Current unit states
   const [units, setUnits] = useState<ReplayUnit[]>(initialUnits);
-  
+
   // Unit popup state
   const [selectedGridUnit, setSelectedGridUnit] = useState<{
     unit: ReplayUnit;
     position: { x: number; y: number };
   } | null>(null);
-  
+
   // Active animations state
   const [activeAnimations, setActiveAnimations] = useState<{
     moves: Array<{ id: string; fromPosition: Position; toPosition: Position }>;
@@ -1389,12 +1375,12 @@ export function BattleReplay({ battle, playerId }: BattleReplayProps) {
     damages: Array<{ id: string; damage: number; position: Position }>;
     deaths: Array<{ id: string; position: Position }>;
     heals: Array<{ id: string; healing: number; position: Position }>;
-    abilities: Array<{ 
-      id: string; 
+    abilities: Array<{
+      id: string;
       abilityType: 'fireball' | 'heal' | 'stun' | 'buff' | 'debuff' | 'shield' | 'lightning' | 'explosion';
-      fromPosition?: Position; 
-      toPosition: Position; 
-      radius?: number; 
+      fromPosition?: Position;
+      toPosition: Position;
+      radius?: number;
       value?: number;
     }>;
   }>({
@@ -1405,10 +1391,10 @@ export function BattleReplay({ battle, playerId }: BattleReplayProps) {
     heals: [],
     abilities: [],
   });
-  
+
   // Battle events - memoized to prevent dependency issues
   const events = useMemo(() => battle?.events || [], [battle?.events]);
-  
+
   /**
    * Trigger animation for a specific battle event.
    * 
@@ -1417,7 +1403,7 @@ export function BattleReplay({ battle, playerId }: BattleReplayProps) {
    */
   const triggerEventAnimation = useCallback((event: BattleEvent, currentUnits: ReplayUnit[]) => {
     const animationId = `${event.type}-${Date.now()}-${Math.random()}`;
-    
+
     switch (event.type) {
       case 'move':
         if (event.fromPosition && event.toPosition) {
@@ -1431,12 +1417,12 @@ export function BattleReplay({ battle, playerId }: BattleReplayProps) {
           }));
         }
         break;
-        
+
       case 'attack':
         if (event.actorId && event.targetId) {
           const attacker = currentUnits.find(u => u.instanceId === event.actorId);
           const target = currentUnits.find(u => u.instanceId === event.targetId);
-          
+
           if (attacker && target) {
             setActiveAnimations(prev => ({
               ...prev,
@@ -1449,11 +1435,11 @@ export function BattleReplay({ battle, playerId }: BattleReplayProps) {
           }
         }
         break;
-        
+
       case 'damage':
         if (event.targetId && typeof event.damage === 'number') {
           const target = currentUnits.find(u => u.instanceId === event.targetId);
-          
+
           if (target) {
             setActiveAnimations(prev => ({
               ...prev,
@@ -1466,14 +1452,14 @@ export function BattleReplay({ battle, playerId }: BattleReplayProps) {
           }
         }
         break;
-        
+
       case 'death':
         if (event.targetId || event.killedUnits) {
           const killedIds = event.killedUnits || (event.targetId ? [event.targetId] : []);
-          
+
           killedIds.forEach((killedId, index) => {
             const killedUnit = currentUnits.find(u => u.instanceId === killedId);
-            
+
             if (killedUnit) {
               setActiveAnimations(prev => ({
                 ...prev,
@@ -1486,11 +1472,11 @@ export function BattleReplay({ battle, playerId }: BattleReplayProps) {
           });
         }
         break;
-        
+
       case 'heal':
         if (event.targetId && typeof event.healing === 'number') {
           const target = currentUnits.find(u => u.instanceId === event.targetId);
-          
+
           if (target) {
             setActiveAnimations(prev => ({
               ...prev,
@@ -1503,16 +1489,16 @@ export function BattleReplay({ battle, playerId }: BattleReplayProps) {
           }
         }
         break;
-        
+
       case 'ability':
         if (event.actorId && event.targetId) {
           const caster = currentUnits.find(u => u.instanceId === event.actorId);
           const target = currentUnits.find(u => u.instanceId === event.targetId);
-          
+
           if (caster && target) {
             // Determine ability type based on event metadata or ability name
             let abilityType: 'fireball' | 'heal' | 'stun' | 'buff' | 'debuff' | 'shield' | 'lightning' | 'explosion' = 'fireball';
-            
+
             // Map ability names to animation types
             if (event.abilityId) {
               switch (event.abilityId) {
@@ -1544,7 +1530,7 @@ export function BattleReplay({ battle, playerId }: BattleReplayProps) {
                   abilityType = 'explosion';
               }
             }
-            
+
             setActiveAnimations(prev => ({
               ...prev,
               abilities: [...prev.abilities, {
@@ -1559,11 +1545,11 @@ export function BattleReplay({ battle, playerId }: BattleReplayProps) {
           }
         }
         break;
-        
+
       case 'buff':
         if (event.targetId) {
           const target = currentUnits.find(u => u.instanceId === event.targetId);
-          
+
           if (target) {
             setActiveAnimations(prev => ({
               ...prev,
@@ -1577,11 +1563,11 @@ export function BattleReplay({ battle, playerId }: BattleReplayProps) {
           }
         }
         break;
-        
+
       case 'debuff':
         if (event.targetId) {
           const target = currentUnits.find(u => u.instanceId === event.targetId);
-          
+
           if (target) {
             setActiveAnimations(prev => ({
               ...prev,
@@ -1605,7 +1591,7 @@ export function BattleReplay({ battle, playerId }: BattleReplayProps) {
   const applyEventsUpTo = useCallback((eventIndex: number): number => {
     let currentUnits = [...initialUnits];
     let currentRound = 1;
-    
+
     // Clear previous animations
     setActiveAnimations({
       moves: [],
@@ -1615,23 +1601,23 @@ export function BattleReplay({ battle, playerId }: BattleReplayProps) {
       heals: [],
       abilities: [],
     });
-    
+
     for (let i = 0; i <= eventIndex && i < events.length; i++) {
       const event = events[i];
       if (!event) continue;
-      
+
       currentUnits = applyEventToUnits(currentUnits, event);
-      
+
       if (event.type === 'round_start') {
         currentRound = event.round;
       }
-      
+
       // Trigger animations for the current event (last one being processed)
       if (i === eventIndex) {
         triggerEventAnimation(event, currentUnits);
       }
     }
-    
+
     setUnits(currentUnits);
     return currentRound;
   }, [initialUnits, events, triggerEventAnimation]);
@@ -1651,7 +1637,7 @@ export function BattleReplay({ battle, playerId }: BattleReplayProps) {
       [animationType]: prev[animationType].filter(anim => anim.id !== animationId),
     }));
   }, []);
-  
+
   /**
    * Step to next event.
    */
@@ -1665,31 +1651,31 @@ export function BattleReplay({ battle, playerId }: BattleReplayProps) {
       setReplayState(prev => ({ ...prev, isPlaying: false }));
     }
   }, [replayState.currentEventIndex, events.length, applyEventsUpTo]);
-  
+
   /**
    * Play/pause controls.
    */
   const handlePlay = useCallback(() => {
     setReplayState(prev => ({ ...prev, isPlaying: true }));
   }, []);
-  
+
   const handlePause = useCallback(() => {
     setReplayState(prev => ({ ...prev, isPlaying: false }));
   }, []);
-  
+
   const handleStep = useCallback(() => {
     stepForward();
   }, [stepForward]);
-  
+
   const handleSpeedChange = useCallback((speed: PlaybackSpeed) => {
     setReplayState(prev => ({ ...prev, speed }));
   }, []);
-  
+
   const handleSeek = useCallback((eventIndex: number) => {
     const currentRound = applyEventsUpTo(eventIndex);
     setReplayState(prev => ({ ...prev, currentEventIndex: eventIndex, currentRound, isPlaying: false }));
   }, [applyEventsUpTo]);
-  
+
   const handleSkipToEnd = useCallback(() => {
     const lastIndex = events.length - 1;
     const currentRound = applyEventsUpTo(lastIndex);
@@ -1750,24 +1736,12 @@ export function BattleReplay({ battle, playerId }: BattleReplayProps) {
     setReplayState(prev => ({ ...prev, isPlaying: false }));
   }, []);
 
-  /**
-   * Get filtered events based on key moments mode.
-   * 
-   * @returns Filtered events array
-   */
-  const filteredEvents = useMemo(() => {
-    if (!keyMomentsOnly) return events;
-    
-    // Filter to only show key moments: death and ability events
-    return events.filter(event => 
-      event.type === 'death' || event.type === 'ability'
-    );
-  }, [events, keyMomentsOnly]);
-  
+
+
   // Auto-play effect
   useEffect(() => {
     if (!replayState.isPlaying) return;
-    
+
     const interval = setInterval(() => {
       // Check if we've reached the end of events (allow processing of the last event)
       if (replayState.currentEventIndex >= events.length - 1) {
@@ -1778,10 +1752,10 @@ export function BattleReplay({ battle, playerId }: BattleReplayProps) {
         }, 1500);
         return;
       }
-      
+
       stepForward();
     }, BASE_ANIMATION_DURATION / replayState.speed);
-    
+
     return () => clearInterval(interval);
   }, [replayState.isPlaying, replayState.speed, replayState.currentEventIndex, events.length, stepForward]);
 
@@ -1844,7 +1818,7 @@ export function BattleReplay({ battle, playerId }: BattleReplayProps) {
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [replayState.isPlaying, handlePlay, handlePause, handleStep, handleStepBack, handleSkipToStart, handleSkipToEnd, handleSpeedChange]);
-  
+
   /**
    * Handle unit click on grid to show popup with stats.
    * Uses smart positioning to keep tooltip within viewport.
@@ -1854,21 +1828,21 @@ export function BattleReplay({ battle, playerId }: BattleReplayProps) {
     const tooltipWidth = 200; // Approximate tooltip width
     const tooltipHeight = 280; // Approximate tooltip height
     const padding = 10;
-    
+
     // Calculate initial position (centered above the unit)
     let x = rect.left + rect.width / 2;
     let y = rect.top - padding;
-    
+
     // Adjust horizontal position to stay within viewport
     const minX = tooltipWidth / 2 + padding;
     const maxX = window.innerWidth - tooltipWidth / 2 - padding;
     x = Math.max(minX, Math.min(maxX, x));
-    
+
     // If tooltip would go above viewport, show it below the unit instead
     if (y - tooltipHeight < padding) {
       y = rect.bottom + padding + tooltipHeight;
     }
-    
+
     setSelectedGridUnit({
       unit,
       position: { x, y },
@@ -1895,37 +1869,37 @@ export function BattleReplay({ battle, playerId }: BattleReplayProps) {
   // Create grid with units and movement indicators
   const grid = useMemo(() => {
     const cells: JSX.Element[] = [];
-    
+
     // Get current event for movement indicators and path
     const currentEvent = events[replayState.currentEventIndex];
     const activeUnitId = currentEvent?.actorId;
     let movementPath: Position[] = [];
-    
+
     // Build movement path if current event is movement
     if (currentEvent?.type === 'move' && currentEvent.fromPosition && currentEvent.toPosition) {
       // Simple path - just from and to positions for now
       // In a more advanced implementation, this could show the actual pathfinding route
       movementPath = [currentEvent.fromPosition, currentEvent.toPosition];
     }
-    
+
     for (let y = 0; y < GRID_HEIGHT; y++) {
       for (let x = 0; x < GRID_WIDTH; x++) {
         const position = { x, y };
         // Only find alive units at this position (dead units should not be displayed)
         const unit = units.find(u => u.position.x === x && u.position.y === y && u.alive);
-        
+
         // Check if this position is involved in current movement
         let isMovementSource = false;
         let isMovementTarget = false;
-        
+
         if (currentEvent?.type === 'move') {
           isMovementSource = currentEvent.fromPosition?.x === x && currentEvent.fromPosition?.y === y;
           isMovementTarget = currentEvent.toPosition?.x === x && currentEvent.toPosition?.y === y;
         }
-        
+
         // Check if this unit is the active unit (currently taking action)
         const isActiveUnit = unit?.instanceId === activeUnitId;
-        
+
         cells.push(
           <ReplayGridCell
             key={`${x}-${y}`}
@@ -1941,10 +1915,10 @@ export function BattleReplay({ battle, playerId }: BattleReplayProps) {
         );
       }
     }
-    
+
     return cells;
   }, [units, events, replayState.currentEventIndex, handleGridUnitClick, showDebugInfo]);
-  
+
   // Early return after all hooks are defined
   if (!isValidBattle) {
     return (
@@ -1962,7 +1936,7 @@ export function BattleReplay({ battle, playerId }: BattleReplayProps) {
       </div>
     );
   }
-  
+
   return (
     <div className="max-w-7xl mx-auto p-6 bg-gray-900 text-white">
       {/* Compact header in Figma style */}
@@ -1972,120 +1946,120 @@ export function BattleReplay({ battle, playerId }: BattleReplayProps) {
             <span className="text-blue-400 font-bold text-lg">{getPlayerName(battle, 'player1')}</span>
             <span className="text-gray-500 text-sm">Уровень 15</span>
           </div>
-          
+
           <div className="px-6 py-2 bg-yellow-600/20 border border-yellow-600/50 rounded-lg">
             <span className="text-yellow-400 font-bold">
               {battle.winner === 'player1' ? '👑 Победа' : battle.winner === 'player2' ? '👑 Победа' : '🤝 Ничья'}
             </span>
           </div>
-          
+
           <div className="flex flex-col items-start">
             <span className="text-red-400 font-bold text-lg">{getPlayerName(battle, 'player2')}</span>
             <span className="text-gray-500 text-sm">Уровень 15</span>
           </div>
         </div>
       </div>
-      
+
 
 
       {/* Turn order bar */}
-      <TurnOrderBar 
-        units={units} 
+      <TurnOrderBar
+        units={units}
         currentRound={replayState.currentRound}
         currentEventIndex={replayState.currentEventIndex}
         events={events}
         battle={battle}
       />
-      
+
       {/* Main content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Battle grid */}
         <div className="lg:col-span-2">
           <div className="bg-gray-800 rounded-lg p-4">
             <div className="flex justify-center">
-              <div 
+              <div
                 className="relative grid gap-1"
-                style={{ 
+                style={{
                   gridTemplateColumns: `repeat(${GRID_WIDTH}, minmax(0, 1fr))`,
                   width: `${GRID_WIDTH * 3.25}rem`
                 }}
               >
                 {grid}
-              
+
                 {/* Animation Overlay - positioned inside grid container */}
-                <div 
+                <div
                   className="absolute inset-0 pointer-events-none overflow-hidden"
                   style={{ zIndex: 10 }}
                 >
-                {/* Move Animations */}
-                {activeAnimations.moves.map(moveAnim => (
-                  <MoveAnimation
-                    key={moveAnim.id}
-                    fromPosition={moveAnim.fromPosition}
-                    toPosition={moveAnim.toPosition}
-                    onComplete={() => handleAnimationComplete('moves', moveAnim.id)}
-                  />
-                ))}
-                
-                {/* Attack Animations */}
-                {activeAnimations.attacks.map(attackAnim => (
-                  <AttackAnimation
-                    key={attackAnim.id}
-                    attackerPosition={attackAnim.attackerPosition}
-                    targetPosition={attackAnim.targetPosition}
-                    onComplete={() => handleAnimationComplete('attacks', attackAnim.id)}
-                  />
-                ))}
-                
-                {/* Damage Numbers */}
-                {activeAnimations.damages.map(damageAnim => (
-                  <DamageNumber
-                    key={damageAnim.id}
-                    damage={damageAnim.damage}
-                    position={damageAnim.position}
-                    onComplete={() => handleAnimationComplete('damages', damageAnim.id)}
-                  />
-                ))}
-                
-                {/* Death Animations */}
-                {activeAnimations.deaths.map(deathAnim => (
-                  <DeathAnimation
-                    key={deathAnim.id}
-                    position={deathAnim.position}
-                    onComplete={() => handleAnimationComplete('deaths', deathAnim.id)}
-                  />
-                ))}
-                
-                {/* Heal Animations */}
-                {activeAnimations.heals.map(healAnim => (
-                  <HealAnimation
-                    key={healAnim.id}
-                    healing={healAnim.healing}
-                    position={healAnim.position}
-                    onComplete={() => handleAnimationComplete('heals', healAnim.id)}
-                  />
-                ))}
-                
-                {/* Ability Animations */}
-                {activeAnimations.abilities.map(abilityAnim => (
-                  <AbilityAnimation
-                    key={abilityAnim.id}
-                    abilityType={abilityAnim.abilityType}
-                    config={{
-                      fromPosition: abilityAnim.fromPosition,
-                      toPosition: abilityAnim.toPosition,
-                      radius: abilityAnim.radius,
-                      value: abilityAnim.value,
-                    }}
-                    onComplete={() => handleAnimationComplete('abilities', abilityAnim.id)}
-                    duration={1200}
-                  />
-                ))}
+                  {/* Move Animations */}
+                  {activeAnimations.moves.map(moveAnim => (
+                    <MoveAnimation
+                      key={moveAnim.id}
+                      fromPosition={moveAnim.fromPosition}
+                      toPosition={moveAnim.toPosition}
+                      onComplete={() => handleAnimationComplete('moves', moveAnim.id)}
+                    />
+                  ))}
+
+                  {/* Attack Animations */}
+                  {activeAnimations.attacks.map(attackAnim => (
+                    <AttackAnimation
+                      key={attackAnim.id}
+                      attackerPosition={attackAnim.attackerPosition}
+                      targetPosition={attackAnim.targetPosition}
+                      onComplete={() => handleAnimationComplete('attacks', attackAnim.id)}
+                    />
+                  ))}
+
+                  {/* Damage Numbers */}
+                  {activeAnimations.damages.map(damageAnim => (
+                    <DamageNumber
+                      key={damageAnim.id}
+                      damage={damageAnim.damage}
+                      position={damageAnim.position}
+                      onComplete={() => handleAnimationComplete('damages', damageAnim.id)}
+                    />
+                  ))}
+
+                  {/* Death Animations */}
+                  {activeAnimations.deaths.map(deathAnim => (
+                    <DeathAnimation
+                      key={deathAnim.id}
+                      position={deathAnim.position}
+                      onComplete={() => handleAnimationComplete('deaths', deathAnim.id)}
+                    />
+                  ))}
+
+                  {/* Heal Animations */}
+                  {activeAnimations.heals.map(healAnim => (
+                    <HealAnimation
+                      key={healAnim.id}
+                      healing={healAnim.healing}
+                      position={healAnim.position}
+                      onComplete={() => handleAnimationComplete('heals', healAnim.id)}
+                    />
+                  ))}
+
+                  {/* Ability Animations */}
+                  {activeAnimations.abilities.map(abilityAnim => (
+                    <AbilityAnimation
+                      key={abilityAnim.id}
+                      abilityType={abilityAnim.abilityType}
+                      config={{
+                        fromPosition: abilityAnim.fromPosition,
+                        toPosition: abilityAnim.toPosition,
+                        radius: abilityAnim.radius,
+                        value: abilityAnim.value,
+                      }}
+                      onComplete={() => handleAnimationComplete('abilities', abilityAnim.id)}
+                      duration={1200}
+                    />
+                  ))}
                 </div>
               </div>
             </div>
           </div>
-          
+
           {/* Controls */}
           <div className="mt-4">
             <ReplayControls
@@ -2106,17 +2080,17 @@ export function BattleReplay({ battle, playerId }: BattleReplayProps) {
             />
           </div>
         </div>
-        
+
         {/* Event log */}
         <div>
-          <EventLog 
-            events={events} 
+          <EventLog
+            events={events}
             currentEventIndex={replayState.currentEventIndex}
             units={units}
           />
         </div>
       </div>
-      
+
       {/* Unit Stats Popup */}
       {selectedGridUnit && (
         <div
@@ -2138,17 +2112,16 @@ export function BattleReplay({ battle, playerId }: BattleReplayProps) {
                 </div>
               </div>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-3 text-xs mb-3">
               <div>
                 <span className="text-gray-400">HP:</span>
-                <div className={`font-medium ml-1 ${
-                  selectedGridUnit.unit.currentHp > selectedGridUnit.unit.maxHp * 0.6 
-                    ? 'text-green-400' 
-                    : selectedGridUnit.unit.currentHp > selectedGridUnit.unit.maxHp * 0.3 
-                    ? 'text-yellow-400' 
+                <div className={`font-medium ml-1 ${selectedGridUnit.unit.currentHp > selectedGridUnit.unit.maxHp * 0.6
+                  ? 'text-green-400'
+                  : selectedGridUnit.unit.currentHp > selectedGridUnit.unit.maxHp * 0.3
+                    ? 'text-yellow-400'
                     : 'text-red-400'
-                }`}>
+                  }`}>
                   {selectedGridUnit.unit.currentHp}/{selectedGridUnit.unit.maxHp}
                 </div>
               </div>
@@ -2183,7 +2156,7 @@ export function BattleReplay({ battle, playerId }: BattleReplayProps) {
                 </span>
               </div>
             </div>
-            
+
             <div className="pt-2 border-t border-gray-700">
               <div className="text-xs text-gray-400 mb-2">
                 Position: <span className="text-white">({selectedGridUnit.unit.position.x}, {selectedGridUnit.unit.position.y})</span>
@@ -2194,7 +2167,7 @@ export function BattleReplay({ battle, playerId }: BattleReplayProps) {
                 </span>
               </div>
             </div>
-            
+
             <button
               onClick={handleCloseUnitPopup}
               className="mt-3 w-full px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded text-xs transition-colors"

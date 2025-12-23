@@ -181,7 +181,7 @@ function generateAnimationId(): string {
 function getCellBackground(position: Position): string {
   const isPlayerZone = position.y <= 1;
   const isEnemyZone = position.y >= 8;
-  
+
   if (isPlayerZone) return 'bg-blue-900/20 border-blue-600';
   if (isEnemyZone) return 'bg-red-900/20 border-red-600';
   return 'bg-gray-800/50 border-gray-600';
@@ -214,7 +214,7 @@ function TestGridCell({
     isSource ? 'bg-green-500/30 border-green-400' : '',
     isTarget ? 'bg-red-500/30 border-red-400' : '',
   ].join(' ');
-  
+
   return (
     <div
       className={`${baseClasses} ${backgroundClasses} ${stateClasses}`}
@@ -225,14 +225,14 @@ function TestGridCell({
       <div className="absolute top-0 left-0 text-xs text-gray-400 leading-none">
         {position.x},{position.y}
       </div>
-      
+
       {/* Position indicators */}
       {isSource && (
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-green-400 text-lg">📍</div>
         </div>
       )}
-      
+
       {isTarget && (
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-red-400 text-lg">🎯</div>
@@ -259,7 +259,7 @@ function AnimationControls({
   return (
     <div className="bg-gray-800 rounded-lg p-6">
       <h2 className="text-xl font-bold mb-4">🎮 Animation Controls</h2>
-      
+
       {/* Animation type selector */}
       <div className="mb-6">
         <h3 className="text-lg font-medium mb-3">Select Animation Type:</h3>
@@ -282,13 +282,13 @@ function AnimationControls({
           ))}
         </div>
       </div>
-      
+
       {/* Selected animation info */}
       {selectedTest && (
         <div className="mb-6 p-4 bg-gray-700/50 rounded-lg">
           <h4 className="font-medium mb-2">{selectedTest.name}</h4>
           <p className="text-sm text-gray-300 mb-3">{selectedTest.description}</p>
-          
+
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <span className="text-gray-400">Requires Source:</span>
@@ -301,7 +301,7 @@ function AnimationControls({
               <span className="ml-2 text-white capitalize">{selectedTest.type}</span>
             </div>
           </div>
-          
+
           {selectedTest.requiresSource && (
             <div className="mt-3 p-2 bg-blue-900/20 border border-blue-600 rounded text-xs text-blue-300">
               💡 Click on grid to set source position (green), then target position (red)
@@ -309,7 +309,7 @@ function AnimationControls({
           )}
         </div>
       )}
-      
+
       {/* Trigger button */}
       <div className="mb-6">
         <button
@@ -320,7 +320,7 @@ function AnimationControls({
           {selectedTest ? `🚀 Trigger ${selectedTest.name}` : '⚠️ Select Animation Type'}
         </button>
       </div>
-      
+
       {/* Active animations */}
       <div>
         <h4 className="font-medium mb-2">Active Animations ({activeAnimations.length})</h4>
@@ -350,7 +350,7 @@ function AnimationControls({
  * @returns JSX element
  */
 export default function TestAbilityAnimationsPage(): JSX.Element {
-  const [selectedTest, setSelectedTest] = useState<AnimationTest | null>(ANIMATION_TESTS[0]);
+  const [selectedTest, setSelectedTest] = useState<AnimationTest | null>(ANIMATION_TESTS[0] ?? null);
   const [sourcePosition, setSourcePosition] = useState<Position>({ x: 1, y: 1 });
   const [targetPosition, setTargetPosition] = useState<Position>({ x: 6, y: 8 });
   const [isSelectingSource, setIsSelectingSource] = useState(true);
@@ -421,10 +421,10 @@ export default function TestAbilityAnimationsPage(): JSX.Element {
   for (let y = 0; y < GRID_HEIGHT; y++) {
     for (let x = 0; x < GRID_WIDTH; x++) {
       const position = { x, y };
-      const isSource = selectedTest?.requiresSource && 
-                      sourcePosition.x === x && sourcePosition.y === y;
+      const isSource = selectedTest?.requiresSource &&
+        sourcePosition.x === x && sourcePosition.y === y;
       const isTarget = targetPosition.x === x && targetPosition.y === y;
-      
+
       gridCells.push(
         <TestGridCell
           key={`${x}-${y}`}
@@ -482,9 +482,9 @@ export default function TestAbilityAnimationsPage(): JSX.Element {
 
               {/* Grid Container */}
               <div className="relative">
-                <div 
+                <div
                   className="grid gap-1 mx-auto"
-                  style={{ 
+                  style={{
                     gridTemplateColumns: `repeat(${GRID_WIDTH}, minmax(0, 1fr))`,
                     maxWidth: `${GRID_WIDTH * 3.5}rem`
                   }}
@@ -493,9 +493,9 @@ export default function TestAbilityAnimationsPage(): JSX.Element {
                 </div>
 
                 {/* Animation Overlay */}
-                <div 
+                <div
                   className="absolute top-0 left-0 pointer-events-none"
-                  style={{ 
+                  style={{
                     width: `${GRID_WIDTH * 3.5}rem`,
                     height: `${GRID_HEIGHT * 3.5}rem`,
                     margin: '0 auto',
@@ -537,13 +537,13 @@ export default function TestAbilityAnimationsPage(): JSX.Element {
         {/* Animation Details */}
         <div className="mt-8 bg-gray-800 rounded-lg p-6">
           <h2 className="text-xl font-bold mb-4">📋 Animation Details</h2>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {ANIMATION_TESTS.map((test) => (
               <div key={test.id} className="bg-gray-700/50 rounded-lg p-4">
                 <div className="font-medium text-lg mb-2">{test.name}</div>
                 <div className="text-sm text-gray-300 mb-3">{test.description}</div>
-                
+
                 <div className="space-y-1 text-xs">
                   <div>
                     <span className="text-gray-400">Type:</span>

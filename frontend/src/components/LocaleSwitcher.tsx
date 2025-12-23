@@ -9,10 +9,10 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useLocale } from 'next-intl';
-import { 
-  SUPPORTED_LOCALES, 
-  LOCALE_CONFIGS, 
-  type Locale 
+import {
+  SUPPORTED_LOCALES,
+  LOCALE_CONFIGS,
+  type Locale
 } from '@/i18n/config';
 
 // =============================================================================
@@ -48,10 +48,10 @@ interface LocaleSwitcherProps {
  * // Compact version for mobile
  * <LocaleSwitcher compact align="right" />
  */
-export function LocaleSwitcher({ 
-  className = '', 
+export function LocaleSwitcher({
+  className = '',
   compact = false,
-  align = 'left' 
+  align = 'left'
 }: LocaleSwitcherProps) {
   const currentLocale = useLocale() as Locale;
   const [isOpen, setIsOpen] = useState(false);
@@ -69,16 +69,16 @@ export function LocaleSwitcher({
    */
   const handleLocaleChange = (locale: Locale) => {
     setIsOpen(false);
-    
+
     // TODO: Implement actual locale switching
     // This could involve:
     // 1. Updating URL path (e.g., /en/page, /ru/page)
     // 2. Setting a cookie
     // 3. Using router.push with locale parameter
     // 4. Triggering a page reload with new locale
-    
+
     console.log(`Switching to locale: ${locale}`);
-    
+
     // Placeholder: Show notification
     // In real implementation, this would trigger actual locale change
     alert(`Locale switching to ${LOCALE_CONFIGS[locale].name} will be implemented in future updates.`);
@@ -105,6 +105,7 @@ export function LocaleSwitcher({
         document.removeEventListener('mousedown', handleClickOutside);
       };
     }
+    return undefined;
   }, [isOpen]);
 
   /**
@@ -160,7 +161,7 @@ export function LocaleSwitcher({
           {SUPPORTED_LOCALES.map((locale) => {
             const config = LOCALE_CONFIGS[locale];
             const isSelected = locale === currentLocale;
-            
+
             return (
               <button
                 key={locale}
@@ -168,8 +169,8 @@ export function LocaleSwitcher({
                 className={`
                   w-full flex items-center gap-3 px-4 py-2 text-left
                   hover:bg-gray-700 transition-colors
-                  ${isSelected 
-                    ? 'bg-blue-600 text-white' 
+                  ${isSelected
+                    ? 'bg-blue-600 text-white'
                     : 'text-gray-300 hover:text-white'
                   }
                 `}
@@ -215,7 +216,7 @@ export function CompactLocaleSwitcher(props: Omit<LocaleSwitcherProps, 'compact'
 export function useCurrentLocale() {
   const locale = useLocale() as Locale;
   const config = LOCALE_CONFIGS[locale];
-  
+
   return {
     locale,
     config,

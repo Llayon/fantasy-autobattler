@@ -163,7 +163,7 @@ export function useNumberFormatter() {
         return formatter.format(value);
       },
     };
-  }, [locale, config]);
+  }, [config]);
 }
 
 /**
@@ -254,7 +254,7 @@ export function useDateFormatter() {
         return formatter.formatRange(startDate, endDate);
       },
     };
-  }, [locale, config]);
+  }, [config]);
 }
 
 /**
@@ -319,7 +319,7 @@ export function useRelativeTimeFormatter() {
         const diffMonths = Math.round(diffMs / (1000 * 60 * 60 * 24 * 30));
         const diffYears = Math.round(diffMs / (1000 * 60 * 60 * 24 * 365));
 
-        const formatter = options 
+        const formatter = options
           ? new Intl.RelativeTimeFormat(config.intlLocale, options)
           : relativeTimeFormatter;
 
@@ -341,7 +341,7 @@ export function useRelativeTimeFormatter() {
         }
       },
     };
-  }, [locale, config]);
+  }, [config]);
 }
 
 /**
@@ -477,7 +477,7 @@ export function uses24HourFormat(locale: Locale): boolean {
  * const format = getDateFormat('ru', 'medium');
  */
 export function getDateFormat(
-  locale: Locale,
+  _locale: Locale,
   context: 'short' | 'medium' | 'long' = 'medium'
 ): DateFormatOptions {
   const base: DateFormatOptions = {
