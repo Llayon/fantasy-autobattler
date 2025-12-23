@@ -20,7 +20,9 @@ import {
 // CONFIGURATION
 // =============================================================================
 
-const API_URL = 'http://localhost:3004';
+// Use environment variable for API URL to support mobile access
+// Set NEXT_PUBLIC_API_URL in .env.local for custom backend URL
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3004';
 
 // =============================================================================
 // ERROR HANDLING

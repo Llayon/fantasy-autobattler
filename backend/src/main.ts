@@ -31,9 +31,9 @@ async function bootstrap(): Promise<void> {
       },
     }));
     
-    // Enable CORS for frontend communication
+    // Enable CORS for frontend communication (including mobile access)
     app.enableCors({
-      origin: ['http://localhost:3000', 'http://localhost:3001'],
+      origin: true, // Allow all origins for development (mobile access)
       credentials: true,
     });
 
@@ -69,8 +69,8 @@ async function bootstrap(): Promise<void> {
       },
     });
 
-    await app.listen(3004);
-    logger.log('Backend running on http://localhost:3004');
+    await app.listen(3004, '0.0.0.0');
+    logger.log('Backend running on http://0.0.0.0:3004 (accessible from network)');
     logger.log('Swagger documentation available at http://localhost:3004/api/docs');
   } catch (error) {
     logger.error('Failed to start application', error);
