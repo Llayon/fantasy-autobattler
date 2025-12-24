@@ -7,6 +7,9 @@
 
 'use client';
 
+// Force dynamic rendering to prevent static generation issues
+export const dynamic = 'force-dynamic';
+
 import React, { useState } from 'react';
 import { UnitTemplate, UnitRole } from '@/types/game';
 import { UnitCard, UnitCardVariant } from '@/components/UnitCard';

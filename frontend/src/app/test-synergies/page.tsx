@@ -5,6 +5,9 @@
 
 'use client';
 
+// Force dynamic rendering to prevent static generation issues
+export const dynamic = 'force-dynamic';
+
 import { useState } from 'react';
 import { UnitTemplate, UnitId } from '@/types/game';
 import { SynergyDisplay } from '@/components/SynergyDisplay';

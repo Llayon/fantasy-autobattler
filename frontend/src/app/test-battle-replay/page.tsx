@@ -5,6 +5,9 @@
 
 'use client';
 
+// Force dynamic rendering to prevent static generation issues
+export const dynamic = 'force-dynamic';
+
 import { BattleReplay } from '@/components/BattleReplay';
 import { BattleLog, BattleEvent, UnitTemplate } from '@/types/game';
 

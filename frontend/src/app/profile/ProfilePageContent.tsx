@@ -305,6 +305,7 @@ function PlayerAvatar({
   return (
     <>
       <div className="relative">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={generateAvatarUrl(playerId, currentVariant)}
           alt="Player Avatar"
@@ -340,6 +341,7 @@ function PlayerAvatar({
                     }
                   `}
                 >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={generateAvatarUrl(playerId, avatar.id)}
                     alt={avatar.name}

@@ -5,6 +5,9 @@
 
 'use client';
 
+// Force dynamic rendering to prevent static generation issues
+export const dynamic = 'force-dynamic';
+
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Navigation, NavigationWrapper } from '@/components/Navigation';
 import { UnitCard } from '@/components/UnitCard';

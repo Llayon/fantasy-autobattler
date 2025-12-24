@@ -7,6 +7,9 @@
 
 'use client';
 
+// Force dynamic rendering to prevent static generation issues
+export const dynamic = 'force-dynamic';
+
 import { useState } from 'react';
 import { UnitCard } from '@/components/UnitCard';
 import { EnhancedBattleGrid } from '@/components/EnhancedBattleGrid';
@@ -74,7 +77,7 @@ export default function ResponsiveTestPage() {
             {Object.entries(breakpoints).map(([key, { label }]) => (
               <button
                 key={key}
-                onClick={() => setSelectedBreakpoint(key as any)}
+                onClick={() => setSelectedBreakpoint(key as keyof typeof breakpoints)}
                 className={`px-4 py-2 rounded-lg transition-colors ${
                   selectedBreakpoint === key
                     ? 'bg-blue-600 text-white'

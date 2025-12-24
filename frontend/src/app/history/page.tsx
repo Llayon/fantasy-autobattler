@@ -7,6 +7,9 @@
 
 'use client';
 
+// Force dynamic rendering to prevent static generation issues
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { BattleLog } from '@/types/game';
@@ -122,14 +125,14 @@ function getRoleIcon(role: string): string {
  * @example
  * const preview = generateTeamPreview(teamSetup); // "🛡️🛡️⚔️💚"
  */
-function generateTeamPreview(teamSetup: any): string {
+function generateTeamPreview(teamSetup: { units?: Array<{ role: string }> }): string {
   if (!teamSetup?.units || !Array.isArray(teamSetup.units)) {
     return '❓❓❓';
   }
   
   return teamSetup.units
     .slice(0, 4) // Show max 4 units
-    .map((unit: any) => getRoleIcon(unit.role))
+    .map((unit) => getRoleIcon(unit.role))
     .join('');
 }
 
@@ -141,7 +144,7 @@ function generateTeamPreview(teamSetup: any): string {
  * @param playerId - Current player ID
  * @returns Opponent display name
  */
-function getOpponentName(battle: BattleLog, playerId: string): string {
+function getOpponentName(battle: BattleLog & { player1Name?: string; player2Name?: string }, playerId: string): string {
   const isPlayer1 = battle.player1Id === playerId;
   const opponentId = isPlayer1 ? battle.player2Id : battle.player1Id;
   
@@ -151,10 +154,10 @@ function getOpponentName(battle: BattleLog, playerId: string): string {
   }
   
   // Use player names if available
-  if (isPlayer1 && (battle as any).player2Name) {
-    return (battle as any).player2Name;
-  } else if (!isPlayer1 && (battle as any).player1Name) {
-    return (battle as any).player1Name;
+  if (isPlayer1 && battle.player2Name) {
+    return battle.player2Name;
+  } else if (!isPlayer1 && battle.player1Name) {
+    return battle.player1Name;
   }
   
   // Fallback to generic name
@@ -705,7 +708,7 @@ export default function BattleHistoryPage() {
   useEffect(() => {
     const initialBattles = sortedBattles.slice(0, ITEMS_PER_PAGE);
     setDisplayedBattles(initialBattles);
-  }, [filter, sortOption, battles]); // Re-run when battles, filter, or sort changes
+  }, [filter, sortOption, battles, sortedBattles]); // Re-run when battles, filter, or sort changes
   
   // Update pagination when filtered battles change
   useEffect(() => {

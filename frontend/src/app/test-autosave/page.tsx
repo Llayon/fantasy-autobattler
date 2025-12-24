@@ -7,6 +7,9 @@
 
 'use client';
 
+// Force dynamic rendering to prevent static generation issues
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useState } from 'react';
 import { useTeamStore } from '@/store/teamStore';
 import { DraftIndicator } from '@/components/DraftIndicator';

@@ -7,6 +7,9 @@
 
 'use client';
 
+// Force dynamic rendering to prevent static generation issues
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect } from 'react';
 import { SavedTeamsPanel } from '@/components/SavedTeamsPanel';
 import { TeamResponse } from '@/types/game';

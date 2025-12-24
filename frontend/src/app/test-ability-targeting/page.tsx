@@ -5,6 +5,9 @@
 
 'use client';
 
+// Force dynamic rendering to prevent static generation issues
+export const dynamic = 'force-dynamic';
+
 import React, { useState, useMemo } from 'react';
 import { 
   AbilityTargetingPreview, 
@@ -244,7 +247,7 @@ export default function TestAbilityTargetingPage(): JSX.Element {
     }
     
     return cells;
-  }, [allUnits, casterPosition, hoveredCell]);
+  }, [allUnits, casterPosition, hoveredCell, getUnitAtPosition]);
   
   return (
     <div className="min-h-screen bg-gray-900 text-white p-6">

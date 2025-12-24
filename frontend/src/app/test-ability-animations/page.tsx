@@ -7,6 +7,9 @@
 
 'use client';
 
+// Force dynamic rendering to prevent static generation issues
+export const dynamic = 'force-dynamic';
+
 import React, { useState, useCallback } from 'react';
 import { Position } from '@/types/game';
 import { AbilityAnimation } from '@/components/AbilityAnimations';

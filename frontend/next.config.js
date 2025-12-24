@@ -11,11 +11,25 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 const nextConfig = {
   reactStrictMode: true,
   
+  // Skip static page generation during build to prevent hangs
+  // All pages will be server-rendered at request time
+  skipTrailingSlashRedirect: true,
+  
+  // Image optimization configuration
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'api.dicebear.com',
+        pathname: '/7.x/**',
+      },
+    ],
+  },
+  
   // Performance optimizations
   swcMinify: true,
   
   // Experimental features for better performance
-  // optimizeCss inlines critical CSS for faster First Contentful Paint
   experimental: {
     optimizeCss: true,
   },

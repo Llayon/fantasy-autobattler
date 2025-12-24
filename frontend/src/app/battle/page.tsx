@@ -7,6 +7,9 @@
 
 'use client';
 
+// Force dynamic rendering to prevent static generation issues
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -115,14 +118,14 @@ function getRoleIcon(role: string): string {
  * @example
  * const preview = generateTeamPreview(team); // "🛡️⚔️🏹🔮"
  */
-function generateTeamPreview(team: any): string {
+function generateTeamPreview(team: { units?: Array<{ role: string }> }): string {
   if (!team?.units || !Array.isArray(team.units)) {
     return '';
   }
   
   return team.units
     .slice(0, 6) // Show max 6 units
-    .map((unit: any) => getRoleIcon(unit.role))
+    .map((unit) => getRoleIcon(unit.role))
     .join('');
 }
 
@@ -152,7 +155,7 @@ function formatWaitTime(seconds: number): string {
 /**
  * Active team header component.
  */
-function ActiveTeamHeader({ team }: { team: any }) {
+function ActiveTeamHeader({ team }: { team: { name: string; totalCost: number; units?: Array<{ role: string }> } }) {
   const teamPreview = generateTeamPreview(team);
   
   return (
@@ -229,9 +232,9 @@ function PvPSection({
   onLeaveQueue,
   waitTime
 }: {
-  activeTeam: any;
+  activeTeam: { name: string; totalCost: number; units?: Array<{ role: string }> } | null;
   isInQueue: boolean;
-  queueEntry: any;
+  queueEntry: { teamId: string; joinedAt: Date; rating?: number } | null;
   loading: boolean;
   onJoinQueue: () => void;
   onLeaveQueue: () => void;

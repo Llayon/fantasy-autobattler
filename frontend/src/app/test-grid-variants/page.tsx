@@ -5,6 +5,9 @@
 
 'use client';
 
+// Force dynamic rendering to prevent static generation issues
+export const dynamic = 'force-dynamic';
+
 import { BattleGrid, GridUnit } from '@/components/BattleGrid';
 import { Navigation } from '@/components/Navigation';
 

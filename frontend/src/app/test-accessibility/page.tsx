@@ -7,6 +7,9 @@
 
 'use client';
 
+// Force dynamic rendering to prevent static generation issues
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useRef } from 'react';
 import { runAccessibilityTest, logAccessibilityViolations } from '@/lib/axe-config';
 import { UnitCard } from '@/components/UnitCard';
@@ -47,13 +50,30 @@ const mockUnit: UnitTemplate = {
 // =============================================================================
 
 /**
+ * Accessibility test results interface.
+ */
+interface AccessibilityTestResults {
+  passes?: unknown[];
+  violations?: Array<{
+    id: string;
+    impact: string;
+    description: string;
+    help: string;
+    helpUrl: string;
+    nodes: unknown[];
+  }>;
+  incomplete?: unknown[];
+  [key: string]: unknown;
+}
+
+/**
  * Accessibility testing page component.
  * Provides comprehensive accessibility testing tools and examples.
  * 
  * @returns Accessibility testing page
  */
 export default function AccessibilityTestPage() {
-  const [testResults, setTestResults] = useState<any>(null);
+  const [testResults, setTestResults] = useState<AccessibilityTestResults | null>(null);
   const [isRunningTest, setIsRunningTest] = useState(false);
   const [selectedComponent, setSelectedComponent] = useState<string>('all');
   const [keyboardTestMode, setKeyboardTestMode] = useState(false);
@@ -82,7 +102,7 @@ export default function AccessibilityTestPage() {
       }
       
       const results = await runAccessibilityTest(element);
-      setTestResults(results);
+      setTestResults(results as AccessibilityTestResults);
       
       // Log results to console for detailed analysis
       logAccessibilityViolations(results.violations);
@@ -91,6 +111,7 @@ export default function AccessibilityTestPage() {
       performManualChecks();
       
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Accessibility test failed:', error);
     } finally {
       setIsRunningTest(false);
@@ -109,10 +130,13 @@ export default function AccessibilityTestPage() {
       ariaLabels: checkAriaLabels(),
     };
     
+    // eslint-disable-next-line no-console
     console.group('🔍 Manual Accessibility Checks');
     Object.entries(checks).forEach(([check, result]) => {
+      // eslint-disable-next-line no-console
       console.log(`${result ? '✅' : '❌'} ${check}:`, result);
     });
+    // eslint-disable-next-line no-console
     console.groupEnd();
   };
 
@@ -342,7 +366,7 @@ export default function AccessibilityTestPage() {
           {testResults.violations && testResults.violations.length > 0 && (
             <div className="space-y-4">
               <h3 className="text-lg font-medium text-red-400">Accessibility Violations:</h3>
-              {testResults.violations.map((violation: any, index: number) => (
+              {testResults.violations.map((violation, index: number) => (
                 <div key={index} className="p-4 bg-red-900/20 border border-red-500/50 rounded-lg">
                   <div className="flex items-start justify-between mb-2">
                     <h4 className="font-medium text-red-300">{violation.id}</h4>

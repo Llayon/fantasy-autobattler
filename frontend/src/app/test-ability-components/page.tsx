@@ -7,6 +7,9 @@
 
 'use client';
 
+// Force dynamic rendering to prevent static generation issues
+export const dynamic = 'force-dynamic';
+
 import React, { useState } from 'react';
 import { AbilityIcon, AbilityData } from '@/components/AbilityIcon';
 import { AbilityBar, UnitAbilityData, CompactAbilityBar, VerticalAbilityBar } from '@/components/AbilityBar';
@@ -120,6 +123,7 @@ export default function TestAbilityComponentsPage(): JSX.Element {
    * @param unit - Unit that owns the ability
    */
   const handleAbilityClick = (ability: AbilityData, unit: UnitAbilityData): void => {
+    // eslint-disable-next-line no-console
     console.log('Ability clicked:', ability.name, 'from unit:', unit.unitName);
     alert(`Использована способность: ${ability.name}\nОт юнита: ${unit.unitName}`);
   };
@@ -212,7 +216,10 @@ export default function TestAbilityComponentsPage(): JSX.Element {
               <div className="text-center">
                 <AbilityIcon 
                   ability={FIREBALL_ABILITY} 
-                  onClick={(ability) => console.log('Ready ability:', ability.name)}
+                  onClick={(ability) => {
+                    // eslint-disable-next-line no-console
+                    console.log('Ready ability:', ability.name);
+                  }}
                 />
                 <p className="text-sm text-gray-600 mt-1">Готова</p>
               </div>
@@ -241,7 +248,10 @@ export default function TestAbilityComponentsPage(): JSX.Element {
                 <AbilityIcon
                   key={ability.id}
                   ability={ability}
-                  onClick={(ability) => console.log('Clicked:', ability.name)}
+                  onClick={(ability) => {
+                    // eslint-disable-next-line no-console
+                    console.log('Clicked:', ability.name);
+                  }}
                 />
               ))}
             </div>

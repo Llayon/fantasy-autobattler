@@ -7,7 +7,10 @@
 
 'use client';
 
-import dynamic from 'next/dynamic';
+// Force dynamic rendering to prevent static generation issues
+export const dynamic = 'force-dynamic';
+
+import dynamicImport from 'next/dynamic';
 import { FullPageLoader } from '@/components/LoadingStates';
 
 // Force dynamic rendering to avoid SSR issues with browser APIs
@@ -17,7 +20,7 @@ import { FullPageLoader } from '@/components/LoadingStates';
  * Dynamically imported ProfilePageContent component.
  * Uses SSR: false to prevent server-side rendering issues with browser APIs.
  */
-const ProfilePageContent = dynamic(
+const ProfilePageContent = dynamicImport(
   () => import('./ProfilePageContent'),
   { 
     ssr: false,
