@@ -5,10 +5,17 @@ module.exports = {
     tsconfigRootDir: __dirname,
     sourceType: 'module',
   },
-  plugins: ['@typescript-eslint/eslint-plugin'],
+  plugins: ['@typescript-eslint/eslint-plugin', 'import'],
   extends: [
     'plugin:@typescript-eslint/recommended',
   ],
+  settings: {
+    'import/resolver': {
+      typescript: {
+        project: './tsconfig.json',
+      },
+    },
+  },
   root: true,
   env: {
     node: true,
@@ -32,5 +39,8 @@ module.exports = {
     'no-return-await': 'error',
     '@typescript-eslint/no-floating-promises': 'error',
     '@typescript-eslint/await-thenable': 'error',
+    
+    // Circular dependency detection
+    'import/no-cycle': ['error', { maxDepth: 2 }],
   },
 };

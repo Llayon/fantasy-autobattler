@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Tests for passive abilities system.
  */
 
@@ -51,7 +51,7 @@ function createMockBattleState(units: BattleUnit[]): BattleState {
   units.forEach(unit => {
     if (unit.alive) occupiedPositions.add(`${unit.position.x},${unit.position.y}`);
   });
-  return { units, currentRound: 1, occupiedPositions, metadata: { seed: 12345, startTime: Date.now() } };
+  return { units, currentRound: 1, events: [], occupiedPositions, metadata: { seed: 12345, startTime: Date.now() } };
 }
 
 describe('hasPassive', () => {

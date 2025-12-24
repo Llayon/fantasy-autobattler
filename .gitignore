@@ -40,3 +40,6 @@ coverage/
 # Misc
 *.tsbuildinfo
 .eslintcache
+
+# Test artifacts
+battle_log.json

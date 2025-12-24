@@ -69,6 +69,7 @@ function createMockBattleState(units: BattleUnit[]): BattleState {
   return {
     units,
     currentRound: 1,
+    events: [],
     occupiedPositions,
     metadata: {
       seed: 12345,

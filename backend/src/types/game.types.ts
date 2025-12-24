@@ -1,68 +1,74 @@
 /**
  * Core type definitions for Fantasy Autobattler game.
  * Contains all interfaces and types used throughout the application.
- * 
+ *
  * @fileoverview Centralized type definitions for game entities,
  * battle system, units, and gameplay mechanics.
+ *
+ * Re-exports core types from core/types for backward compatibility.
  */
 
 import { UNIT_ROLES } from '../config/game.constants';
 
 // =============================================================================
-// BASIC TYPES
+// RE-EXPORTS FROM CORE TYPES (for backward compatibility)
 // =============================================================================
 
-/**
- * 2D position on the battlefield grid.
- * Uses zero-based indexing (0,0) to (7,9) for 8×10 grid.
- */
-export interface Position {
-  /** X coordinate (0-7) */
-  x: number;
-  /** Y coordinate (0-9) */
-  y: number;
-}
+// Grid types
+export type {
+  Position,
+  CellType,
+  GridCell,
+  Grid,
+  PathNode,
+  PathfindingResult,
+} from '../core/types/grid.types';
+
+// Battle types
+export type {
+  TeamType,
+  BattleWinner,
+  UnitStats,
+  FinalUnitState,
+  BattleState,
+} from '../core/types/battle.types';
+
+// Targeting types (from core/battle module)
+export type { TargetStrategy, TargetSelectionResult } from '../core/battle/targeting';
+
+// Event types
+export type {
+  BattleEventType,
+  BattleEvent,
+  MoveEvent,
+  AttackEvent,
+  AbilityEvent,
+  EffectResult,
+} from '../core/types/event.types';
+
+// Import types for use in this file
+import type { Position } from '../core/types/grid.types';
+import type {
+  TeamType,
+  BattleWinner,
+  UnitStats,
+  FinalUnitState,
+} from '../core/types/battle.types';
+import type { BattleEvent } from '../core/types/event.types';
+
+// =============================================================================
+// GAME-SPECIFIC TYPES
+// =============================================================================
 
 /**
  * Unit role enumeration derived from constants.
  * Determines unit behavior, stats distribution, and team composition.
  */
-export type UnitRole = typeof UNIT_ROLES[keyof typeof UNIT_ROLES];
-
-/**
- * Team identifier for battle participants.
- */
-export type TeamType = 'player' | 'bot';
-
-/**
- * Battle outcome possibilities.
- */
-export type BattleWinner = 'player' | 'bot' | 'draw';
+export type UnitRole = (typeof UNIT_ROLES)[keyof typeof UNIT_ROLES];
 
 // =============================================================================
 // UNIT SYSTEM TYPES
 // =============================================================================
-
-/**
- * Core unit statistics interface.
- * Contains all combat-relevant attributes for units.
- */
-export interface UnitStats {
-  /** Hit points - unit dies when reaching 0 */
-  hp: number;
-  /** Attack damage per hit */
-  atk: number;
-  /** Number of attacks per turn */
-  atkCount: number;
-  /** Armor - reduces incoming physical damage */
-  armor: number;
-  /** Movement speed - cells per turn */
-  speed: number;
-  /** Initiative - determines turn order (higher = first) */
-  initiative: number;
-  /** Dodge chance percentage (0-100) */
-  dodge: number;
-}
 
 /**
  * Unit template definition from game data.
@@ -105,7 +111,7 @@ export interface BattleUnit extends UnitTemplate {
 }
 
 // =============================================================================
-// ABILITY SYSTEM TYPES
+// ABILITY SYSTEM TYPES (simplified, full types in ability.types.ts)
 // =============================================================================
 
 /**
@@ -121,7 +127,14 @@ export type AbilityTargetType = 'self' | 'ally' | 'enemy' | 'area';
 /**
  * Ability effect classification.
  */
-export type AbilityEffectType = 'damage' | 'heal' | 'buff' | 'debuff' | 'summon' | 'teleport' | 'stun';
+export type AbilityEffectType =
+  | 'damage'
+  | 'heal'
+  | 'buff'
+  | 'debuff'
+  | 'summon'
+  | 'teleport'
+  | 'stun';
 
 /**
  * Ability effect definition.
@@ -158,86 +171,8 @@ export interface Ability {
 }
 
 // =============================================================================
-// BATTLE EVENT TYPES
-// =============================================================================
-
-/**
- * Battle event type classification.
- */
-export type BattleEventType = 
-  | 'move' 
-  | 'attack' 
-  | 'heal' 
-  | 'ability' 
-  | 'ability_used'
-  | 'damage' 
-  | 'death' 
-  | 'buff' 
-  | 'debuff'
-  | 'status_applied'
-  | 'status_tick'
-  | 'status_removed'
-  | 'round_start'
-  | 'battle_end';
-
-/**
- * Individual battle event record.
- * Represents a single action or state change during battle.
- */
-export interface BattleEvent {
-  /** Battle round number (1-based) */
-  round: number;
-  /** Event type classification */
-  type: BattleEventType;
-  /** ID of the acting unit */
-  actorId: string;
-  /** ID of the target unit (if applicable) */
-  targetId?: string;
-  /** Multiple target IDs (for AoE abilities) */
-  targetIds?: string[];
-  /** Damage dealt */
-  damage?: number;
-  /** Multiple damage values (for multi-target) */
-  damages?: number[];
-  /** Healing amount */
-  healing?: number;
-  /** Movement from position */
-  fromPosition?: Position;
-  /** Movement to position */
-  toPosition?: Position;
-  /** Ability used */
-  abilityId?: string;
-  /** Units killed by this event */
-  killedUnits?: string[];
-  /** Status effect applied/removed/ticked */
-  statusEffect?: {
-    type: string;
-    duration?: number;
-    value?: number;
-  };
-  /** Source of damage (attack, ability, status) */
-  source?: 'attack' | 'ability' | 'status';
-  /** Additional event metadata */
-  metadata?: Record<string, unknown>;
-}
-
-// =============================================================================
 // BATTLE RESULT TYPES
 // =============================================================================
-
-/**
- * Final unit state after battle completion.
- */
-export interface FinalUnitState {
-  /** Unit instance ID */
-  instanceId: string;
-  /** Final hit points */
-  currentHp: number;
-  /** Final position */
-  position: Position;
-  /** Survival status */
-  alive: boolean;
-}
 
 /**
  * Complete battle simulation result.
@@ -294,57 +229,6 @@ export interface TeamValidationResult {
   totalCost: number;
   /** Budget remaining */
   budgetRemaining: number;
-}
-
-// =============================================================================
-// GRID AND PATHFINDING TYPES
-// =============================================================================
-
-/**
- * Grid cell state.
- */
-export type CellType = 'empty' | 'occupied' | 'blocked';
-
-/**
- * Grid cell information.
- */
-export interface GridCell {
-  /** Cell position */
-  position: Position;
-  /** Cell state */
-  type: CellType;
-  /** Unit occupying this cell (if any) */
-  unitId?: string;
-}
-
-/**
- * Pathfinding node for A* algorithm.
- */
-export interface PathNode {
-  /** Node position */
-  position: Position;
-  /** Cost from start */
-  gCost: number;
-  /** Heuristic cost to goal */
-  hCost: number;
-  /** Total cost (g + h) */
-  fCost: number;
-  /** Parent node for path reconstruction */
-  parent?: PathNode;
-}
-
-/**
- * Pathfinding result.
- */
-export interface PathfindingResult {
-  /** Path as array of positions */
-  path: Position[];
-  /** Whether path was found */
-  found: boolean;
-  /** Path length in cells */
-  length: number;
-  /** Movement cost */
-  cost: number;
 }
 
 // =============================================================================

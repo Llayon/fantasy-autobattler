@@ -76,6 +76,10 @@ jobs:
       - name: Build
         working-directory: backend
         run: npm run build
+      
+      - name: Verify core module imports
+        working-directory: backend
+        run: npm run verify:core
 
   backend-test:
     name: Backend Tests

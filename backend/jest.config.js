@@ -5,6 +5,10 @@ module.exports = {
   transform: {
     '^.+\\.(t|j)s$': 'ts-jest',
   },
+  moduleNameMapper: {
+    '^@core/(.*)$': '<rootDir>/core/$1',
+    '^@game/(.*)$': '<rootDir>/game/$1',
+  },
   collectCoverageFrom: ['**/*.(t|j)s', '!**/*.module.ts', '!**/main.ts'],
   coverageDirectory: '../coverage',
   testEnvironment: 'node',

@@ -2788,3 +2788,112 @@ Post-launch активности:
 5. Commit и переходи к следующему шагу
 
 **Tip:** Можно выполнять несколько независимых шагов параллельно (например, backend и frontend).
+
+---
+
+## PHASE 8: CORE EXTRACTION (Steps 101-115)
+
+> Выделение переиспользуемого движка из game-specific кода.
+> См. `.kiro/specs/core-extraction/` для детальной спецификации.
+
+### Step 101: Core Folder Structure
+⏱️ 15 min
+
+🔧 **CREATE:**
+```
+Создай структуру папок для core библиотеки:
+backend/src/core/
+├── grid/           # Grid utilities, A* pathfinding
+├── battle/         # Damage, turn order, targeting
+├── abilities/      # Ability execution, status effects
+├── types/          # Core type definitions
+├── utils/          # Seeded random, helpers
+└── events/         # Event system
+
+Добавь path aliases в tsconfig.json: @core/*, @game/*
+```
+
+### Step 102-105: Extract Core Types & Modules
+⏱️ 2 hours
+
+Извлечение типов (GridConfig, BattleConfig), grid модуля, battle модуля, ability модуля.
+
+### Step 106-110: Move Tests & Create Game Module
+⏱️ 2 hours
+
+Перенос тестов в core/, создание game/ модуля с unit definitions.
+
+### Step 111-115: Frontend Core & Documentation
+⏱️ 2 hours
+
+Извлечение frontend компонентов, создание документации.
+
+---
+
+## PHASE 9: ROGUELIKE MODE (Steps 116-150)
+
+> Режим прогрессии с забегами 9 побед / 4 поражения.
+> См. `.kiro/specs/roguelike-run/` и `docs/ROGUELIKE_DESIGN.md` для детальной спецификации.
+
+### Step 116-120: Faction & Leader System
+⏱️ 4 hours
+
+- 6 фракций (Order, Chaos, Nature, Shadow, Arcane, Machine)
+- 18 лидеров (3 на фракцию) с пассивками и заклинаниями
+- 150 юнитов (25 на фракцию)
+
+### Step 121-125: Run Entity & Draft System
+⏱️ 3 hours
+
+- Run entity (deck, hand, wins, losses, gold)
+- Initial draft (3 из 5)
+- Post-battle draft (1 из 3)
+
+### Step 126-130: Upgrade & Economy System
+⏱️ 3 hours
+
+- Tier upgrades (T1 → T2 → T3)
+- Budget progression (10g → 65g)
+- Gold rewards
+
+### Step 131-135: Spell System
+⏱️ 3 hours
+
+- Spell definitions
+- Timing selection (Early/Mid/Late)
+- Spell execution in battle
+
+### Step 136-140: Async PvP & Matchmaking
+⏱️ 3 hours
+
+- Snapshot system
+- Matchmaking by wins + rating
+- Bot fallback
+
+### Step 141-145: Rating & Leagues
+⏱️ 2 hours
+
+- ELO calculation
+- Leagues (Bronze → Diamond)
+- Leaderboards
+
+### Step 146-150: UI & Polish
+⏱️ 4 hours
+
+- Faction select screen
+- Leader select screen
+- Draft screen
+- Run status bar
+- Victory/defeat screens
+
+---
+
+## 📊 Extended Summary
+
+| Phase | Steps | Focus | Time |
+|-------|-------|-------|------|
+| 1-7 | 1-100 | MVP Development | ~100 hours |
+| 8. Core Extraction | 101-115 | Reusable engine | ~12 hours |
+| 9. Roguelike Mode | 116-150 | Progression system | ~25 hours |
+
+**Total Estimated Time:** 130-150 hours
