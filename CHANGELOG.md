@@ -8,19 +8,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Core library extraction (`backend/src/core/`) — game-agnostic battle engine
+  - `core/grid/` — Grid utilities, A* pathfinding with configurable dimensions
+  - `core/battle/` — Damage calculations, turn order, targeting strategies
+  - `core/types/` — Core type definitions (Position, GridConfig, BattleConfig)
+  - `core/utils/` — Seeded random (SeededRandom class, seededRandom function)
+  - `core/events/` — Event emitter system (createEventEmitter, createEventCollector)
+  - `core/constants/` — Default battle and grid constants
+- Game-specific module (`backend/src/game/`)
+  - `game/units/` — 15 unit definitions
+  - `game/abilities/` — Ability data
+  - `game/battle/` — Synergies, AI decision, bot generator
+- Frontend core types (`frontend/src/core/`)
+  - `core/types/` — Position, GridConfig, GridCell
+  - `core/hooks/` — useGridNavigation hook
+- Core integration tests (24 tests covering grid, damage, turn order, targeting, seeded random)
+- `verify:core` npm script to validate core module independence
+- CI pipeline step for core import verification
 - Documentation cleanup and reorganization
 - `docs/archive/` for historical MVP documentation
 - `docs/reports/` for validation and verification reports
 - New `STEP_PROGRESS.md` for post-MVP tracking
 
 ### Changed
+- Moved grid.ts, pathfinding.ts to `core/grid/` (re-exports in original locations)
+- Moved damage.ts, turn-order.ts, targeting.ts to `core/battle/` (re-exports in original locations)
+- Moved unit.data.ts to `game/units/`
+- Moved ability.data.ts to `game/abilities/`
+- Moved synergies.ts, ai.decision.ts, bot-generator.ts to `game/battle/`
+- Consolidated seededRandom implementations (was duplicated in 3 files)
+- Updated ARCHITECTURE.md with core/game separation
+- Updated project-context.md with new file structure
 - Moved 46 validation reports to `docs/reports/`
 - Archived MVP progress files to `docs/archive/`
 - Consolidated step summaries into `MVP_SUMMARY.md`
 
-### Planned
-- Core library extraction (`backend/src/core/`)
-- Roguelike run mode (6 factions, 18 leaders, spells)
+### Technical
+- 750+ unit tests (up from 650+)
+- Path aliases: `@core/*`, `@game/*` in tsconfig.json
+- All core modules are pure TypeScript with zero NestJS dependencies
+- Core modules have zero imports from game-specific code
 
 ---
 

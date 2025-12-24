@@ -59,23 +59,35 @@ Browser-based asynchronous PvP autobattler in fantasy setting. Build teams withi
 autobattler/
 ├── backend/                    # NestJS API Server
 │   ├── src/
-│   │   ├── abilities/         # Ability definitions (15 abilities)
+│   │   ├── core/              # 🆕 Reusable battle engine (game-agnostic)
+│   │   │   ├── grid/          # Grid utilities, A* pathfinding
+│   │   │   ├── battle/        # Damage, turn order, targeting
+│   │   │   ├── types/         # Core type definitions
+│   │   │   ├── utils/         # Seeded random for determinism
+│   │   │   └── events/        # Event emitter system
+│   │   ├── game/              # 🆕 Game-specific content
+│   │   │   ├── units/         # 15 unit definitions
+│   │   │   ├── abilities/     # Ability data
+│   │   │   └── battle/        # Synergies, AI, bot generator
+│   │   ├── battle/            # Battle orchestration (NestJS services)
 │   │   ├── auth/              # Guest authentication
-│   │   ├── battle/            # Battle simulation, AI, pathfinding
 │   │   ├── common/            # Filters, interceptors, exceptions
-│   │   ├── config/            # Game constants
+│   │   ├── config/            # Game constants (re-exports)
 │   │   ├── entities/          # TypeORM entities
 │   │   ├── health/            # Health check endpoints
 │   │   ├── matchmaking/       # PvP matchmaking queue
 │   │   ├── player/            # Player management
 │   │   ├── rating/            # ELO rating system
 │   │   ├── team/              # Team building & validation
-│   │   ├── types/             # TypeScript types
-│   │   └── unit/              # Unit definitions (15 units)
+│   │   ├── types/             # TypeScript types (re-exports)
+│   │   └── unit/              # Unit controller (re-exports)
 │   └── package.json
 │
 ├── frontend/                   # Next.js Web Client
 │   ├── src/
+│   │   ├── core/              # 🆕 Reusable types and hooks
+│   │   │   ├── types/         # Position, GridConfig
+│   │   │   └── hooks/         # useGridNavigation
 │   │   ├── app/               # Next.js pages
 │   │   │   ├── page.tsx       # Team Builder (main)
 │   │   │   ├── battle/        # Battle pages
@@ -279,7 +291,8 @@ NEXT_PUBLIC_API_URL=http://localhost:3004
 | [Game Design Document](./docs/GAME_DESIGN_DOCUMENT.md) | Full GDD with mechanics |
 | [Roguelike Design](./docs/ROGUELIKE_DESIGN.md) | Roguelike mode GDD |
 | [Architecture](./docs/ARCHITECTURE.md) | System design |
-| [Core Library](./docs/CORE_LIBRARY.md) | Core engine API (planned) |
+| [Core Library](./docs/CORE_LIBRARY.md) | Core engine API |
+| [Backend Core README](./backend/src/core/README.md) | Core module documentation |
 | [AI Development Plan](./docs/AI_DEVELOPMENT_PLAN.md) | 100-step plan |
 | [Engineering Guide](./docs/ENGINEERING_GUIDE.md) | Coding standards |
 | [Antipatterns](./docs/ANTIPATTERNS.md) | What NOT to do |

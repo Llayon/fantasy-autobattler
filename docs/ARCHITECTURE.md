@@ -56,46 +56,83 @@
 
 ## Code Organization
 
-### Core vs Game Separation (Planned)
+### Core vs Game Separation
 
-The codebase is being reorganized to separate reusable engine code from game-specific content:
+The codebase separates reusable engine code from game-specific content:
 
 ```
 backend/src/
-├── core/                    # Reusable engine (game-agnostic)
+├── core/                    # Reusable engine (game-agnostic) ✅
 │   ├── grid/                # Grid utilities, A* pathfinding
-│   ├── battle/              # Damage, turn order, targeting, actions
-│   ├── abilities/           # Ability execution, status effects
+│   │   ├── grid.ts          # createEmptyGrid, isValidPosition, manhattanDistance
+│   │   └── pathfinding.ts   # findPath, hasPath, findClosestReachablePosition
+│   ├── battle/              # Combat calculations
+│   │   ├── damage.ts        # calculatePhysicalDamage, rollDodge, applyDamage
+│   │   ├── turn-order.ts    # buildTurnQueue, getNextUnit, removeDeadUnits
+│   │   └── targeting.ts     # selectTarget, findNearestEnemy, findWeakestEnemy
 │   ├── types/               # Core type definitions
-│   ├── utils/               # Seeded random, helpers
-│   └── events/              # Event system for battle logging
+│   │   ├── grid.types.ts    # Position, GridCell, Grid
+│   │   ├── battle.types.ts  # BattleUnit, BattleResult, TeamType
+│   │   ├── ability.types.ts # AbilityEffect, StatusEffect
+│   │   ├── config.types.ts  # GridConfig, BattleConfig
+│   │   └── event.types.ts   # BattleEvent, MoveEvent, AttackEvent
+│   ├── utils/               # Seeded random for determinism
+│   │   └── random.ts        # seededRandom(), SeededRandom class
+│   ├── events/              # Event system for battle logging
+│   │   └── emitter.ts       # createEventEmitter, createEventCollector
+│   ├── constants/           # Default values
+│   └── abilities/           # (types only, implementation in battle/)
 │
-├── game/                    # Game-specific (Fantasy Autobattler)
-│   ├── units/               # 15 unit definitions
-│   ├── abilities/           # Ability data, passive triggers
+├── game/                    # Game-specific (Fantasy Autobattler) ✅
+│   ├── units/               # 15 unit definitions (unit.data.ts)
+│   ├── abilities/           # Ability data (ability.data.ts)
 │   ├── config/              # Game constants (grid 8×10, budget 30)
+│   ├── constants/           # TEAM_LIMITS, UNIT_ROLES
 │   └── battle/              # Synergies, AI, bot generator
+│       ├── synergies.ts     # 10 synergy definitions
+│       ├── ai.decision.ts   # Role-based AI targeting
+│       └── bot-generator.ts # Random bot team generation
 │
-└── [existing modules]       # Services, controllers, entities
+├── battle/                  # Battle orchestration (NestJS services)
+│   ├── battle.simulator.ts  # Main simulation loop
+│   ├── battle.service.ts    # NestJS service (DB, matchmaking)
+│   ├── ability.executor.ts  # Ability execution
+│   ├── status-effects.ts    # Buff/debuff management
+│   └── passive.abilities.ts # Passive ability triggers
+│
+└── [other modules]          # auth/, player/, team/, matchmaking/, entities/
 
 frontend/src/
-├── core/                    # Reusable components
-│   ├── components/          # BattleGrid, UnitCard, BattleReplay
-│   ├── hooks/               # useBattleReplay, useGridNavigation
-│   └── types/               # Shared interfaces
+├── core/                    # Reusable types and hooks ✅
+│   ├── types/               # Position, GridConfig, GridCell
+│   └── hooks/               # useGridNavigation
 │
 └── [existing modules]       # App pages, game-specific components
 ```
 
-This separation enables:
-- Reuse of battle engine in other projects
-- Clear boundaries between engine and content
-- Easier testing of core logic
-- Configurable grid sizes (8×10 for MVP, 8×2 for roguelike landing zone)
-- Multiple game modes with shared engine
+### Core Module Principles
 
-See `docs/CORE_LIBRARY.md` for API documentation.
-See `.kiro/specs/core-extraction/` for implementation plan.
+1. **Zero game dependencies**: Core modules never import from `game/`, `unit/`, or `abilities/`
+2. **Configurable**: All functions accept optional config parameters (GridConfig, BattleConfig)
+3. **Deterministic**: Same inputs + seed = same outputs (enables replays)
+4. **Minimal interfaces**: Core uses minimal unit interfaces (GridUnit, DamageUnit, etc.)
+5. **Pure functions**: No side effects, no database, no NestJS dependencies
+
+### Import Rules
+
+```typescript
+// ✅ ALLOWED
+import { findPath } from '@core/grid';           // game → core
+import { UNIT_DATA } from '@game/units';         // battle → game
+import { calculateDamage } from '../core/battle'; // relative within backend
+
+// ❌ FORBIDDEN
+import { UNIT_DATA } from '@game/units';         // core → game (NEVER!)
+import { BattleService } from '../battle';       // core → NestJS service
+```
+
+See `backend/src/core/README.md` for API documentation.
+See `docs/CORE_LIBRARY.md` for design rationale.
 
 ## Layer Responsibilities
 

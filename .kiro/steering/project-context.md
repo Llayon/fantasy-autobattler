@@ -118,35 +118,49 @@ Browser-based asynchronous PvP autobattler in fantasy setting. Players build tea
 ### Backend
 ```
 backend/src/
-├── abilities/      # Ability definitions (15 abilities)
-├── auth/           # Guest authentication
-├── battle/         # Battle simulation, AI, pathfinding
+├── core/           # 🆕 Reusable battle engine (game-agnostic)
+│   ├── grid/       # Grid utilities, A* pathfinding
+│   │   ├── grid.ts           # createEmptyGrid, isValidPosition, manhattanDistance
+│   │   └── pathfinding.ts    # findPath, hasPath, findClosestReachablePosition
+│   ├── battle/     # Combat calculations
+│   │   ├── damage.ts         # calculatePhysicalDamage, rollDodge
+│   │   ├── turn-order.ts     # buildTurnQueue, getNextUnit
+│   │   └── targeting.ts      # selectTarget, findNearestEnemy
+│   ├── types/      # Core type definitions
+│   ├── utils/      # Seeded random (seededRandom, SeededRandom)
+│   ├── events/     # Event emitter (createEventEmitter)
+│   └── constants/  # Default values
+├── game/           # 🆕 Game-specific content
+│   ├── units/      # 15 unit definitions (unit.data.ts)
+│   ├── abilities/  # Ability data (ability.data.ts)
+│   ├── config/     # Game constants
+│   ├── constants/  # TEAM_LIMITS, UNIT_ROLES
+│   └── battle/     # Synergies, AI, bot generator
+├── battle/         # Battle orchestration (NestJS services)
+│   ├── battle.simulator.ts    # Main simulation loop
+│   ├── battle.service.ts      # NestJS service
 │   ├── ability.executor.ts    # Ability execution
-│   ├── ai.decision.ts         # AI targeting
-│   ├── battle.simulator.ts    # Main simulation
-│   ├── damage.ts              # Damage calculations
-│   ├── grid.ts                # Grid utilities
-│   ├── passive.abilities.ts   # Passive ability system
-│   ├── pathfinding.ts         # A* pathfinding
 │   ├── status-effects.ts      # Buff/debuff system
-│   ├── synergies.ts           # Team synergies
-│   ├── targeting.ts           # Target selection
-│   └── turn-order.ts          # Turn management
+│   └── passive.abilities.ts   # Passive ability system
+├── auth/           # Guest authentication
 ├── common/         # Filters, interceptors, exceptions
-├── config/         # Game constants
+├── config/         # Game constants (re-exports from core/game)
 ├── entities/       # TypeORM entities
 ├── health/         # Health check endpoints
 ├── matchmaking/    # PvP matchmaking queue
 ├── player/         # Player profile & stats
 ├── rating/         # ELO rating system
 ├── team/           # Team building & validation
-├── types/          # Shared TypeScript types
-└── unit/           # Unit definitions
+├── types/          # Shared TypeScript types (re-exports)
+└── unit/           # Unit controller (re-exports)
 ```
 
 ### Frontend
 ```
 frontend/src/
+├── core/           # 🆕 Reusable types and hooks
+│   ├── types/      # Position, GridConfig, GridCell
+│   └── hooks/      # useGridNavigation
 ├── app/            # Next.js pages
 │   ├── page.tsx           # Team Builder (main)
 │   ├── battle/[id]/       # Battle Replay
@@ -192,7 +206,8 @@ frontend/src/
 | `docs/ROGUELIKE_DESIGN.md` | Roguelike mode GDD (6 factions, 18 leaders) |
 | `docs/AI_DEVELOPMENT_PLAN.md` | 100-step development plan |
 | `docs/ARCHITECTURE.md` | System architecture & data flow |
-| `docs/CORE_LIBRARY.md` | Core engine API (planned) |
+| `docs/CORE_LIBRARY.md` | Core engine API |
+| `backend/src/core/README.md` | Core module documentation |
 | `docs/ENGINEERING_GUIDE.md` | Coding standards, JSDoc, logging |
 | `docs/ANTIPATTERNS.md` | Forbidden practices |
 | `docs/ACCESSIBILITY.md` | Accessibility guidelines |
@@ -256,16 +271,24 @@ Control: Stun high threat > Attack
 
 ## Planned Architecture Changes
 
-### Core Library Extraction
-Separating reusable engine code into `backend/src/core/`:
+### Core Library Extraction ✅ (In Progress - PR 5)
+Reusable engine code extracted to `backend/src/core/`:
 - `core/grid/` — Grid utilities, A* pathfinding
 - `core/battle/` — Damage, turn order, targeting
-- `core/abilities/` — Ability execution, status effects
 - `core/types/` — Core type definitions
+- `core/utils/` — Seeded random for determinism
+- `core/events/` — Event emitter system
 
-Game-specific code stays in `backend/src/game/`:
-- Unit definitions, ability data, synergies, AI
+Game-specific code moved to `backend/src/game/`:
+- `game/units/` — Unit definitions
+- `game/abilities/` — Ability data
+- `game/battle/` — Synergies, AI, bot generator
 
+Frontend core types in `frontend/src/core/`:
+- `core/types/` — Position, GridConfig
+- `core/hooks/` — useGridNavigation
+
+See `backend/src/core/README.md` for API documentation.
 See `.kiro/specs/core-extraction/` for full specification.
 
 ### Roguelike Run Mode (Future)
@@ -283,7 +306,7 @@ See `.kiro/specs/roguelike-run/` for full specification.
 | Spec | Status | Description |
 |------|--------|-------------|
 | `documentation-cleanup` | 🔄 In Progress | Reorganize docs structure |
-| `core-extraction` | ⬜ Ready | Extract reusable engine code |
+| `core-extraction` | 🔄 In Progress (PR 5) | Extract reusable engine code |
 | `roguelike-run` | ⬜ Ready | Roguelike progression mode |
 | `battle-replay-ux` | ✅ Complete | Battle replay improvements |
 | `hp-bar-visibility` | ✅ Complete | HP bar visibility |
