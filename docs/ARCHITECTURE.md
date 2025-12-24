@@ -54,6 +54,34 @@
                     └───────────────┘
 ```
 
+## Code Organization
+
+### Core vs Game Separation (Planned)
+
+The codebase is being reorganized to separate reusable engine code from game-specific content:
+
+```
+backend/src/
+├── core/                    # Reusable engine (game-agnostic)
+│   ├── grid/                # Grid utilities, A* pathfinding
+│   ├── battle/              # Damage, turn order, targeting, actions
+│   ├── abilities/           # Ability execution, status effects
+│   └── types/               # Core type definitions
+│
+├── game/                    # Game-specific (Fantasy Autobattler)
+│   ├── units/               # 15 unit definitions
+│   ├── abilities/           # Ability data, passive triggers
+│   └── battle/              # Synergies, AI, bot generator
+│
+└── [existing modules]       # Services, controllers, entities
+```
+
+This separation enables:
+- Reuse of battle engine in other projects
+- Clear boundaries between engine and content
+- Easier testing of core logic
+- Potential for multiple game modes
+
 ## Layer Responsibilities
 
 ### Frontend Layers
@@ -174,3 +202,56 @@ Frontend:
     └── BattleReplay
           └── UnitDisplay
 ```
+
+
+---
+
+## Development Branches
+
+| Branch | Purpose | Status |
+|--------|---------|--------|
+| `main` | Active development | Current |
+| `mvp-stable` | Frozen MVP (v0.1.0) | Stable |
+| `feature/roguelike-progression` | Roguelike run mode | Planned |
+
+### Version Tags
+- `v0.1.0-mvp` — MVP release with team builder, async battles, replay system
+
+---
+
+## Future: Roguelike Run Mode
+
+Planned progression system (9 wins / 4 losses format):
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      RUN START                               │
+│  Player selects faction → Gets 12-unit deck                 │
+│  Initial draft: Choose 3 from 4 random cards                │
+└─────────────────────────────────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    BATTLE PHASE                              │
+│  Place units from hand (budget: 10g → 65g)                  │
+│  Fight opponent (async, deterministic)                       │
+└─────────────────────────────────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    DRAFT PHASE                               │
+│  Choose 1 from 3 cards (add to hand)                        │
+│  Optional: Upgrade units (T1 → T2 → T3)                     │
+└─────────────────────────────────────────────────────────────┘
+                            │
+                            ▼
+                    [9 wins OR 4 losses → RUN END]
+```
+
+New entities required:
+- `Run` — Run state (deck, hand, wins, losses, gold)
+- `RunService` — Run lifecycle management
+- `DraftService` — Card drafting logic
+- `UpgradeService` — Unit tier upgrades
+
+See `.kiro/specs/roguelike-run/requirements.md` for full specification.

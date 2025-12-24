@@ -2,7 +2,15 @@
 
 Browser-based asynchronous PvP autobattler in fantasy setting. Build teams within a 30-point budget, place units on an 8×10 grid, and battle opponents with full replay visualization.
 
-**Development Progress: ~65% Complete (65/100 steps)**
+**Current Version: v0.1.0-mvp** | **Development Progress: ~65% Complete (65/100 steps)**
+
+## 🌿 Branches
+
+| Branch | Purpose | Status |
+|--------|---------|--------|
+| `main` | Active development | Current |
+| `mvp-stable` | Frozen MVP release | Stable |
+| `feature/roguelike-progression` | Roguelike run mode | Planned |
 
 ## ✨ Features
 
@@ -22,6 +30,12 @@ Browser-based asynchronous PvP autobattler in fantasy setting. Build teams withi
 - 🏆 PvP Matchmaking
 - 🎨 Advanced animations
 - 📈 Leaderboards
+
+### Planned (Roguelike Mode)
+- 🎴 Faction-based deck building
+- 📈 Run progression (9 wins / 4 losses)
+- ⬆️ Unit upgrades (T1 → T2 → T3)
+- 💰 Gold economy and draft system
 
 ## 🏗️ Tech Stack
 
