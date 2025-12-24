@@ -6,7 +6,12 @@
  * All functions are pure and deterministic for consistent replay behavior.
  */
 
-import { BattleUnit, BattleEvent, Position, TeamType } from '../types/game.types';
+import { BattleUnit, Position, TeamType } from '../types/game.types';
+import {
+  BattleEvent,
+  MoveEvent,
+  AttackEvent,
+} from '../core/types/event.types';
 import { findPath } from './pathfinding';
 import { resolvePhysicalAttack, resolveMagicAttack } from './damage';
 import { selectTarget, canTarget } from './targeting';
@@ -14,64 +19,41 @@ import { manhattanDistance, createEmptyGrid } from './grid';
 import { BATTLE_LIMITS } from '../config/game.constants';
 
 // =============================================================================
-// BATTLE STATE INTERFACE
+// BATTLE STATE TYPE (Game-specific extension of core type)
 // =============================================================================
+
+/**
+ * Battle metadata for tracking simulation state.
+ */
+export interface BattleMetadata {
+  /** Random seed for deterministic replay */
+  seed: number;
+  /** Battle start timestamp */
+  startTime: number;
+}
 
 /**
  * Complete battle state containing all units and battlefield information.
- * Immutable structure that represents the current state of an ongoing battle.
+ * Extends core BattleState with game-specific fields.
+ * 
+ * Note: Uses 'currentRound' instead of core's 'round' for clarity,
+ * and adds occupiedPositions for collision detection.
  */
 export interface BattleState {
-  /** All units currently in the battle */
+  /** All units in battle */
   units: BattleUnit[];
-  /** Current battle round (1-based) */
+  /** Current round number (1-based) */
   currentRound: number;
-  /** Grid occupancy map for pathfinding */
+  /** Battle events log */
+  events: BattleEvent[];
+  /** Set of occupied position keys for collision detection */
   occupiedPositions: Set<string>;
   /** Battle metadata */
-  metadata: {
-    /** Random seed for deterministic behavior */
-    seed: number;
-    /** Battle start timestamp */
-    startTime: number;
-  };
+  metadata: BattleMetadata;
 }
 
-// =============================================================================
-// ACTION EVENT TYPES
-// =============================================================================
-
-/**
- * Movement action event.
- * Records unit movement from one position to another.
- */
-export interface MoveEvent extends BattleEvent {
-  type: 'move';
-  /** Starting position */
-  fromPosition: Position;
-  /** Ending position */
-  toPosition: Position;
-  /** Path taken (for animation) */
-  path?: Position[];
-}
-
-/**
- * Attack action event.
- * Records combat between two units with damage resolution.
- */
-export interface AttackEvent extends BattleEvent {
-  type: 'attack';
-  /** Target unit ID */
-  targetId: string;
-  /** Damage dealt */
-  damage: number;
-  /** Whether attack was dodged */
-  dodged: boolean;
-  /** Whether target was killed */
-  killed: boolean;
-  /** Attack type (physical/magic) */
-  attackType: 'physical' | 'magic';
-}
+// Re-export event types for backward compatibility
+export type { MoveEvent, AttackEvent } from '../core/types/event.types';
 
 // =============================================================================
 // UTILITY FUNCTIONS
@@ -525,6 +507,7 @@ export function createBattleState(
   return {
     units: allUnits,
     currentRound: 1,
+    events: [],
     occupiedPositions,
     metadata: {
       seed,

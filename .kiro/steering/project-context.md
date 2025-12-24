@@ -189,12 +189,18 @@ frontend/src/
 | File | Purpose |
 |------|---------|
 | `docs/GAME_DESIGN_DOCUMENT.md` | Full GDD with mechanics, units, UI |
+| `docs/ROGUELIKE_DESIGN.md` | Roguelike mode GDD (6 factions, 18 leaders) |
 | `docs/AI_DEVELOPMENT_PLAN.md` | 100-step development plan |
 | `docs/ARCHITECTURE.md` | System architecture & data flow |
+| `docs/CORE_LIBRARY.md` | Core engine API (planned) |
 | `docs/ENGINEERING_GUIDE.md` | Coding standards, JSDoc, logging |
 | `docs/ANTIPATTERNS.md` | Forbidden practices |
 | `docs/ACCESSIBILITY.md` | Accessibility guidelines |
-| `STEP_PROGRESS.md` | Detailed development progress |
+| `docs/MOBILE_ACCESS.md` | Mobile development setup |
+| `docs/archive/` | Historical MVP documentation |
+| `docs/reports/` | Validation and verification reports |
+| `CHANGELOG.md` | Version history |
+| `STEP_PROGRESS.md` | Post-MVP development progress |
 | `README.md` | Quick start guide |
 
 ## Development Standards
@@ -272,17 +278,15 @@ New progression system with:
 
 See `.kiro/specs/roguelike-run/` for full specification.
 
-## Documentation Files
-| File | Purpose |
-|------|---------|
-| `docs/GAME_DESIGN_DOCUMENT.md` | Full GDD with mechanics, units, UI |
-| `docs/AI_DEVELOPMENT_PLAN.md` | 100-step development plan |
-| `docs/ARCHITECTURE.md` | System architecture & data flow |
-| `docs/ENGINEERING_GUIDE.md` | Coding standards, JSDoc, logging |
-| `docs/ANTIPATTERNS.md` | Forbidden practices |
-| `docs/ACCESSIBILITY.md` | Accessibility guidelines |
-| `STEP_PROGRESS.md` | Detailed development progress |
-| `README.md` | Quick start guide |
+## Kiro Specs
+
+| Spec | Status | Description |
+|------|--------|-------------|
+| `documentation-cleanup` | 🔄 In Progress | Reorganize docs structure |
+| `core-extraction` | ⬜ Ready | Extract reusable engine code |
+| `roguelike-run` | ⬜ Ready | Roguelike progression mode |
+| `battle-replay-ux` | ✅ Complete | Battle replay improvements |
+| `hp-bar-visibility` | ✅ Complete | HP bar visibility |
 
 See `docs/AI_DEVELOPMENT_PLAN.md` for detailed 100-step plan.
-See `STEP_PROGRESS.md` for implementation details.
+See `STEP_PROGRESS.md` for post-MVP progress.

@@ -66,21 +66,36 @@ backend/src/
 │   ├── grid/                # Grid utilities, A* pathfinding
 │   ├── battle/              # Damage, turn order, targeting, actions
 │   ├── abilities/           # Ability execution, status effects
-│   └── types/               # Core type definitions
+│   ├── types/               # Core type definitions
+│   ├── utils/               # Seeded random, helpers
+│   └── events/              # Event system for battle logging
 │
 ├── game/                    # Game-specific (Fantasy Autobattler)
 │   ├── units/               # 15 unit definitions
 │   ├── abilities/           # Ability data, passive triggers
+│   ├── config/              # Game constants (grid 8×10, budget 30)
 │   └── battle/              # Synergies, AI, bot generator
 │
 └── [existing modules]       # Services, controllers, entities
+
+frontend/src/
+├── core/                    # Reusable components
+│   ├── components/          # BattleGrid, UnitCard, BattleReplay
+│   ├── hooks/               # useBattleReplay, useGridNavigation
+│   └── types/               # Shared interfaces
+│
+└── [existing modules]       # App pages, game-specific components
 ```
 
 This separation enables:
 - Reuse of battle engine in other projects
 - Clear boundaries between engine and content
 - Easier testing of core logic
-- Potential for multiple game modes
+- Configurable grid sizes (8×10 for MVP, 8×2 for roguelike landing zone)
+- Multiple game modes with shared engine
+
+See `docs/CORE_LIBRARY.md` for API documentation.
+See `.kiro/specs/core-extraction/` for implementation plan.
 
 ## Layer Responsibilities
 
@@ -226,15 +241,17 @@ Planned progression system (9 wins / 4 losses format):
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                      RUN START                               │
-│  Player selects faction → Gets 12-unit deck                 │
-│  Initial draft: Choose 3 from 4 random cards                │
+│  Select faction (6 options) → Select leader (3 per faction) │
+│  Initial draft: Choose 3 from 5 random cards                │
+│  Starting: 10g budget, 3 cards in hand                      │
 └─────────────────────────────────────────────────────────────┘
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                    BATTLE PHASE                              │
-│  Place units from hand (budget: 10g → 65g)                  │
-│  Fight opponent (async, deterministic)                       │
+│  Place units on 8×2 landing zone (budget: 10g → 65g)        │
+│  Select spell timing (Early/Mid/Late)                       │
+│  Fight opponent snapshot (async, deterministic)             │
 └─────────────────────────────────────────────────────────────┘
                             │
                             ▼
@@ -242,16 +259,25 @@ Planned progression system (9 wins / 4 losses format):
 │                    DRAFT PHASE                               │
 │  Choose 1 from 3 cards (add to hand)                        │
 │  Optional: Upgrade units (T1 → T2 → T3)                     │
+│  Optional: Buy spells from shop                             │
 └─────────────────────────────────────────────────────────────┘
                             │
                             ▼
                     [9 wins OR 4 losses → RUN END]
 ```
 
+Key features:
+- **6 Factions**: Order, Chaos, Nature, Shadow, Arcane, Machine (25 units each)
+- **18 Leaders**: 3 per faction with passive abilities and spells
+- **Spell System**: 2 spells per deck with timing selection
+- **Deck Building**: 14 cards max (12 units + 2 spells)
+- **Async PvP**: Match against player snapshots
+
 New entities required:
 - `Run` — Run state (deck, hand, wins, losses, gold)
-- `RunService` — Run lifecycle management
-- `DraftService` — Card drafting logic
-- `UpgradeService` — Unit tier upgrades
+- `Faction` — Faction definitions with bonuses
+- `Leader` — Leader definitions with passives and spells
+- `Snapshot` — Team snapshots for async matchmaking
 
-See `.kiro/specs/roguelike-run/requirements.md` for full specification.
+See `docs/ROGUELIKE_DESIGN.md` for full GDD.
+See `.kiro/specs/roguelike-run/` for implementation plan.

@@ -95,7 +95,12 @@ autobattler/
 │   ├── AI_DEVELOPMENT_PLAN.md # 100-step development plan
 │   ├── ARCHITECTURE.md
 │   ├── ENGINEERING_GUIDE.md
-│   └── ACCESSIBILITY.md
+│   ├── ACCESSIBILITY.md
+│   ├── CORE_LIBRARY.md        # Core engine API (planned)
+│   ├── ROGUELIKE_DESIGN.md    # Roguelike mode GDD
+│   ├── MOBILE_ACCESS.md       # Mobile dev setup
+│   ├── archive/               # Historical MVP docs
+│   └── reports/               # Validation reports
 │
 ├── .kiro/                      # Kiro IDE specs
 │   ├── specs/                 # Feature specifications
@@ -139,7 +144,7 @@ Open http://localhost:3000, build your team, and battle!
 
 ### 📱 Mobile Access (Same Network)
 ```bash
-# See MOBILE_QUICK_START.md for detailed instructions
+# See docs/MOBILE_ACCESS.md for detailed instructions
 # Frontend: http://<your-ip>:3000
 # Backend: http://<your-ip>:3004
 ```
@@ -269,12 +274,18 @@ NEXT_PUBLIC_API_URL=http://localhost:3004
 
 ## 📚 Documentation
 
-- [Game Design Document](./docs/GAME_DESIGN_DOCUMENT.md) - Full GDD
-- [AI Development Plan](./docs/AI_DEVELOPMENT_PLAN.md) - 100-step plan
-- [Architecture](./docs/ARCHITECTURE.md) - System design
-- [Engineering Guide](./docs/ENGINEERING_GUIDE.md) - Coding standards
-- [Antipatterns](./docs/ANTIPATTERNS.md) - What NOT to do
-- [Accessibility](./docs/ACCESSIBILITY.md) - A11y guidelines
+| Document | Description |
+|----------|-------------|
+| [Game Design Document](./docs/GAME_DESIGN_DOCUMENT.md) | Full GDD with mechanics |
+| [Roguelike Design](./docs/ROGUELIKE_DESIGN.md) | Roguelike mode GDD |
+| [Architecture](./docs/ARCHITECTURE.md) | System design |
+| [Core Library](./docs/CORE_LIBRARY.md) | Core engine API (planned) |
+| [AI Development Plan](./docs/AI_DEVELOPMENT_PLAN.md) | 100-step plan |
+| [Engineering Guide](./docs/ENGINEERING_GUIDE.md) | Coding standards |
+| [Antipatterns](./docs/ANTIPATTERNS.md) | What NOT to do |
+| [Accessibility](./docs/ACCESSIBILITY.md) | A11y guidelines |
+| [Mobile Access](./docs/MOBILE_ACCESS.md) | Mobile dev setup |
+| [Changelog](./CHANGELOG.md) | Version history |
 
 ## 📊 Development Progress
 

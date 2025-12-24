@@ -10,6 +10,10 @@
     "sourceMap": true,
     "outDir": "./dist",
     "baseUrl": "./",
+    "paths": {
+      "@core/*": ["src/core/*"],
+      "@game/*": ["src/game/*"]
+    },
     "incremental": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
