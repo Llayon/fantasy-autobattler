@@ -1,26 +1,26 @@
 /**
  * Core Progression Systems
- * 
+ *
  * Reusable progression systems for roguelike/deckbuilder games.
  * Includes: deck, hand, draft, upgrade, economy, run, and snapshot systems.
- * 
+ *
  * All systems are:
  * - Generic (work with any card type extending BaseCard)
  * - Deterministic (use seeded random for reproducibility)
  * - Immutable (all operations return new state)
  * - Configurable (presets for different game types)
- * 
+ *
  * @module core/progression
  */
 
 // Base types
 export * from './types';
 
-// Deck system (TODO: Phase 2)
-// export * from './deck';
+// Deck system
+export * from './deck';
 
-// Hand system (TODO: Phase 2)
-// export * from './hand';
+// Hand system
+export * from './hand';
 
 // Draft system (TODO: Phase 3)
 // export * from './draft';

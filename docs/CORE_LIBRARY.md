@@ -1,14 +1,20 @@
 # Core Library Documentation
 
-> **Status:** Placeholder — will be completed after core-extraction spec execution.
+> **Status:** Active development — Core 1.0 complete, Core 3.0 (Progression) in progress.
 
 ## Overview
 
-The core library (`backend/src/core/` and `frontend/src/core/`) will contain game-agnostic modules that can be reused across multiple projects.
+The core library (`backend/src/core/` and `frontend/src/core/`) contains game-agnostic modules that can be reused across multiple projects.
 
-## Planned Structure
+## Version History
 
-### Backend Core Modules
+| Version | Name | Status | Description |
+|---------|------|--------|-------------|
+| Core 1.0 | Extraction | ✅ Complete | Grid, Battle, Targeting, Turn-order |
+| Core 2.0 | Mechanics | ⬜ Planned | Combat mechanics (Resolve, Flanking) |
+| Core 3.0 | Progression | 🔄 In Progress | Deck, Draft, Upgrade, Economy, Run, Snapshot |
+
+## Backend Core Modules
 
 ```
 backend/src/core/
@@ -17,7 +23,16 @@ backend/src/core/
 ├── abilities/      # Ability execution, status effects
 ├── types/          # Core type definitions
 ├── utils/          # Seeded random, helpers
-└── events/         # Event system for battle logging
+├── events/         # Event system for battle logging
+├── constants/      # Default configuration values
+└── progression/    # 🆕 Core 3.0 - Progression systems
+    ├── deck/       # Card collection management
+    ├── hand/       # Hand management with overflow
+    ├── draft/      # Pick/ban card drafting
+    ├── upgrade/    # Tier upgrade system
+    ├── economy/    # Currency and rewards
+    ├── run/        # Run-based progression
+    └── snapshot/   # Async matchmaking snapshots
 ```
 
 ### Frontend Core Components
@@ -62,6 +77,128 @@ import { isValidPosition } from '../battle/grid';
 
 // New (recommended)
 import { isValidPosition } from '@core/grid';
+```
+
+---
+
+## Core 3.0: Progression Systems
+
+### BaseCard Interface
+
+All progression systems work with cards extending `BaseCard`:
+
+```typescript
+interface BaseCard {
+  id: string;       // Unique identifier
+  name: string;     // Display name
+  baseCost: number; // Cost for economy
+  tier: number;     // Current tier (1-5)
+}
+```
+
+### Deck System
+
+```typescript
+import { createDeck, addCard, shuffleDeck, drawCards } from '@core/progression';
+
+const deck = createDeck(cards, {
+  maxDeckSize: 12,
+  minDeckSize: 12,
+  allowDuplicates: false,
+  maxCopies: 1,
+});
+
+const shuffled = shuffleDeck(deck, seed);
+const [drawn, remaining] = drawCards(shuffled, 5);
+```
+
+### Hand System
+
+```typescript
+import { createHand, addToHand, isHandFull } from '@core/progression';
+
+const hand = createHand({
+  maxHandSize: 7,
+  startingHandSize: 5,
+  autoDiscard: true,
+});
+
+const { hand: newHand, discarded } = addToHand(hand, drawnCards);
+```
+
+### Draft System
+
+```typescript
+import { createDraft, pickCard, getDraftResult } from '@core/progression';
+
+const draft = createDraft(cardPool, {
+  optionsCount: 3,
+  picksCount: 1,
+  type: 'pick',
+  allowSkip: true,
+  rerollsAllowed: 1,
+}, seed);
+
+const afterPick = pickCard(draft, selectedCardId);
+const result = getDraftResult(afterPick);
+```
+
+### Economy System
+
+```typescript
+import { createWallet, addCurrency, spendCurrency, canAfford } from '@core/progression';
+
+const wallet = createWallet({
+  startingAmount: 10,
+  currencyName: 'Gold',
+  maxAmount: 0, // unlimited
+  winReward: (streak) => 7 + streak,
+  loseReward: () => 9,
+  interestRate: 0,
+  interestCap: 0,
+});
+
+if (canAfford(wallet, 15)) {
+  const newWallet = spendCurrency(wallet, 15);
+}
+```
+
+### Run System
+
+```typescript
+import { createRun, recordWin, recordLoss, isRunComplete } from '@core/progression';
+
+const run = createRun({
+  winsToComplete: 9,
+  maxLosses: 4,
+  phases: ['draft', 'battle', 'shop'],
+  trackStreaks: true,
+  enableRating: true,
+}, initialState);
+
+const afterWin = recordWin(run);
+if (isRunComplete(afterWin)) {
+  console.log('Run finished:', afterWin.status);
+}
+```
+
+### Snapshot System
+
+```typescript
+import { createSnapshot, findOpponent, generateBot } from '@core/progression';
+
+const snapshot = createSnapshot(run, playerId, {
+  expiryMs: 24 * 60 * 60 * 1000,
+  maxSnapshotsPerPlayer: 10,
+  includeFullState: false,
+  maxTotalSnapshots: 10000,
+  cleanupStrategy: 'oldest',
+});
+
+const opponent = findOpponent(run, snapshots, matchmakingConfig);
+if (!opponent) {
+  const bot = generateBot(run.wins, availableCards, botConfig, seed);
+}
 ```
 
 ---
