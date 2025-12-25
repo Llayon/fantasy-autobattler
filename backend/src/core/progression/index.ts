@@ -34,5 +34,5 @@ export * from './economy';
 // Run system
 export * from './run';
 
-// Snapshot system (TODO: Phase 6)
-// export * from './snapshot';
+// Snapshot system
+export * from './snapshot';

@@ -4,6 +4,27 @@
 
 Roguelike progression mode where players complete runs with 9 wins or 4 losses, building their team through faction-based deck building, drafting, and unit upgrades.
 
+## Dependencies
+
+| Spec | Status | Description |
+|------|--------|-------------|
+| `core-extraction` (1.0) | ✅ Complete | Grid, Battle, Targeting, Turn-order |
+| `core-progression` (3.0) | ✅ Complete | Deck, Draft, Upgrade, Economy, Run, Snapshot |
+| `core-mechanics-2.0` | ⬜ Optional | Combat mechanics (Resolve, Flanking, etc.) |
+
+### Core Progression Systems (Ready to Use)
+
+All progression systems are implemented in `@core/progression`:
+- **Deck** — `createDeck`, `shuffleDeck`, `drawCards`, `addCard`, `removeCard`
+- **Hand** — `createHand`, `addToHand`, `removeFromHand`, `isHandFull`
+- **Draft** — `createDraft`, `pickCard`, `banCard`, `rerollOptions`, `skipDraft`
+- **Upgrade** — `upgradeCard`, `getUpgradeCost`, `getStatMultiplier`, `getTierName`
+- **Economy** — `createWallet`, `addCurrency`, `spendCurrency`, `getReward`
+- **Run** — `createRun`, `recordWin`, `recordLoss`, `advancePhase`, `isRunComplete`
+- **Snapshot** — `createSnapshot`, `findOpponent`, `generateBot`, `enforceSnapshotLimits`
+
+Presets available: `ROGUELIKE_RUN_CONFIG`, `ROGUELIKE_ECONOMY_CONFIG`, `INITIAL_DRAFT_CONFIG`, `POST_BATTLE_DRAFT_CONFIG`, `ROGUELIKE_TIERS`, `ROGUELIKE_SNAPSHOT_CONFIG`, `ROGUELIKE_MATCHMAKING_CONFIG`, `ROGUELIKE_BOT_CONFIG`
+
 ## Major Changes from MVP
 
 | Aspect | MVP | Roguelike Run |

@@ -19,8 +19,16 @@ Roguelike-run использует переиспользуемые систем
 ## Prerequisites
 
 - [x] Core extraction spec completed (PR 5)
-- [ ] `core-progression` spec completed (deck, draft, economy, run systems)
-- [ ] Grid system supports configurable dimensions
+- [x] `core-progression` spec completed (deck, draft, economy, run, snapshot systems)
+  - ✅ Deck System: createDeck, shuffleDeck, drawCards, addCard, removeCard
+  - ✅ Hand System: createHand, addToHand, removeFromHand, isHandFull
+  - ✅ Draft System: createDraft, pickCard, banCard, rerollOptions, skipDraft
+  - ✅ Upgrade System: upgradeCard, getUpgradeCost, getStatMultiplier, getTierName
+  - ✅ Economy System: createWallet, addCurrency, spendCurrency, getReward
+  - ✅ Run System: createRun, recordWin, recordLoss, advancePhase, isRunComplete
+  - ✅ Snapshot System: createSnapshot, findOpponent, generateBot
+  - ✅ Presets: ROGUELIKE_RUN_CONFIG, ROGUELIKE_ECONOMY_CONFIG, INITIAL_DRAFT_CONFIG, etc.
+- [x] Grid system supports configurable dimensions (8×10 battle grid, 8×2 deployment)
 
 ---
 
@@ -75,8 +83,8 @@ Roguelike-run использует переиспользуемые систем
 - [ ] 5.1 Create `backend/src/roguelike/entities/run.entity.ts`
 - [ ] 5.2 Create `backend/src/roguelike/run/run.module.ts`
 - [ ] 5.3 Create `backend/src/roguelike/run/run.service.ts`
-  - Uses `createRun()`, `recordWin()`, `recordLoss()` from core-progression
-  - Uses `ROGUELIKE_RUN_CONFIG` preset
+  - Uses `createRun()`, `recordWin()`, `recordLoss()` from `@core/progression` ✅
+  - Uses `ROGUELIKE_RUN_CONFIG` preset from `@core/progression` ✅
 - [ ] 5.4 Create `backend/src/roguelike/run/run.controller.ts`
 - [ ] 5.5 Create DTOs: CreateRunDto, RunResponseDto
 - [ ] 5.6 **VERIFY**: `npm test -- --testPathPattern=run`
@@ -85,11 +93,11 @@ Roguelike-run использует переиспользуемые систем
 **Estimate**: 45 min | **Requirement**: REQ-5, REQ-6
 
 - [ ] 6.1 Create `backend/src/roguelike/draft/draft.service.ts`
-  - Uses `createDraft()`, `pickCard()` from core-progression
-  - Uses `INITIAL_DRAFT_CONFIG`, `POST_BATTLE_DRAFT_CONFIG` presets
+  - Uses `createDraft()`, `pickCard()` from `@core/progression` ✅
+  - Uses `INITIAL_DRAFT_CONFIG`, `POST_BATTLE_DRAFT_CONFIG` presets ✅
 - [ ] 6.2 Create `backend/src/roguelike/upgrade/upgrade.service.ts`
-  - Uses `upgradeCard()`, `getUpgradeCost()` from core-progression
-  - Uses `STANDARD_TIERS` preset
+  - Uses `upgradeCard()`, `getUpgradeCost()` from `@core/progression` ✅
+  - Uses `ROGUELIKE_TIERS` preset ✅
 - [ ] 6.3 Create controllers for draft and upgrade
 - [ ] 6.4 **VERIFY**: `npm test -- --testPathPattern=draft|upgrade`
 
@@ -97,11 +105,13 @@ Roguelike-run использует переиспользуемые систем
 **Estimate**: 45 min | **Requirement**: REQ-7, REQ-9
 
 - [ ] 7.1 Create `backend/src/roguelike/economy/economy.service.ts`
-  - Uses `createWallet()`, `addCurrency()`, `spendCurrency()` from core-progression
-  - Uses `ROGUELIKE_ECONOMY_CONFIG` preset
+  - Uses `createWallet()`, `addCurrency()`, `spendCurrency()` from `@core/progression` ✅
+  - Uses `ROGUELIKE_ECONOMY_CONFIG` preset ✅
 - [ ] 7.2 Create `backend/src/roguelike/matchmaking/matchmaking.service.ts`
+  - Uses `createSnapshot()`, `findOpponent()`, `generateBot()` from `@core/progression` ✅
+  - Uses `ROGUELIKE_SNAPSHOT_CONFIG`, `ROGUELIKE_MATCHMAKING_CONFIG`, `ROGUELIKE_BOT_CONFIG` ✅
 - [ ] 7.3 Create `backend/src/roguelike/entities/snapshot.entity.ts`
-- [ ] 7.4 Implement bot fallback generation
+- [ ] 7.4 Implement bot fallback generation (uses `generateBot()` from core)
 - [ ] 7.5 **VERIFY**: `npm test -- --testPathPattern=economy|matchmaking`
 
 ### Task 8: Integrate with Battle Simulator
@@ -326,11 +336,40 @@ core-mechanics-2.0 completed → Tasks 27-30
 
 ## Relationship to Other Specs
 
-| Spec | Relationship |
-|------|--------------|
-| `core-extraction` (1.0) | Prerequisite — provides base battle engine |
-| `core-mechanics-2.0` | Optional — provides combat mechanics (Phase 5) |
-| MVP mode | Unaffected — roguelike is separate game mode |
+| Spec | Relationship | Status |
+|------|--------------|--------|
+| `core-extraction` (1.0) | Prerequisite — provides base battle engine | ✅ Complete |
+| `core-progression` (3.0) | Prerequisite — provides deck, draft, economy, run, snapshot systems | ✅ Complete |
+| `core-mechanics-2.0` | Optional — provides combat mechanics (Phase 5) | ⬜ Ready |
+| MVP mode | Unaffected — roguelike is separate game mode | ✅ Stable |
+
+### Core Progression Systems Available
+
+The following systems from `core-progression` are ready to use:
+
+```typescript
+import {
+  // Deck
+  createDeck, shuffleDeck, drawCards, addCard, removeCard,
+  // Hand
+  createHand, addToHand, removeFromHand, isHandFull,
+  // Draft
+  createDraft, pickCard, banCard, rerollOptions, skipDraft, getDraftResult,
+  INITIAL_DRAFT_CONFIG, POST_BATTLE_DRAFT_CONFIG,
+  // Upgrade
+  upgradeCard, getUpgradeCost, getStatMultiplier, getTierName,
+  ROGUELIKE_TIERS, STANDARD_TIERS,
+  // Economy
+  createWallet, addCurrency, spendCurrency, canAfford, getReward,
+  ROGUELIKE_ECONOMY_CONFIG,
+  // Run
+  createRun, recordWin, recordLoss, advancePhase, isRunComplete, getRunStats,
+  ROGUELIKE_RUN_CONFIG,
+  // Snapshot
+  createSnapshot, findOpponent, generateBot, enforceSnapshotLimits,
+  ROGUELIKE_SNAPSHOT_CONFIG, ROGUELIKE_MATCHMAKING_CONFIG, ROGUELIKE_BOT_CONFIG,
+} from '@core/progression';
+```
 
 ---
 

@@ -420,34 +420,34 @@
 ### Task 23: Create public API exports
 **Estimate**: 30 min
 
-- [ ] 23.1 Create `progression/index.ts`
-- [ ] 23.2 Export all types
-- [ ] 23.3 Export all functions
-- [ ] 23.4 Export all presets
-- [ ] 23.5 Update `core/index.ts` to include progression
-- [ ] 23.6 **VERIFY**: All exports accessible
+- [x] 23.1 Create `progression/index.ts`
+- [x] 23.2 Export all types
+- [x] 23.3 Export all functions
+- [x] 23.4 Export all presets
+- [x] 23.5 Update `core/index.ts` to include progression
+- [x] 23.6 **VERIFY**: All exports accessible
 
 ### Task 24: Integration tests
 **Estimate**: 60 min
 
-- [ ] 24.1 Create `progression/integration.spec.ts`
-- [ ] 24.2 Test full roguelike flow: deck → draft → hand → battle → shop
-- [ ] 24.3 Test economy integration with upgrades
-- [ ] 24.4 Test run progression with win/loss tracking
-- [ ] 24.5 Test snapshot creation and matchmaking
-- [ ] 24.6 Test determinism (same seed = same results)
-- [ ] 24.7 **VERIFY**: All integration tests pass
+- [x] 24.1 Create `progression/integration.spec.ts`
+- [x] 24.2 Test full roguelike flow: deck → draft → hand → battle → shop
+- [x] 24.3 Test economy integration with upgrades
+- [x] 24.4 Test run progression with win/loss tracking
+- [x] 24.5 Test snapshot creation and matchmaking
+- [x] 24.6 Test determinism (same seed = same results)
+- [x] 24.7 **VERIFY**: All integration tests pass
 
 ### Task 25: Documentation
 **Estimate**: 45 min
 
-- [ ] 25.1 Create `progression/README.md`
-- [ ] 25.2 Document all systems with examples
-- [ ] 25.3 Document presets and when to use them
-- [ ] 25.4 Add usage examples for different game types
-- [ ] 25.5 Update `docs/CORE_LIBRARY.md`
-- [ ] 25.6 Update `.kiro/steering/project-context.md`
-- [ ] 25.7 **VERIFY**: Documentation complete
+- [x] 25.1 Create `progression/README.md`
+- [x] 25.2 Document all systems with examples
+- [x] 25.3 Document presets and when to use them
+- [x] 25.4 Add usage examples for different game types
+- [x] 25.5 Update `docs/CORE_LIBRARY.md`
+- [x] 25.6 Update `.kiro/steering/project-context.md`
+- [x] 25.7 **VERIFY**: Documentation complete
 
 **CHECKPOINT 7**: All systems complete and documented.
 

@@ -1,5 +1,13 @@
 # Design: Roguelike Run Mode
 
+## Dependencies
+
+| Spec | Status | Used For |
+|------|--------|----------|
+| `core-extraction` (1.0) | ✅ Complete | Grid, Battle, Targeting |
+| `core-progression` (3.0) | ✅ Complete | Deck, Draft, Upgrade, Economy, Run, Snapshot |
+| `core-mechanics-2.0` | ⬜ Optional | Combat mechanics (Phase 5) |
+
 ## Architecture Overview
 
 ```
@@ -23,16 +31,19 @@
 ┌─────────────────────────────────────────────────────────────────┐
 │                         BACKEND                                  │
 ├─────────────────────────────────────────────────────────────────┤
-│  Modules:                                                        │
-│  ├── run/              → Run CRUD, state management             │
-│  ├── faction/          → Faction & Leader data                  │
-│  ├── draft/            → Draft logic, card pool                 │
-│  ├── spell/            → Spell definitions, execution           │
-│  └── snapshot/         → Team snapshots for async PvP           │
+│  Modules (game-specific):                                        │
+│  ├── roguelike/run/    → Run CRUD, state management             │
+│  ├── roguelike/faction/→ Faction & Leader data                  │
+│  ├── roguelike/draft/  → Draft service (uses @core/progression) │
+│  ├── roguelike/upgrade/→ Upgrade service (uses @core/progression)|
+│  ├── roguelike/economy/→ Economy service (uses @core/progression)|
+│  └── roguelike/snapshot/→ Matchmaking (uses @core/progression)  │
 │                                                                  │
-│  Core (reused):                                                  │
+│  Core (reused from core-extraction & core-progression):          │
 │  ├── core/grid/        → Grid utilities (8×10 battle grid)      │
 │  ├── core/battle/      → Battle simulation                      │
+│  ├── core/progression/ → Deck, Draft, Upgrade, Economy, Run,    │
+│  │                       Snapshot systems ✅                     │
 │  └── core/abilities/   → Ability & spell execution              │
 └─────────────────────────────────────────────────────────────────┘
                               │
@@ -48,6 +59,36 @@
 │  ├── spells            → Spell definitions                      │
 │  └── snapshots         → Team snapshots for matchmaking         │
 └─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Core Progression Integration
+
+The roguelike mode uses all systems from `@core/progression`:
+
+```typescript
+// In roguelike services
+import {
+  // Deck & Hand
+  createDeck, shuffleDeck, drawCards,
+  createHand, addToHand, isHandFull,
+  // Draft
+  createDraft, pickCard, getDraftResult,
+  INITIAL_DRAFT_CONFIG, POST_BATTLE_DRAFT_CONFIG,
+  // Upgrade
+  upgradeCard, getUpgradeCost, getStatMultiplier,
+  ROGUELIKE_TIERS,
+  // Economy
+  createWallet, addCurrency, spendCurrency, getReward,
+  ROGUELIKE_ECONOMY_CONFIG,
+  // Run
+  createRun, recordWin, recordLoss, advancePhase, isRunComplete,
+  ROGUELIKE_RUN_CONFIG,
+  // Snapshot & Matchmaking
+  createSnapshot, findOpponent, generateBot,
+  ROGUELIKE_SNAPSHOT_CONFIG, ROGUELIKE_MATCHMAKING_CONFIG, ROGUELIKE_BOT_CONFIG,
+} from '@core/progression';
 ```
 
 ---

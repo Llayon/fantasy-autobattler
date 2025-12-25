@@ -126,6 +126,14 @@ backend/src/
 │   │   ├── damage.ts         # calculatePhysicalDamage, rollDodge
 │   │   ├── turn-order.ts     # buildTurnQueue, getNextUnit
 │   │   └── targeting.ts      # selectTarget, findNearestEnemy
+│   ├── progression/ # 🆕 Core 3.0 - Roguelike progression systems
+│   │   ├── deck/             # Card collection (createDeck, shuffleDeck, drawCards)
+│   │   ├── hand/             # Hand management (createHand, addToHand)
+│   │   ├── draft/            # Pick/ban drafting (createDraft, pickCard)
+│   │   ├── upgrade/          # Tier upgrades (upgradeCard, getUpgradeCost)
+│   │   ├── economy/          # Currency/rewards (createWallet, getReward)
+│   │   ├── run/              # Run progression (createRun, recordWin)
+│   │   └── snapshot/         # Async matchmaking (findOpponent, generateBot)
 │   ├── types/      # Core type definitions
 │   ├── utils/      # Seeded random (seededRandom, SeededRandom)
 │   ├── events/     # Event emitter (createEventEmitter)
@@ -206,8 +214,9 @@ frontend/src/
 | `docs/ROGUELIKE_DESIGN.md` | Roguelike mode GDD (6 factions, 18 leaders) |
 | `docs/AI_DEVELOPMENT_PLAN.md` | 100-step development plan |
 | `docs/ARCHITECTURE.md` | System architecture & data flow |
-| `docs/CORE_LIBRARY.md` | Core engine API |
+| `docs/CORE_LIBRARY.md` | Core engine API (Core 1.0 + 3.0) |
 | `backend/src/core/README.md` | Core module documentation |
+| `backend/src/core/progression/README.md` | Progression systems documentation |
 | `docs/ENGINEERING_GUIDE.md` | Coding standards, JSDoc, logging |
 | `docs/ANTIPATTERNS.md` | Forbidden practices |
 | `docs/ACCESSIBILITY.md` | Accessibility guidelines |
@@ -275,9 +284,23 @@ Control: Stun high threat > Attack
 Reusable engine code extracted to `backend/src/core/`:
 - `core/grid/` — Grid utilities, A* pathfinding
 - `core/battle/` — Damage, turn order, targeting
+- `core/progression/` — **Core 3.0** Deck, draft, upgrade, economy, run, snapshot
 - `core/types/` — Core type definitions
 - `core/utils/` — Seeded random for determinism
 - `core/events/` — Event emitter system
+
+### Core 3.0: Progression Systems ✅ Complete
+Seven reusable systems for roguelike/deckbuilder games:
+- **Deck** — Card collection with shuffle, draw, validation
+- **Hand** — Hand management with overflow handling
+- **Draft** — Pick/ban card drafting with rerolls
+- **Upgrade** — Tier-based upgrades (T1→T2→T3)
+- **Economy** — Currency, rewards, interest
+- **Run** — Win/loss tracking, phase cycling, streaks
+- **Snapshot** — Async PvP matchmaking with bot fallback
+
+All systems are generic, deterministic (seeded random), and immutable.
+See `backend/src/core/progression/README.md` for full documentation.
 
 Game-specific code moved to `backend/src/game/`:
 - `game/units/` — Unit definitions
@@ -307,6 +330,7 @@ See `.kiro/specs/roguelike-run/` for full specification.
 |------|--------|-------------|
 | `documentation-cleanup` | 🔄 In Progress | Reorganize docs structure |
 | `core-extraction` | 🔄 In Progress (PR 5) | Extract reusable engine code (Core 1.0) |
+| `core-progression` | ✅ Complete | Progression systems (Core 3.0) |
 | `core-mechanics-2.0` | ⬜ Ready | Modular combat mechanics with feature flags |
 | `roguelike-run` | ⬜ Ready | Roguelike progression mode (12 mechanics) |
 | `battle-replay-ux` | ✅ Complete | Battle replay improvements |

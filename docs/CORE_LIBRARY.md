@@ -1,6 +1,6 @@
 # Core Library Documentation
 
-> **Status:** Active development — Core 1.0 complete, Core 3.0 (Progression) in progress.
+> **Status:** Active development — Core 1.0 and Core 3.0 complete.
 
 ## Overview
 
@@ -12,7 +12,7 @@ The core library (`backend/src/core/` and `frontend/src/core/`) contains game-ag
 |---------|------|--------|-------------|
 | Core 1.0 | Extraction | ✅ Complete | Grid, Battle, Targeting, Turn-order |
 | Core 2.0 | Mechanics | ⬜ Planned | Combat mechanics (Resolve, Flanking) |
-| Core 3.0 | Progression | 🔄 In Progress | Deck, Draft, Upgrade, Economy, Run, Snapshot |
+| Core 3.0 | Progression | ✅ Complete | Deck, Draft, Upgrade, Economy, Run, Snapshot |
 
 ## Backend Core Modules
 
@@ -83,9 +83,11 @@ import { isValidPosition } from '@core/grid';
 
 ## Core 3.0: Progression Systems
 
-### BaseCard Interface
+Seven interconnected systems for roguelike/deckbuilder progression. All systems are generic, deterministic, and immutable.
 
-All progression systems work with cards extending `BaseCard`:
+> **Full documentation:** See `backend/src/core/progression/README.md`
+
+### BaseCard Interface
 
 ```typescript
 interface BaseCard {
@@ -96,108 +98,67 @@ interface BaseCard {
 }
 ```
 
-### Deck System
+### Systems Summary
+
+| System | Purpose | Key Functions |
+|--------|---------|---------------|
+| **Deck** | Card collection | `createDeck`, `shuffleDeck`, `drawCards` |
+| **Hand** | Hand management | `createHand`, `addToHand`, `isHandFull` |
+| **Draft** | Pick/ban drafting | `createDraft`, `pickCard`, `banCard` |
+| **Upgrade** | Tier upgrades | `upgradeCard`, `getUpgradeCost`, `getStatMultiplier` |
+| **Economy** | Currency/rewards | `createWallet`, `addCurrency`, `getReward` |
+| **Run** | Run progression | `createRun`, `recordWin`, `recordLoss` |
+| **Snapshot** | Async matchmaking | `createSnapshot`, `findOpponent`, `generateBot` |
+
+### Presets
+
+Ready-to-use configurations for different game types:
+
+**Draft:**
+- `INITIAL_DRAFT_CONFIG` — 5 options, pick 3 (run start)
+- `POST_BATTLE_DRAFT_CONFIG` — 3 options, pick 1, skip allowed
+- `ARENA_DRAFT_CONFIG` — Pick-and-ban mode
+
+**Upgrade:**
+- `STANDARD_TIERS` — T1/T2/T3 (100%/150%/200%)
+- `ROGUELIKE_TIERS` — Bronze/Silver/Gold
+- `LEGENDARY_TIERS` — Common/Rare/Epic/Legendary
+
+**Economy:**
+- `ROGUELIKE_ECONOMY_CONFIG` — Streak bonuses, no interest
+- `AUTOBATTLER_ECONOMY_CONFIG` — 10% interest, capped at 5
+
+**Run:**
+- `ROGUELIKE_RUN_CONFIG` — 9 wins, 4 losses
+- `ARENA_RUN_CONFIG` — 12 wins, 3 losses
+- `ENDLESS_RUN_CONFIG` — Infinite mode
+
+**Snapshot:**
+- `ROGUELIKE_SNAPSHOT_CONFIG` — 24h expiry, 10k pool
+- `ROGUELIKE_MATCHMAKING_CONFIG` — ±200 rating, ±1 wins
+- `ROGUELIKE_BOT_CONFIG` — 50-95% difficulty scaling
+
+### Quick Example
 
 ```typescript
-import { createDeck, addCard, shuffleDeck, drawCards } from '@core/progression';
+import {
+  createDeck, shuffleDeck, drawCards,
+  createWallet, addCurrency, getReward,
+  createRun, recordWin, isRunComplete,
+  ROGUELIKE_RUN_CONFIG, ROGUELIKE_ECONOMY_CONFIG,
+} from '@core/progression';
 
-const deck = createDeck(cards, {
-  maxDeckSize: 12,
-  minDeckSize: 12,
-  allowDuplicates: false,
-  maxCopies: 1,
-});
+// Initialize
+let wallet = createWallet(ROGUELIKE_ECONOMY_CONFIG);
+let run = createRun(ROGUELIKE_RUN_CONFIG, { deck: myDeck });
 
-const shuffled = shuffleDeck(deck, seed);
-const [drawn, remaining] = drawCards(shuffled, 5);
-```
+// After battle win
+run = recordWin(run);
+const reward = getReward(true, run.winStreak, wallet.config);
+wallet = addCurrency(wallet, reward);
 
-### Hand System
-
-```typescript
-import { createHand, addToHand, isHandFull } from '@core/progression';
-
-const hand = createHand({
-  maxHandSize: 7,
-  startingHandSize: 5,
-  autoDiscard: true,
-});
-
-const { hand: newHand, discarded } = addToHand(hand, drawnCards);
-```
-
-### Draft System
-
-```typescript
-import { createDraft, pickCard, getDraftResult } from '@core/progression';
-
-const draft = createDraft(cardPool, {
-  optionsCount: 3,
-  picksCount: 1,
-  type: 'pick',
-  allowSkip: true,
-  rerollsAllowed: 1,
-}, seed);
-
-const afterPick = pickCard(draft, selectedCardId);
-const result = getDraftResult(afterPick);
-```
-
-### Economy System
-
-```typescript
-import { createWallet, addCurrency, spendCurrency, canAfford } from '@core/progression';
-
-const wallet = createWallet({
-  startingAmount: 10,
-  currencyName: 'Gold',
-  maxAmount: 0, // unlimited
-  winReward: (streak) => 7 + streak,
-  loseReward: () => 9,
-  interestRate: 0,
-  interestCap: 0,
-});
-
-if (canAfford(wallet, 15)) {
-  const newWallet = spendCurrency(wallet, 15);
-}
-```
-
-### Run System
-
-```typescript
-import { createRun, recordWin, recordLoss, isRunComplete } from '@core/progression';
-
-const run = createRun({
-  winsToComplete: 9,
-  maxLosses: 4,
-  phases: ['draft', 'battle', 'shop'],
-  trackStreaks: true,
-  enableRating: true,
-}, initialState);
-
-const afterWin = recordWin(run);
-if (isRunComplete(afterWin)) {
-  console.log('Run finished:', afterWin.status);
-}
-```
-
-### Snapshot System
-
-```typescript
-import { createSnapshot, findOpponent, generateBot } from '@core/progression';
-
-const snapshot = createSnapshot(run, playerId, {
-  expiryMs: 24 * 60 * 60 * 1000,
-  maxSnapshotsPerPlayer: 10,
-  includeFullState: false,
-  maxTotalSnapshots: 10000,
-  cleanupStrategy: 'oldest',
-});
-
-const opponent = findOpponent(run, snapshots, matchmakingConfig);
-if (!opponent) {
-  const bot = generateBot(run.wins, availableCards, botConfig, seed);
+if (isRunComplete(run)) {
+  console.log(`Run ${run.status}!`);
 }
 ```
 
@@ -205,9 +166,8 @@ if (!opponent) {
 
 ## See Also
 
-- `.kiro/specs/core-extraction/` — Full extraction specification
+- `backend/src/core/progression/README.md` — Full progression documentation
+- `.kiro/specs/core-extraction/` — Core extraction specification
+- `.kiro/specs/core-progression/` — Progression systems specification
 - `docs/ARCHITECTURE.md` — System architecture
-
----
-
-*This document will be updated after core-extraction spec is complete.*
+- `docs/ROGUELIKE_DESIGN.md` — Roguelike mode design
