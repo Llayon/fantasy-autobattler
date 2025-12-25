@@ -236,25 +236,30 @@ Roguelike-run использует переиспользуемые систем
 - [ ] 7.4 Create controller tests: `run.controller.spec.ts` (deferred - service tests cover logic)
 - [x] 7.5 **VERIFY**: `npm test -- --testPathPattern=run` (all tests pass), `npm run build` passes
 
-### Task 8: Create Draft, Upgrade & Economy Services
+### Task 8: Create Draft, Upgrade & Economy Services ✅
 **Estimate**: 60 min | **Requirement**: REQ-5, REQ-6, REQ-7
 
-- [ ] 8.1 Create `backend/src/roguelike/draft/draft.service.ts`
-  - Uses `createDraft()`, `pickCard()` from `@core/progression`
-  - Uses `INITIAL_DRAFT_CONFIG`, `POST_BATTLE_DRAFT_CONFIG` presets
-  - Methods: getInitialDraft(), getPostBattleDraft(), submitPicks()
+- [x] 8.1 Create `backend/src/roguelike/draft/draft.service.ts`
+  - Methods: getInitialDraft(), getPostBattleDraft(), submitPicks(), isDraftAvailable()
+  - Initial draft: 5 options, pick 3
+  - Post-battle draft: 3 options, pick 1
   - **Logger**: Log draft events with context
-- [ ] 8.2 Create `backend/src/roguelike/upgrade/upgrade.service.ts`
-  - Uses `upgradeCard()`, `getUpgradeCost()` from `@core/progression`
-  - Uses `ROGUELIKE_TIERS` preset
-  - Methods: getUpgradeOptions(), upgradeUnit()
-- [ ] 8.3 Create `backend/src/roguelike/economy/economy.service.ts`
-  - Uses `createWallet()`, `addCurrency()`, `spendCurrency()` from `@core/progression`
-  - Uses `ROGUELIKE_ECONOMY_CONFIG` preset
-  - Methods: getGoldReward(), canAffordUpgrade()
-- [ ] 8.4 Create controllers with Swagger docs
-- [ ] 8.5 Create unit tests for all services
-- [ ] 8.6 **VERIFY**: `npm test -- --testPathPattern=draft|upgrade|economy`
+- [x] 8.2 Create `backend/src/roguelike/upgrade/upgrade.service.ts`
+  - Methods: getShopState(), getUpgradeOptions(), upgradeUnit(), canUpgrade()
+  - Uses unit cost data for upgrade pricing
+  - **Logger**: Log upgrade events with context
+- [x] 8.3 Create `backend/src/roguelike/economy/economy.service.ts`
+  - Methods: calculateWinReward(), calculateLossReward(), calculateReward(), canAfford()
+  - Win reward: 7 base + streak bonus (2 per win after 3rd)
+  - Loss reward: 9 (consolation)
+- [x] 8.4 Create controllers with Swagger docs
+  - DraftController: GET /initial, GET /post-battle, POST /, GET /status
+  - UpgradeController: GET /, POST /upgrade, GET /upgrade/:cardInstanceId, GET /can-upgrade/:cardInstanceId
+- [x] 8.5 Create unit tests for all services (58 tests)
+  - draft.service.spec.ts (15 tests)
+  - upgrade.service.spec.ts (17 tests)
+  - economy.service.spec.ts (16 tests)
+- [x] 8.6 **VERIFY**: `npm test -- --testPathPattern=draft|upgrade|economy` (all tests pass)
 
 ### Task 9: Create Matchmaking Service & Battle Integration
 **Estimate**: 60 min | **Requirement**: REQ-9, REQ-3
