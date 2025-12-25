@@ -31,8 +31,8 @@ export * from './upgrade';
 // Economy system
 export * from './economy';
 
-// Run system (TODO: Phase 5)
-// export * from './run';
+// Run system
+export * from './run';
 
 // Snapshot system (TODO: Phase 6)
 // export * from './snapshot';
