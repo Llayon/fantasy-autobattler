@@ -27,3 +27,6 @@ export * from './utils';
 
 // Events
 export * from './events';
+
+// Progression systems (Core 3.0)
+export * from './progression';

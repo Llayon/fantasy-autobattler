@@ -1,0 +1,49 @@
+# Analysis of Roguelike Run Mode Docs
+
+## Overview
+The documents `design.md` and `tasks.md` provide a comprehensive and highly ambitious specification for a new "Roguelike Run" game mode (Arena 9/3). The design moves beyond a simple metagame wrapper and proposes a deep tactical overhaul of the combat engine.
+
+## Strengths
+1.  **Solid Core Loop (Phase 1):** The "Deck vs Hand", "Draft", and "9 Wins/3 Losses" structure is well-defined and aligns perfectly with the genre functionality (Super Auto Pets, Hearthstone Arena).
+2.  **Smart Reuse:** Leveraging the existing 8x10 grid and `battle.simulator.ts` for Phase 1 is efficient.
+3.  **Entity Relations:** The database schema (Runs, Snapshots, Players) supports the required Async PvP matchmaking well.
+4.  **Detailed Mechanics:** The Phase 2 specifications (Resolve, Engagement, Flanking, etc.) are exceptionally detailed, resembling complex wargames like *Total War* or *Tabletop RPGs*.
+
+## Critical Observations & Risks
+
+### 1. Scope & Complexity (The "Phase 2" Leap)
+*   **Observation:** Phase 1 (Tasks 1-12) builds the *mode*. Phase 2 (Tasks 13-58) rebuilds the *engine*.
+*   **Risk:** Phase 2 introduces massive complexity (Facing, Line of Sight, ZOC, Ammo, Contagion). Implementing all 14+ new subsystems will likely take months, not the "45 min" estimates listed per task.
+*   **Recommendation:** Treat Phase 1 as the primary milestone. Phase 2 features should be prioritized strictly: perhaps start with **Resolve** (Morale) as it adds a new win condition, then **Engagement** (positioning). Things like "Contagion" or "Armor Shred" could be postponed.
+
+### 2. Core Simulator Impact
+*   **Observation:** The design implies modifying the shared `battle.simulator.ts`.
+*   **Risk:** Introducing "Facing", "Ammunition", and "LoS" checks into the core simulator might break or drastically change the "Classic" autobattler mode if not properly flagged/isolated.
+*   **Recommendation:** Ensure the Battle Simulator accepts a `ruleset` or `config` object to toggle these advanced mechanics. If "Classic" mode needs to stay simple, it shouldn't be burdened with "checking for flanking angles" every tick.
+
+### 3. Missing Frontend Tasks (Visualizing Complexity)
+*   **Observation:** Phase 3 tasks focus on the *Meta UI* (Draft Screen, Shop, Run Summary).
+*   **Risk:** Phase 2 mechanics require *Battle UI* updates. Users need to see:
+    *   Unit Facing (Arrows?)
+    *   Resolve Bars / Broken State icons
+    *   Ammo counts
+    *   Aura ranges / ZOC overlays
+*   **Recommendation:** Frontend tasks need to be added to update the `BattleReplay.tsx` component to visualize these deep tactical states. Otherwise, players won't understand why their units are "Retreating" or taking "Flank Damage".
+
+### 4. Economy Validation
+*   **Observation:** The "Catch-up" gold (9g for loss vs 7g for win) is interesting.
+*   **Risk:** In a "3 strikes and you're out" system, losing is already a heavy punishment. The extra gold helps, but ensure it doesn't create a "loss farming" strategy (though unlikely given the permadeath of the run).
+*   **Recommendation:** Monitor the economy balance. The "No Sell" rule is excellent for simplifying decision paralysis.
+
+## Action Plan Recommendations
+1.  **Execute Phase 1 (Tasks 1-12) fully.** This delivers a playable "Roguelike Mode".
+2.  **Playtest Phase 1.** Verify the "Draft" and "Economy" feel right before adding deep combat mechanics.
+3.  **Review Phase 2 estimates.** The time estimates are very optimistic. Multiply by 2-3x for "Integration" and "Debugging".
+4.  **Add Phase 2 Visualization tasks.** Create tasks for showing Morale/Facing/Ammo in the specific `BattleReplay` component.
+
+## Data Consistency Check
+*   **Factions:** Order (Defense/HP) vs Chaos (Attack/Lifesteal) is a classic, balanced dichotomy.
+*   **Unit Roles:** The 25-unit roster per faction with T1/T2/T3 upgrades is consistent.
+*   **Spells:** The HP-threshold trigger system (Early/Mid/Late) is a smart way to automate spellcasting without full AI scripting.
+
+**Verdict:** The design is high-quality and ready for implementation, provided the "Engine Overhaul" risks of Phase 2 are managed carefully.

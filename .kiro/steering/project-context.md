@@ -306,8 +306,9 @@ See `.kiro/specs/roguelike-run/` for full specification.
 | Spec | Status | Description |
 |------|--------|-------------|
 | `documentation-cleanup` | 🔄 In Progress | Reorganize docs structure |
-| `core-extraction` | 🔄 In Progress (PR 5) | Extract reusable engine code |
-| `roguelike-run` | ⬜ Ready | Roguelike progression mode |
+| `core-extraction` | 🔄 In Progress (PR 5) | Extract reusable engine code (Core 1.0) |
+| `core-mechanics-2.0` | ⬜ Ready | Modular combat mechanics with feature flags |
+| `roguelike-run` | ⬜ Ready | Roguelike progression mode (12 mechanics) |
 | `battle-replay-ux` | ✅ Complete | Battle replay improvements |
 | `hp-bar-visibility` | ✅ Complete | HP bar visibility |
 
