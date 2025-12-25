@@ -76,54 +76,65 @@ Roguelike-run использует переиспользуемые систем
 
 ## Phase 1: Backend Game Data (Tasks 1-4)
 
-### Task 1: Create Faction & Leader Types
+### Task 1: Create Faction & Leader Types ✅
 **Estimate**: 30 min | **Requirement**: REQ-1, REQ-2
 
-- [ ] 1.1 Create `backend/src/roguelike/types/faction.types.ts`
+- [x] 1.1 Create `backend/src/roguelike/types/faction.types.ts`
   - `Faction` type: 'humans' | 'undead'
   - `FactionBonus` interface: { stat, value }
   - `FactionData` interface: { id, name, description, bonus, icon }
+  - `FactionDataWithResolve` interface for morale system
   - **JSDoc**: All interfaces documented
-- [ ] 1.2 Create `backend/src/roguelike/types/leader.types.ts`
+- [x] 1.2 Create `backend/src/roguelike/types/leader.types.ts`
   - `Leader` interface: { id, name, faction, passive, spells, portrait }
   - `PassiveAbility` interface: { id, name, effect }
+  - `Spell` interface with targeting and effect types
+  - `SpellExecution` interface for battle state
+  - `SPELL_TIMING_THRESHOLDS` constant
   - **JSDoc**: All interfaces documented
-- [ ] 1.3 Create `backend/src/roguelike/types/index.ts` (re-exports)
-- [ ] 1.4 **VERIFY**: Types compile without errors
+- [x] 1.3 Create `backend/src/roguelike/types/index.ts` (re-exports)
+- [x] 1.4 **VERIFY**: Types compile without errors (`npm run build` passes)
 
-### Task 2: Create Faction & Leader Data
+### Task 2: Create Faction & Leader Data ✅
 **Estimate**: 30 min | **Requirement**: REQ-1, REQ-2
 
-- [ ] 2.1 Create `backend/src/roguelike/data/factions.data.ts`
-  - Humans: +10% HP bonus
-  - Undead: +15% ATK bonus
+- [x] 2.1 Create `backend/src/roguelike/data/factions.data.ts`
+  - Humans: +10% HP bonus, retreating broken behavior
+  - Undead: +15% ATK bonus, crumbling broken behavior
   - **JSDoc**: @example for each faction
-- [ ] 2.2 Create `backend/src/roguelike/data/leaders.data.ts`
+- [x] 2.2 Create `backend/src/roguelike/data/leaders.data.ts`
   - Commander Aldric (Humans): Formation passive, Holy Light + Rally spells
   - Lich King Malachar (Undead): Life Drain passive, Death Coil + Raise Dead spells
+  - All 4 spells with targeting, effects, and recommended timings
   - **JSDoc**: @example for each leader
-- [ ] 2.3 Add helper functions with JSDoc: `getFaction()`, `getLeader()`, `getLeadersByFaction()`
-- [ ] 2.4 Create unit tests: `factions.data.spec.ts`, `leaders.data.spec.ts`
-- [ ] 2.5 **VERIFY**: `npm test -- --testPathPattern=roguelike`
+- [x] 2.3 Add helper functions with JSDoc: `getFaction()`, `getLeader()`, `getLeadersByFaction()`, `getSpell()`, `getSpellsByFaction()`, `applyFactionBonus()`, `getLeaderWithSpells()`
+- [x] 2.4 Create unit tests: `factions.data.spec.ts`, `leaders.data.spec.ts`
+- [x] 2.5 **VERIFY**: `npm test -- --testPathPattern=roguelike` (all tests pass)
 
-### Task 3: Create Unit Types & Data
+### Task 3: Create Unit Types & Data ✅
 **Estimate**: 60 min | **Requirement**: REQ-1.2
 
-- [ ] 3.1 Create `backend/src/roguelike/types/unit.types.ts`
-  - `RoguelikeUnit` interface (extends BaseCard from core)
+- [x] 3.1 Create `backend/src/roguelike/types/unit.types.ts`
+  - `RoguelikeUnit` interface with all stats
   - `UnitTier` type: 1 | 2 | 3
-  - `StarterDeck` interface
+  - `UnitRole` type: tank, melee_dps, ranged_dps, mage, support
+  - `StarterDeck`, `DeckCard`, `UnitUpgradeLine` interfaces
+  - `TIER_STAT_MULTIPLIERS`, `TIER_RESOLVE_BONUSES` constants
+  - `calculateUpgradeCost()`, `calculateTotalCost()` functions
   - **JSDoc**: All interfaces documented
-- [ ] 3.2 Create `backend/src/roguelike/data/humans.units.ts`
-  - 12 T1 units with stats
-  - T2/T3 upgrade definitions (stat multipliers)
-- [ ] 3.3 Create `backend/src/roguelike/data/undead.units.ts`
-  - 12 T1 units with stats
+- [x] 3.2 Create `backend/src/roguelike/data/humans.units.ts`
+  - 12 T1 units with stats (3 tanks, 3 melee, 3 ranged, 2 mages, 1 support)
+  - T2/T3 upgrade definitions with stat multipliers
+  - Upgrade lines for all 12 units
+- [x] 3.3 Create `backend/src/roguelike/data/undead.units.ts`
+  - 12 T1 units with stats (all have 100 resolve)
   - T2/T3 upgrade definitions
-- [ ] 3.4 Create `backend/src/roguelike/data/starter-decks.data.ts`
-  - Pre-built balanced decks for each faction
-- [ ] 3.5 Create unit tests: `units.data.spec.ts`
-- [ ] 3.6 **VERIFY**: `npm test -- --testPathPattern=unit`
+  - Upgrade lines for all 12 units
+- [x] 3.4 Create `backend/src/roguelike/data/starter-decks.data.ts`
+  - Pre-built balanced decks for each faction (12 units each)
+  - `expandStarterDeck()` function for creating deck cards
+- [x] 3.5 Create unit tests: `units.data.spec.ts`
+- [x] 3.6 **VERIFY**: `npm test -- --testPathPattern=unit` (all tests pass)
 
 ### Task 4: Create Spell Types & Data
 **Estimate**: 45 min | **Requirement**: REQ-3
