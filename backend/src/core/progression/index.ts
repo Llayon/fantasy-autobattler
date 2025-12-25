@@ -22,8 +22,8 @@ export * from './deck';
 // Hand system
 export * from './hand';
 
-// Draft system (TODO: Phase 3)
-// export * from './draft';
+// Draft system
+export * from './draft';
 
 // Upgrade system (TODO: Phase 4)
 // export * from './upgrade';
