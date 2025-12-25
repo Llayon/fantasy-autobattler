@@ -7,11 +7,13 @@ Roguelike-run использует переиспользуемые систем
 | Phase | Description | Tasks | Est. Hours |
 |-------|-------------|-------|------------|
 | 0 | Setup & Prerequisites | 0 | 0.5h |
-| 1 | Backend: Game Data | 1-4 | 3h |
-| 2 | Backend: Entities & Services | 5-9 | 5h |
-| 3 | Frontend: Stores & Components | 10-15 | 5h |
-| 4 | Integration & Testing | 16-18 | 2.5h |
-| **Total** | | **19 tasks** | **~16h** |
+| 1 | Backend: Game Data | 1-4 | 4h |
+| 2 | Backend: Entities & Services | 5-9 | 6h |
+| 3 | Frontend: Stores & Components | 10-15 | 6h |
+| 4 | Integration & Testing | 16-18 | 3.5h |
+| **Total** | | **19 tasks** | **~20h** |
+
+> **Note**: Оценки включают 25% buffer для непредвиденных задач.
 
 **Optional Phase 5**: После завершения `core-mechanics-2.0` — подключение боевых механик (~4h)
 
@@ -33,6 +35,7 @@ Roguelike-run использует переиспользуемые систем
 | **ESLint** | Без `any`, без `!`, без `console.log`, без floating promises |
 | **Prettier** | Single quotes, trailing commas, 100 char width |
 | **Husky** | Pre-commit: typecheck + lint (backend + frontend) |
+| **a11y** | aria-labels, keyboard nav, focus management, screen reader text |
 
 ---
 
@@ -145,7 +148,7 @@ Roguelike-run использует переиспользуемые систем
 ## Phase 2: Backend Entities & Services (Tasks 5-9)
 
 ### Task 5: Create Database Entities & Migration
-**Estimate**: 60 min | **Requirement**: REQ-4
+**Estimate**: 90 min | **Requirement**: REQ-4
 
 - [ ] 5.1 Create `backend/src/roguelike/entities/run.entity.ts`
   - Fields: id, playerId, faction, leaderId, deck, remainingDeck, hand, spells
@@ -154,7 +157,8 @@ Roguelike-run использует переиспользуемые систем
   - **Validation**: @IsUUID, @IsEnum, @Min, @Max where applicable
 - [ ] 5.2 Create `backend/src/roguelike/entities/snapshot.entity.ts`
   - Fields: id, runId, playerId, wins, rating, team, spellTimings, faction, leaderId
-  - **TypeORM**: @Index for wins, rating (matchmaking queries)
+  - **TypeORM**: @Index for (wins, rating, createdAt) — composite index for matchmaking
+  - **TODO**: Add query limit in findOpponent (max 100 candidates) for scalability
 - [ ] 5.3 Create TypeORM migration: `npm run migration:generate -- -n CreateRoguelikeTables`
 - [ ] 5.4 Test migration rollback: `npm run migration:revert`
 - [ ] 5.5 Create entity unit tests: `run.entity.spec.ts`, `snapshot.entity.spec.ts`
@@ -179,7 +183,7 @@ Roguelike-run использует переиспользуемые систем
 - [ ] 6.5 **VERIFY**: DTOs compile, exceptions work
 
 ### Task 7: Create Run Service & Controller
-**Estimate**: 60 min | **Requirement**: REQ-4
+**Estimate**: 90 min | **Requirement**: REQ-4
 
 - [ ] 7.1 Create `backend/src/roguelike/run/run.service.ts`
   - Uses `createRun()`, `recordWin()`, `recordLoss()` from `@core/progression`
@@ -280,7 +284,14 @@ Roguelike-run использует переиспользуемые систем
 - [ ] 12.4 Create `frontend/src/components/roguelike/UpgradeCard.tsx`
   - Unit card with tier indicator and upgrade button
 - [ ] 12.5 Add tier indicators to UnitCard (border color: bronze/silver/gold)
-- [ ] 12.6 **VERIFY**: `npm run build`
+- [ ] 12.6 Create `frontend/src/components/roguelike/SpellTimingSelect.tsx`
+  - Props: spell, selectedTiming, onChange
+  - 3 radio buttons: Early / Mid / Late
+  - Tooltip with timing explanation
+  - **a11y**: aria-label, keyboard navigation
+- [ ] 12.7 Create `frontend/src/components/roguelike/SpellTimingPanel.tsx`
+  - Container for 2 spells with SpellTimingSelect
+- [ ] 12.8 **VERIFY**: `npm run build`
 
 ### Task 13: Create Status & Result Components
 **Estimate**: 45 min | **Requirement**: REQ-13
@@ -295,7 +306,7 @@ Roguelike-run использует переиспользуемые систем
 - [ ] 13.3 **VERIFY**: `npm run build`
 
 ### Task 14: Create Pages
-**Estimate**: 60 min | **Requirement**: REQ-13
+**Estimate**: 90 min | **Requirement**: REQ-13
 
 - [ ] 14.1 Create `frontend/src/app/run/new/page.tsx`
   - Faction selection → Leader selection → Start run
@@ -313,10 +324,12 @@ Roguelike-run использует переиспользуемые систем
 ### Task 15: Add i18n & Navigation
 **Estimate**: 30 min | **Requirement**: REQ-13
 
-- [ ] 15.1 Add Russian/English translations for roguelike UI
+- [ ] 15.1 Add translations to `frontend/messages/`:
+  - Add roguelike keys to `en.json` and `ru.json`
   - Faction names, leader names, spell names
   - UI labels: "Start Run", "Draft", "Upgrade", etc.
   - Error messages
+  - Using existing next-intl setup
 - [ ] 15.2 Add "Roguelike Run" button to main menu (Navigation.tsx)
 - [ ] 15.3 Add run status indicator to header when run is active
 - [ ] 15.4 **VERIFY**: `npm run build`
@@ -328,24 +341,33 @@ Roguelike-run использует переиспользуемые систем
 ## Phase 4: Integration & Testing (Tasks 16-18)
 
 ### Task 16: Backend Integration Tests
-**Estimate**: 45 min | **Requirement**: All
+**Estimate**: 60 min | **Requirement**: All
 
 - [ ] 16.1 Create `backend/src/roguelike/roguelike.integration.spec.ts`
 - [ ] 16.2 Test full run flow: create → draft → battle → upgrade → repeat
 - [ ] 16.3 Test run end conditions (9 wins, 4 losses)
 - [ ] 16.4 Test matchmaking with snapshots and bot fallback
-- [ ] 16.5 Test error scenarios: invalid picks, insufficient gold, etc.
+- [ ] 16.5 Test HTTP error scenarios:
+  - 401: Request without auth token
+  - 403: Access other player's run
+  - 404: Non-existent run ID
+  - 409: Action on completed run
+  - 422: Invalid faction/leader combination
 - [ ] 16.6 Test migration rollback scenario
 - [ ] 16.7 **VERIFY**: `npm test`
 
 ### Task 17: Frontend Component Tests
-**Estimate**: 30 min | **Requirement**: All
+**Estimate**: 60 min | **Requirement**: All
 
 - [ ] 17.1 Add tests for FactionSelect component
-- [ ] 17.2 Add tests for DraftScreen component
-- [ ] 17.3 Add tests for UpgradeShop component
-- [ ] 17.4 Test error states and loading states
-- [ ] 17.5 **VERIFY**: `npm test`
+- [ ] 17.2 Add tests for LeaderSelect component
+- [ ] 17.3 Add tests for DraftScreen component
+- [ ] 17.4 Add tests for UpgradeShop component
+- [ ] 17.5 Add tests for RunStatusBar component
+- [ ] 17.6 Add tests for SpellTimingSelect component
+- [ ] 17.7 Test loading and error states
+- [ ] 17.8 Test keyboard navigation (a11y)
+- [ ] 17.9 **VERIFY**: `npm test`
 
 ### Task 18: Final Verification
 **Estimate**: 30 min | **Requirement**: All
@@ -405,13 +427,15 @@ if (process.env.FEATURE_ROGUELIKE_ENABLED === 'true') {
 | Phase | Tasks | Time | Content |
 |-------|-------|------|---------|
 | Phase 0: Setup | 0 | ~0.5h | Module structure, migration setup |
-| Phase 1: Game Data | 1-4 | ~3h | Types, Factions, Leaders, Units, Spells |
-| Phase 2: Backend | 5-9 | ~5h | Entities, DTOs, Services, Controllers |
-| Phase 3: Frontend | 10-15 | ~5h | Stores, Components, Pages |
-| Phase 4: Testing | 16-18 | ~2.5h | Integration tests, verification |
-| **Subtotal (Core)** | **19 tasks** | **~16h** | **Playable roguelike mode** |
+| Phase 1: Game Data | 1-4 | ~4h | Types, Factions, Leaders, Units, Spells |
+| Phase 2: Backend | 5-9 | ~6h | Entities, DTOs, Services, Controllers |
+| Phase 3: Frontend | 10-15 | ~6h | Stores, Components, Pages |
+| Phase 4: Testing | 16-18 | ~3.5h | Integration tests, verification |
+| **Subtotal (Core)** | **19 tasks** | **~20h** | **Playable roguelike mode** |
 | Phase 5: Combat (Optional) | 19-22 | ~4h | Mechanics integration, UI |
-| **Total (Full)** | **23 tasks** | **~20h** | **With all combat mechanics** |
+| **Total (Full)** | **23 tasks** | **~24h** | **With all combat mechanics** |
+
+> **Note**: Оценки включают 25% buffer. Реальное время может варьироваться.
 
 ---
 
