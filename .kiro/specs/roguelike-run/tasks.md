@@ -270,9 +270,18 @@ Roguelike-run использует переиспользуемые систем
   - Methods: saveSnapshot(), findOpponent(), generateBot(), getSnapshotStats(), cleanupExpiredSnapshots()
   - **Logger**: Log matchmaking events
   - **Tests**: 20 unit tests in matchmaking.service.spec.ts
-- [ ] 9.2 Update battle simulator to accept spell timings parameter
-- [ ] 9.3 Implement HP-based spell trigger logic in battle loop
-- [ ] 9.4 Add spell execution to battle events
+- [x] 9.2 Create spell executor for HP-based spell triggers
+  - `backend/src/roguelike/battle/spell.executor.ts`
+  - Methods: checkAndExecuteSpells(), createSpellExecutions(), createEmptySpellConfig()
+  - Supports heal, damage, buff, summon spell effects
+- [x] 9.3 Implement HP-based spell trigger logic
+  - Early: triggers at battle start (100% HP)
+  - Mid: triggers when any ally drops below 70% HP
+  - Late: triggers when any ally drops below 40% HP
+- [x] 9.4 Add spell execution to battle events
+  - Uses 'ability' event type with isSpell metadata
+  - Generates heal, damage, death events as appropriate
+  - **Tests**: 15 unit tests in spell.executor.spec.ts
 - [ ] 9.5 Create integration tests: `roguelike.integration.spec.ts`
 - [ ] 9.6 **VERIFY**: `npm test -- --testPathPattern=matchmaking|battle`
 
