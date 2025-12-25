@@ -264,11 +264,12 @@ Roguelike-run использует переиспользуемые систем
 ### Task 9: Create Matchmaking Service & Battle Integration
 **Estimate**: 60 min | **Requirement**: REQ-9, REQ-3
 
-- [ ] 9.1 Create `backend/src/roguelike/matchmaking/matchmaking.service.ts`
+- [x] 9.1 Create `backend/src/roguelike/matchmaking/matchmaking.service.ts`
   - Uses `createSnapshot()`, `findOpponent()`, `generateBot()` from `@core/progression`
   - Uses `ROGUELIKE_SNAPSHOT_CONFIG`, `ROGUELIKE_MATCHMAKING_CONFIG`, `ROGUELIKE_BOT_CONFIG`
-  - Methods: saveSnapshot(), findOpponent(), generateBotOpponent()
+  - Methods: saveSnapshot(), findOpponent(), generateBot(), getSnapshotStats(), cleanupExpiredSnapshots()
   - **Logger**: Log matchmaking events
+  - **Tests**: 20 unit tests in matchmaking.service.spec.ts
 - [ ] 9.2 Update battle simulator to accept spell timings parameter
 - [ ] 9.3 Implement HP-based spell trigger logic in battle loop
 - [ ] 9.4 Add spell execution to battle events

@@ -20,7 +20,7 @@ import { RunService } from './run/run.service';
 import { DraftService } from './draft/draft.service';
 import { UpgradeService } from './upgrade/upgrade.service';
 import { EconomyService } from './economy/economy.service';
-// import { MatchmakingService } from './matchmaking/matchmaking.service';
+import { MatchmakingService } from './matchmaking/matchmaking.service';
 
 // Controllers
 import { RunController } from './run/run.controller';
@@ -61,14 +61,14 @@ import { UpgradeController } from './upgrade/upgrade.controller';
     DraftService,
     UpgradeService,
     EconomyService,
-    // MatchmakingService,
+    MatchmakingService,
   ],
   exports: [
     RunService,
     DraftService,
     UpgradeService,
     EconomyService,
-    // MatchmakingService,
+    MatchmakingService,
   ],
 })
 export class RoguelikeModule {}
