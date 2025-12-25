@@ -6,5 +6,18 @@
  * @module roguelike/entities
  */
 
-// Entities will be added in Phase 2
-export {};
+// Run entity
+export {
+  RoguelikeRunEntity,
+  RunStatus,
+  SpellCard,
+  RUN_CONSTANTS,
+} from './run.entity';
+
+// Snapshot entity
+export {
+  RoguelikeSnapshotEntity,
+  PlacedUnit,
+  SpellTimingConfig,
+  SNAPSHOT_CONSTANTS,
+} from './snapshot.entity';
