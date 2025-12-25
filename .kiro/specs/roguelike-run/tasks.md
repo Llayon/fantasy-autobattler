@@ -30,6 +30,9 @@ Roguelike-run использует переиспользуемые систем
 | **Logger** | NestJS Logger с context (runId, playerId) |
 | **DTOs** | class-validator декораторы для всех DTO |
 | **Error Handling** | Кастомные exceptions, proper HTTP codes |
+| **ESLint** | Без `any`, без `!`, без `console.log`, без floating promises |
+| **Prettier** | Single quotes, trailing commas, 100 char width |
+| **Husky** | Pre-commit: typecheck + lint (backend + frontend) |
 
 ---
 
