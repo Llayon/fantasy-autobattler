@@ -25,11 +25,11 @@ export * from './hand';
 // Draft system
 export * from './draft';
 
-// Upgrade system (TODO: Phase 4)
-// export * from './upgrade';
+// Upgrade system
+export * from './upgrade';
 
-// Economy system (TODO: Phase 4)
-// export * from './economy';
+// Economy system
+export * from './economy';
 
 // Run system (TODO: Phase 5)
 // export * from './run';
