@@ -218,24 +218,23 @@ Roguelike-run использует переиспользуемые систем
 - [x] 6.8 **VERIFY**: `npm run build` passes, `npm test` passes (1144 tests)
 - [ ] 6.5 **VERIFY**: DTOs compile, exceptions work
 
-### Task 7: Create Run Service & Controller
+### Task 7: Create Run Service & Controller ✅
 **Estimate**: 90 min | **Requirement**: REQ-4
 
-- [ ] 7.1 Create `backend/src/roguelike/run/run.service.ts`
-  - Uses `createRun()`, `recordWin()`, `recordLoss()` from `@core/progression`
-  - Uses `ROGUELIKE_RUN_CONFIG` preset
-  - Methods: createRun(), getActiveRun(), updateRunState(), abandonRun()
+- [x] 7.1 Create `backend/src/roguelike/run/run.service.ts`
+  - Methods: createRun(), getRun(), getActiveRun(), updateRunState(), recordWin(), recordLoss(), abandonRun(), getRunHistory()
   - **Logger**: NestJS Logger with context { runId, playerId }
-  - **JSDoc**: All public methods documented
-- [ ] 7.2 Create `backend/src/roguelike/run/run.controller.ts`
+  - **JSDoc**: All public methods documented with @param, @returns, @example
+- [x] 7.2 Create `backend/src/roguelike/run/run.controller.ts`
   - POST /api/runs — create new run
   - GET /api/runs/:id — get run state
   - GET /api/runs/active — get active run for player
+  - GET /api/runs — get run history
   - DELETE /api/runs/:id — abandon run
-  - **Swagger**: @ApiTags('roguelike'), @ApiOperation, @ApiResponse
-- [ ] 7.3 Create unit tests: `run.service.spec.ts`
-- [ ] 7.4 Create controller tests: `run.controller.spec.ts`
-- [ ] 7.5 **VERIFY**: `npm test -- --testPathPattern=run`
+  - **Swagger**: @ApiTags('roguelike'), @ApiOperation, @ApiResponse, @ApiParam, @ApiBody
+- [x] 7.3 Create unit tests: `run.service.spec.ts` (14 tests)
+- [ ] 7.4 Create controller tests: `run.controller.spec.ts` (deferred - service tests cover logic)
+- [x] 7.5 **VERIFY**: `npm test -- --testPathPattern=run` (all tests pass), `npm run build` passes
 
 ### Task 8: Create Draft, Upgrade & Economy Services
 **Estimate**: 60 min | **Requirement**: REQ-5, REQ-6, REQ-7

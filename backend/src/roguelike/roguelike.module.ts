@@ -9,21 +9,21 @@
  */
 
 import { Module } from '@nestjs/common';
-// import { TypeOrmModule } from '@nestjs/typeorm';
+import { TypeOrmModule } from '@nestjs/typeorm';
 
-// Entities will be imported in Phase 2
-// import { RunEntity } from './entities/run.entity';
-// import { SnapshotEntity } from './entities/snapshot.entity';
+// Entities
+import { RoguelikeRunEntity } from './entities/run.entity';
+import { RoguelikeSnapshotEntity } from './entities/snapshot.entity';
 
-// Services will be imported in Phase 2
-// import { RunService } from './run/run.service';
+// Services
+import { RunService } from './run/run.service';
 // import { DraftService } from './draft/draft.service';
 // import { UpgradeService } from './upgrade/upgrade.service';
 // import { EconomyService } from './economy/economy.service';
 // import { MatchmakingService } from './matchmaking/matchmaking.service';
 
-// Controllers will be imported in Phase 2
-// import { RunController } from './run/run.controller';
+// Controllers
+import { RunController } from './run/run.controller';
 // import { DraftController } from './draft/draft.controller';
 // import { UpgradeController } from './upgrade/upgrade.controller';
 
@@ -49,22 +49,22 @@ import { Module } from '@nestjs/common';
  */
 @Module({
   imports: [
-    // TypeOrmModule.forFeature([RunEntity, SnapshotEntity]),
+    TypeOrmModule.forFeature([RoguelikeRunEntity, RoguelikeSnapshotEntity]),
   ],
   controllers: [
-    // RunController,
+    RunController,
     // DraftController,
     // UpgradeController,
   ],
   providers: [
-    // RunService,
+    RunService,
     // DraftService,
     // UpgradeService,
     // EconomyService,
     // MatchmakingService,
   ],
   exports: [
-    // RunService,
+    RunService,
     // DraftService,
     // UpgradeService,
     // EconomyService,
