@@ -24,7 +24,14 @@ import {
   getLeadersByFaction,
   isValidLeader,
   getLeaderWithSpells,
+  // Spell trigger functions
+  shouldTriggerSpell,
+  getSpellTimingThreshold,
+  createSpellExecution,
+  markSpellTriggered,
+  UnitHpState,
 } from './leaders.data';
+import { SpellExecution, SPELL_TIMING_THRESHOLDS } from '../types/leader.types';
 
 describe('Leaders Data', () => {
   describe('Passive Abilities', () => {
@@ -250,6 +257,235 @@ describe('Leaders Data', () => {
 
       it('should return undefined for unknown leader', () => {
         expect(getLeaderWithSpells('unknown')).toBeUndefined();
+      });
+    });
+  });
+
+  describe('Spell Trigger Logic', () => {
+    describe('shouldTriggerSpell', () => {
+      describe('early timing', () => {
+        it('should trigger immediately when not yet triggered', () => {
+          const spell: SpellExecution = {
+            spellId: 'rally',
+            timing: 'early',
+            triggered: false,
+          };
+          const units: UnitHpState[] = [{ currentHp: 100, maxHp: 100 }];
+
+          expect(shouldTriggerSpell(spell, units)).toBe(true);
+        });
+
+        it('should trigger even with empty units array', () => {
+          const spell: SpellExecution = {
+            spellId: 'rally',
+            timing: 'early',
+            triggered: false,
+          };
+
+          expect(shouldTriggerSpell(spell, [])).toBe(true);
+        });
+
+        it('should not trigger if already triggered', () => {
+          const spell: SpellExecution = {
+            spellId: 'rally',
+            timing: 'early',
+            triggered: true,
+          };
+
+          expect(shouldTriggerSpell(spell, [])).toBe(false);
+        });
+      });
+
+      describe('mid timing (70% HP threshold)', () => {
+        it('should trigger when any unit is below 70% HP', () => {
+          const spell: SpellExecution = {
+            spellId: 'holy_light',
+            timing: 'mid',
+            triggered: false,
+          };
+          const units: UnitHpState[] = [
+            { currentHp: 100, maxHp: 100 }, // 100% HP
+            { currentHp: 60, maxHp: 100 }, // 60% HP - below threshold
+          ];
+
+          expect(shouldTriggerSpell(spell, units)).toBe(true);
+        });
+
+        it('should not trigger when all units are at or above 70% HP', () => {
+          const spell: SpellExecution = {
+            spellId: 'holy_light',
+            timing: 'mid',
+            triggered: false,
+          };
+          const units: UnitHpState[] = [
+            { currentHp: 100, maxHp: 100 }, // 100% HP
+            { currentHp: 70, maxHp: 100 }, // 70% HP - at threshold
+          ];
+
+          expect(shouldTriggerSpell(spell, units)).toBe(false);
+        });
+
+        it('should trigger at exactly 69% HP', () => {
+          const spell: SpellExecution = {
+            spellId: 'holy_light',
+            timing: 'mid',
+            triggered: false,
+          };
+          const units: UnitHpState[] = [{ currentHp: 69, maxHp: 100 }];
+
+          expect(shouldTriggerSpell(spell, units)).toBe(true);
+        });
+
+        it('should not trigger if already triggered', () => {
+          const spell: SpellExecution = {
+            spellId: 'holy_light',
+            timing: 'mid',
+            triggered: true,
+          };
+          const units: UnitHpState[] = [{ currentHp: 10, maxHp: 100 }];
+
+          expect(shouldTriggerSpell(spell, units)).toBe(false);
+        });
+      });
+
+      describe('late timing (40% HP threshold)', () => {
+        it('should trigger when any unit is below 40% HP', () => {
+          const spell: SpellExecution = {
+            spellId: 'raise_dead',
+            timing: 'late',
+            triggered: false,
+          };
+          const units: UnitHpState[] = [
+            { currentHp: 80, maxHp: 100 }, // 80% HP
+            { currentHp: 35, maxHp: 100 }, // 35% HP - below threshold
+          ];
+
+          expect(shouldTriggerSpell(spell, units)).toBe(true);
+        });
+
+        it('should not trigger when all units are at or above 40% HP', () => {
+          const spell: SpellExecution = {
+            spellId: 'raise_dead',
+            timing: 'late',
+            triggered: false,
+          };
+          const units: UnitHpState[] = [
+            { currentHp: 50, maxHp: 100 }, // 50% HP
+            { currentHp: 40, maxHp: 100 }, // 40% HP - at threshold
+          ];
+
+          expect(shouldTriggerSpell(spell, units)).toBe(false);
+        });
+
+        it('should trigger at exactly 39% HP', () => {
+          const spell: SpellExecution = {
+            spellId: 'raise_dead',
+            timing: 'late',
+            triggered: false,
+          };
+          const units: UnitHpState[] = [{ currentHp: 39, maxHp: 100 }];
+
+          expect(shouldTriggerSpell(spell, units)).toBe(true);
+        });
+      });
+
+      describe('edge cases', () => {
+        it('should handle unit with 0 maxHp (avoid division by zero)', () => {
+          const spell: SpellExecution = {
+            spellId: 'holy_light',
+            timing: 'mid',
+            triggered: false,
+          };
+          const units: UnitHpState[] = [{ currentHp: 0, maxHp: 0 }];
+
+          expect(shouldTriggerSpell(spell, units)).toBe(false);
+        });
+
+        it('should handle empty units array for mid timing', () => {
+          const spell: SpellExecution = {
+            spellId: 'holy_light',
+            timing: 'mid',
+            triggered: false,
+          };
+
+          expect(shouldTriggerSpell(spell, [])).toBe(false);
+        });
+
+        it('should handle unit with 0 currentHp', () => {
+          const spell: SpellExecution = {
+            spellId: 'raise_dead',
+            timing: 'late',
+            triggered: false,
+          };
+          const units: UnitHpState[] = [{ currentHp: 0, maxHp: 100 }];
+
+          expect(shouldTriggerSpell(spell, units)).toBe(true);
+        });
+      });
+    });
+
+    describe('getSpellTimingThreshold', () => {
+      it('should return 1.0 for early timing', () => {
+        expect(getSpellTimingThreshold('early')).toBe(1.0);
+      });
+
+      it('should return 0.7 for mid timing', () => {
+        expect(getSpellTimingThreshold('mid')).toBe(0.7);
+      });
+
+      it('should return 0.4 for late timing', () => {
+        expect(getSpellTimingThreshold('late')).toBe(0.4);
+      });
+
+      it('should match SPELL_TIMING_THRESHOLDS constant', () => {
+        expect(getSpellTimingThreshold('early')).toBe(SPELL_TIMING_THRESHOLDS.early);
+        expect(getSpellTimingThreshold('mid')).toBe(SPELL_TIMING_THRESHOLDS.mid);
+        expect(getSpellTimingThreshold('late')).toBe(SPELL_TIMING_THRESHOLDS.late);
+      });
+    });
+
+    describe('createSpellExecution', () => {
+      it('should create spell execution with triggered set to false', () => {
+        const execution = createSpellExecution('holy_light', 'mid');
+
+        expect(execution.spellId).toBe('holy_light');
+        expect(execution.timing).toBe('mid');
+        expect(execution.triggered).toBe(false);
+      });
+
+      it('should work with all timing types', () => {
+        const early = createSpellExecution('rally', 'early');
+        const mid = createSpellExecution('holy_light', 'mid');
+        const late = createSpellExecution('raise_dead', 'late');
+
+        expect(early.timing).toBe('early');
+        expect(mid.timing).toBe('mid');
+        expect(late.timing).toBe('late');
+      });
+    });
+
+    describe('markSpellTriggered', () => {
+      it('should set triggered to true', () => {
+        const spell = createSpellExecution('rally', 'early');
+        expect(spell.triggered).toBe(false);
+
+        markSpellTriggered(spell);
+        expect(spell.triggered).toBe(true);
+      });
+
+      it('should return the same spell object', () => {
+        const spell = createSpellExecution('rally', 'early');
+        const result = markSpellTriggered(spell);
+
+        expect(result).toBe(spell);
+      });
+
+      it('should work on already triggered spell', () => {
+        const spell = createSpellExecution('rally', 'early');
+        spell.triggered = true;
+
+        markSpellTriggered(spell);
+        expect(spell.triggered).toBe(true);
       });
     });
   });

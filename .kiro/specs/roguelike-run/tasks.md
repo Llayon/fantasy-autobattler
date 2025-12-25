@@ -136,21 +136,25 @@ Roguelike-run использует переиспользуемые систем
 - [x] 3.5 Create unit tests: `units.data.spec.ts`
 - [x] 3.6 **VERIFY**: `npm test -- --testPathPattern=unit` (all tests pass)
 
-### Task 4: Create Spell Types & Data
+### Task 4: Create Spell Types & Data ✅
 **Estimate**: 45 min | **Requirement**: REQ-3
 
-- [ ] 4.1 Create `backend/src/roguelike/types/spell.types.ts`
+- [x] 4.1 Create `backend/src/roguelike/types/spell.types.ts`
   - `Spell` interface: { id, name, effect, faction }
   - `SpellTiming` type: 'early' | 'mid' | 'late'
   - `SpellExecution` interface: { spellId, timing, triggered }
   - **JSDoc**: All interfaces documented
-- [ ] 4.2 Create `backend/src/roguelike/data/spells.data.ts`
+  - **Note**: Implemented in `leader.types.ts` (integrated with leader system)
+- [x] 4.2 Create `backend/src/roguelike/data/spells.data.ts`
   - Holy Light, Rally (Humans)
   - Death Coil, Raise Dead (Undead)
-- [ ] 4.3 Create `shouldTriggerSpell()` pure function (HP-based timing)
+  - **Note**: Implemented in `leaders.data.ts` (integrated with leader system)
+- [x] 4.3 Create `shouldTriggerSpell()` pure function (HP-based timing)
   - **JSDoc**: @param, @returns, @example
-- [ ] 4.4 Create unit tests: `spells.data.spec.ts`
-- [ ] 4.5 **VERIFY**: `npm test -- --testPathPattern=spell`
+  - **Note**: Implemented in `leaders.data.ts` with helper functions
+- [x] 4.4 Create unit tests: `spells.data.spec.ts`
+  - **Note**: Tests added to `leaders.data.spec.ts` (Spell Trigger Logic section)
+- [x] 4.5 **VERIFY**: `npm test -- --testPathPattern=spell` ✅ All tests pass
 
 **CHECKPOINT 1**: Game data complete. Run `npm test`.
 

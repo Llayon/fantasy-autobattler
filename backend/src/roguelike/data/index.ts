@@ -39,6 +39,12 @@ export {
   getLeadersByFaction,
   isValidLeader,
   getLeaderWithSpells,
+  // Spell trigger functions
+  shouldTriggerSpell,
+  getSpellTimingThreshold,
+  createSpellExecution,
+  markSpellTriggered,
+  UnitHpState,
 } from './leaders.data';
 
 // Humans units

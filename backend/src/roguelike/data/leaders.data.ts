@@ -8,7 +8,14 @@
  */
 
 import { Faction } from '../types/faction.types';
-import { Leader, PassiveAbility, Spell } from '../types/leader.types';
+import {
+  Leader,
+  PassiveAbility,
+  Spell,
+  SpellExecution,
+  SpellTiming,
+  SPELL_TIMING_THRESHOLDS,
+} from '../types/leader.types';
 
 // ============================================================================
 // PASSIVE ABILITIES
@@ -276,4 +283,126 @@ export function getLeaderWithSpells(
     .filter((spell): spell is Spell => spell !== undefined);
 
   return { ...rest, spells };
+}
+
+// ============================================================================
+// SPELL TRIGGER LOGIC
+// ============================================================================
+
+/**
+ * Unit HP state for spell trigger calculation.
+ * Represents a unit's current and maximum HP.
+ */
+export interface UnitHpState {
+  /** Current HP of the unit */
+  currentHp: number;
+  /** Maximum HP of the unit */
+  maxHp: number;
+}
+
+/**
+ * Determines if a spell should trigger based on team HP thresholds.
+ *
+ * Spell timing rules:
+ * - 'early': Triggers immediately at battle start (100% HP threshold)
+ * - 'mid': Triggers when any ally drops below 70% HP
+ * - 'late': Triggers when any ally drops below 40% HP
+ *
+ * Each spell can only trigger once per battle (tracked by `triggered` flag).
+ *
+ * @param spell - The spell execution state to check
+ * @param units - Array of unit HP states (current and max HP)
+ * @returns True if the spell should trigger, false otherwise
+ *
+ * @example
+ * // Early spell triggers immediately
+ * const earlySpell: SpellExecution = { spellId: 'rally', timing: 'early', triggered: false };
+ * const units = [{ currentHp: 100, maxHp: 100 }];
+ * shouldTriggerSpell(earlySpell, units); // true
+ *
+ * @example
+ * // Mid spell triggers when ally below 70% HP
+ * const midSpell: SpellExecution = { spellId: 'holy_light', timing: 'mid', triggered: false };
+ * const units = [{ currentHp: 60, maxHp: 100 }]; // 60% HP
+ * shouldTriggerSpell(midSpell, units); // true
+ *
+ * @example
+ * // Already triggered spell won't trigger again
+ * const triggeredSpell: SpellExecution = { spellId: 'rally', timing: 'early', triggered: true };
+ * shouldTriggerSpell(triggeredSpell, []); // false
+ */
+export function shouldTriggerSpell(spell: SpellExecution, units: UnitHpState[]): boolean {
+  // Already triggered spells don't trigger again
+  if (spell.triggered) {
+    return false;
+  }
+
+  // Early spells always trigger at battle start
+  if (spell.timing === 'early') {
+    return true;
+  }
+
+  // Get the HP threshold for this timing
+  const threshold = SPELL_TIMING_THRESHOLDS[spell.timing];
+
+  // Check if any unit is below the threshold
+  return units.some((unit) => {
+    // Avoid division by zero
+    if (unit.maxHp <= 0) {
+      return false;
+    }
+    const hpPercent = unit.currentHp / unit.maxHp;
+    return hpPercent < threshold;
+  });
+}
+
+/**
+ * Gets the HP threshold percentage for a spell timing.
+ *
+ * @param timing - The spell timing type
+ * @returns The HP threshold as a decimal (0.0 to 1.0)
+ *
+ * @example
+ * getSpellTimingThreshold('early'); // 1.0
+ * getSpellTimingThreshold('mid');   // 0.7
+ * getSpellTimingThreshold('late');  // 0.4
+ */
+export function getSpellTimingThreshold(timing: SpellTiming): number {
+  return SPELL_TIMING_THRESHOLDS[timing];
+}
+
+/**
+ * Creates a new SpellExecution object for battle.
+ *
+ * @param spellId - The ID of the spell to execute
+ * @param timing - The player-selected timing for the spell
+ * @returns A new SpellExecution object with triggered set to false
+ *
+ * @example
+ * const execution = createSpellExecution('holy_light', 'mid');
+ * // { spellId: 'holy_light', timing: 'mid', triggered: false }
+ */
+export function createSpellExecution(spellId: string, timing: SpellTiming): SpellExecution {
+  return {
+    spellId,
+    timing,
+    triggered: false,
+  };
+}
+
+/**
+ * Marks a spell as triggered (mutates the object).
+ * Use this after executing a spell effect.
+ *
+ * @param spell - The spell execution to mark as triggered
+ * @returns The same spell execution object with triggered set to true
+ *
+ * @example
+ * const spell = createSpellExecution('rally', 'early');
+ * markSpellTriggered(spell);
+ * spell.triggered; // true
+ */
+export function markSpellTriggered(spell: SpellExecution): SpellExecution {
+  spell.triggered = true;
+  return spell;
 }
