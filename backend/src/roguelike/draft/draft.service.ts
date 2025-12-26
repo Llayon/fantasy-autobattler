@@ -87,7 +87,7 @@ export class DraftService {
    * Gets initial draft options for a new run.
    *
    * Returns 5 cards from the remaining deck for player to pick 3.
-   * Only available when hand is empty (start of run).
+   * Only available when hand AND field are empty (start of run).
    *
    * @param runId - ID of the run
    * @param playerId - ID of the player (for access control)
@@ -107,9 +107,14 @@ export class DraftService {
 
     const run = await this.getRunWithAccessCheck(runId, playerId);
 
-    // Check if initial draft is available (hand must be empty)
-    if (run.hand.length > 0) {
-      this.logger.warn('Initial draft already completed', { runId, playerId, handSize: run.hand.length });
+    // Check if initial draft is available (hand AND field must be empty)
+    if (run.hand.length > 0 || run.field.length > 0) {
+      this.logger.warn('Initial draft already completed', { 
+        runId, 
+        playerId, 
+        handSize: run.hand.length,
+        fieldSize: run.field.length,
+      });
       throw new DraftNotAvailableException(runId, 'Начальный драфт уже завершен');
     }
 
@@ -152,7 +157,7 @@ export class DraftService {
    * @throws RunNotFoundException if run doesn't exist
    * @throws RunAccessDeniedException if player doesn't own the run
    * @throws RunAlreadyCompletedException if run is complete
-   * @throws DraftNotAvailableException if no cards remaining
+   * @throws DraftNotAvailableException if no cards remaining or draft not earned
    *
    * @example
    * const options = await draftService.getPostBattleDraft('run-uuid', 'player-uuid');
@@ -168,6 +173,23 @@ export class DraftService {
     if (run.remainingDeck.length === 0) {
       this.logger.warn('No cards remaining for draft', { runId, playerId });
       throw new DraftNotAvailableException(runId, 'В колоде не осталось карт');
+    }
+
+    // Check if post-battle draft is earned
+    // Initial draft gives 3 cards, each battle earns 1 more card
+    const totalBattles = run.wins + run.losses;
+    const totalCardsReceived = run.hand.length + run.field.length;
+    const expectedCards = 3 + totalBattles; // 3 from initial + 1 per battle
+    
+    if (totalCardsReceived >= expectedCards) {
+      this.logger.warn('Post-battle draft not available - already drafted', {
+        runId,
+        playerId,
+        totalBattles,
+        totalCardsReceived,
+        expectedCards,
+      });
+      throw new DraftNotAvailableException(runId, 'Драфт доступен только после боя');
     }
 
     // Get up to 3 cards from remaining deck
@@ -329,12 +351,38 @@ export class DraftService {
     try {
       const run = await this.getRunWithAccessCheck(runId, playerId);
 
+      // No cards remaining in deck - no more drafts possible
       if (run.remainingDeck.length === 0) {
         return { available: false, isInitial: false, reason: 'В колоде не осталось карт' };
       }
 
-      const isInitial = run.hand.length === 0;
-      return { available: true, isInitial };
+      // Initial draft: hand is empty (start of run)
+      const isInitial = run.hand.length === 0 && run.field.length === 0;
+      
+      if (isInitial) {
+        // Initial draft is always available if hand and field are empty
+        return { available: true, isInitial: true };
+      }
+
+      // Post-battle draft: only available after a battle
+      // Check if the number of battles (wins + losses) matches the number of post-battle drafts done
+      // Initial draft gives 3 cards, each post-battle draft gives 1 card
+      // So: hand.length + field.length = 3 (initial) + battles (post-battle drafts)
+      const totalBattles = run.wins + run.losses;
+      const totalCardsReceived = run.hand.length + run.field.length;
+      const expectedCards = 3 + totalBattles; // 3 from initial + 1 per battle
+      
+      // If player has fewer cards than expected, they need a post-battle draft
+      if (totalCardsReceived < expectedCards && run.remainingDeck.length > 0) {
+        return { available: true, isInitial: false };
+      }
+
+      // Draft not available - player already did their draft for this phase
+      return { 
+        available: false, 
+        isInitial: false, 
+        reason: 'Драфт доступен только после боя' 
+      };
     } catch (error) {
       if (error instanceof RunAlreadyCompletedException) {
         return { available: false, isInitial: false, reason: 'Забег завершен' };
