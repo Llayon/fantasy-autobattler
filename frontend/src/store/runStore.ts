@@ -443,7 +443,7 @@ export const useRunStore = create<RunStore>((set, get) => ({
   /**
    * Place a unit from hand onto the deployment field.
    * Costs gold equal to the unit's cost.
-   * Uses placementLoading to avoid full page loader.
+   * Uses optimistic update for smooth UX.
    * 
    * @param instanceId - Card instance ID from hand
    * @param position - Target position on field
@@ -459,29 +459,69 @@ export const useRunStore = create<RunStore>((set, get) => ({
       return false;
     }
 
-    set({ placementLoading: true, error: null });
+    // Find the card in hand
+    const cardToPlace = currentRun.hand.find(c => c.instanceId === instanceId);
+    if (!cardToPlace) {
+      set({ error: 'Карта не найдена в руке' });
+      return false;
+    }
+
+    // Optimistic update - update UI immediately
+    const originalHand = currentRun.hand;
+    const originalField = currentRun.field;
+    const originalGold = currentRun.gold;
+
+    // Remove from hand, add to field (optimistically)
+    const newHand = currentRun.hand.filter(c => c.instanceId !== instanceId);
+    const newFieldUnit = {
+      instanceId: cardToPlace.instanceId,
+      unitId: cardToPlace.unitId,
+      tier: cardToPlace.tier,
+      position,
+      hasBattled: false,
+    };
+    const newField = [...currentRun.field, newFieldUnit];
+
+    set({
+      currentRun: {
+        ...currentRun,
+        hand: newHand,
+        field: newField,
+        // Gold will be updated from server response
+      },
+      error: null,
+    });
 
     try {
+      // Sync with server
       const result = await api.placeUnit(currentRun.id, instanceId, position);
       
+      // Update with server response (authoritative)
       set({
         currentRun: {
-          ...currentRun,
+          ...get().currentRun!,
           hand: result.hand,
           field: result.field,
           gold: result.gold,
         },
-        placementLoading: false,
-        error: null,
       });
       
       return true;
     } catch (error) {
+      // Rollback on error
       const errorMessage = error instanceof ApiError 
         ? error.message 
         : 'Не удалось разместить юнита';
       
-      set({ error: errorMessage, placementLoading: false });
+      set({ 
+        currentRun: {
+          ...get().currentRun!,
+          hand: originalHand,
+          field: originalField,
+          gold: originalGold,
+        },
+        error: errorMessage,
+      });
       return false;
     }
   },
@@ -553,7 +593,7 @@ export const useRunStore = create<RunStore>((set, get) => ({
   /**
    * Remove a unit from the field back to hand.
    * Refunds the unit's gold cost.
-   * Uses placementLoading to avoid full page loader.
+   * Uses optimistic update for smooth UX.
    * 
    * @param instanceId - Unit instance ID on field
    * @returns True if removal succeeded
@@ -568,29 +608,67 @@ export const useRunStore = create<RunStore>((set, get) => ({
       return false;
     }
 
-    set({ placementLoading: true, error: null });
+    // Find the unit on field
+    const unitToRemove = currentRun.field.find(u => u.instanceId === instanceId);
+    if (!unitToRemove) {
+      set({ error: 'Юнит не найден на поле' });
+      return false;
+    }
+
+    // Optimistic update - update UI immediately
+    const originalHand = currentRun.hand;
+    const originalField = currentRun.field;
+    const originalGold = currentRun.gold;
+
+    // Remove from field, add back to hand (optimistically)
+    const newField = currentRun.field.filter(u => u.instanceId !== instanceId);
+    const newHandCard = {
+      instanceId: unitToRemove.instanceId,
+      unitId: unitToRemove.unitId,
+      tier: unitToRemove.tier,
+    };
+    const newHand = [...currentRun.hand, newHandCard];
+
+    set({
+      currentRun: {
+        ...currentRun,
+        hand: newHand,
+        field: newField,
+        // Gold will be updated from server response
+      },
+      error: null,
+    });
 
     try {
+      // Sync with server
       const result = await api.removeFromField(currentRun.id, instanceId);
       
+      // Update with server response (authoritative)
       set({
         currentRun: {
-          ...currentRun,
+          ...get().currentRun!,
           hand: result.hand,
           field: result.field,
           gold: result.gold,
         },
-        placementLoading: false,
-        error: null,
       });
       
       return true;
     } catch (error) {
+      // Rollback on error
       const errorMessage = error instanceof ApiError 
         ? error.message 
         : 'Не удалось убрать юнита с поля';
       
-      set({ error: errorMessage, placementLoading: false });
+      set({ 
+        currentRun: {
+          ...get().currentRun!,
+          hand: originalHand,
+          field: originalField,
+          gold: originalGold,
+        },
+        error: errorMessage,
+      });
       return false;
     }
   },
