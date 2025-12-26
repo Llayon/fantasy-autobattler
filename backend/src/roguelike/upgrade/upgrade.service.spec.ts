@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { UpgradeService } from './upgrade.service';
-import { RoguelikeRunEntity, RUN_CONSTANTS } from '../entities/run.entity';
+import { RoguelikeRunEntity, RUN_CONSTANTS, FieldUnit } from '../entities/run.entity';
 import {
   RunNotFoundException,
   RunAccessDeniedException,
@@ -9,7 +9,6 @@ import {
   InsufficientGoldException,
   InvalidUpgradeException,
 } from '../exceptions/roguelike.exceptions';
-import { DeckCard } from '../types/unit.types';
 
 describe('UpgradeService', () => {
   let service: UpgradeService;
@@ -21,11 +20,15 @@ describe('UpgradeService', () => {
   const mockPlayerId = 'player-uuid-123';
   const mockRunId = 'run-uuid-456';
 
-  const createMockDeckCards = (): DeckCard[] => [
-    { unitId: 'footman', tier: 1, instanceId: 'footman-1' },
-    { unitId: 'archer', tier: 1, instanceId: 'archer-1' },
-    { unitId: 'priest', tier: 2, instanceId: 'priest-1' },
-    { unitId: 'knight', tier: 3, instanceId: 'knight-1' },
+  /**
+   * Creates mock field units for testing.
+   * Units on field can be upgraded.
+   */
+  const createMockFieldUnits = (): FieldUnit[] => [
+    { unitId: 'footman', tier: 1, instanceId: 'footman-1', position: { x: 0, y: 0 }, hasBattled: false },
+    { unitId: 'archer', tier: 1, instanceId: 'archer-1', position: { x: 1, y: 0 }, hasBattled: false },
+    { unitId: 'priest', tier: 2, instanceId: 'priest-1', position: { x: 2, y: 0 }, hasBattled: true },
+    { unitId: 'knight', tier: 3, instanceId: 'knight-1', position: { x: 3, y: 0 }, hasBattled: true },
   ];
 
   const createMockRun = (overrides: Partial<RoguelikeRunEntity> = {}): RoguelikeRunEntity => {
@@ -37,7 +40,8 @@ describe('UpgradeService', () => {
       leaderId: 'commander_aldric',
       deck: [],
       remainingDeck: [],
-      hand: createMockDeckCards(),
+      hand: [],
+      field: createMockFieldUnits(),
       spells: [{ spellId: 'holy_light' }, { spellId: 'rally' }],
       wins: 0,
       losses: 0,
@@ -78,15 +82,15 @@ describe('UpgradeService', () => {
   });
 
   describe('getShopState', () => {
-    test('should return shop state with upgrade costs', async () => {
+    test('should return shop state with upgrade costs for field units', async () => {
       const mockRun = createMockRun();
       repository.findOne.mockResolvedValue(mockRun);
 
       const result = await service.getShopState(mockRunId, mockPlayerId);
 
-      expect(result.hand).toHaveLength(4);
+      expect(result.field).toHaveLength(4);
       expect(result.gold).toBe(25);
-      // Only T1 and T2 cards can be upgraded (footman, archer, priest)
+      // Only T1 and T2 units can be upgraded (footman, archer, priest)
       expect(result.upgradeCosts).toHaveLength(3);
     });
 
@@ -120,7 +124,7 @@ describe('UpgradeService', () => {
   });
 
   describe('getUpgradeOptions', () => {
-    test('should return upgrade options for upgradeable card', async () => {
+    test('should return upgrade options for upgradeable unit on field', async () => {
       const mockRun = createMockRun();
       repository.findOne.mockResolvedValue(mockRun);
 
@@ -132,7 +136,7 @@ describe('UpgradeService', () => {
       expect(result?.cost).toBeGreaterThan(0);
     });
 
-    test('should return null for max tier card', async () => {
+    test('should return null for max tier unit', async () => {
       const mockRun = createMockRun();
       repository.findOne.mockResolvedValue(mockRun);
 
@@ -141,7 +145,7 @@ describe('UpgradeService', () => {
       expect(result).toBeNull();
     });
 
-    test('should return null for non-existent card', async () => {
+    test('should return null for non-existent unit', async () => {
       const mockRun = createMockRun();
       repository.findOne.mockResolvedValue(mockRun);
 
@@ -152,29 +156,29 @@ describe('UpgradeService', () => {
   });
 
   describe('upgradeUnit', () => {
-    test('should upgrade T1 card to T2', async () => {
+    test('should upgrade T1 unit to T2', async () => {
       const mockRun = createMockRun({ gold: 25 });
       repository.findOne.mockResolvedValue(mockRun);
       repository.save.mockImplementation((run) => Promise.resolve(run));
 
       const result = await service.upgradeUnit(mockRunId, mockPlayerId, 'footman-1');
 
-      expect(result.upgradedCard.tier).toBe(2);
+      expect(result.upgradedUnit.tier).toBe(2);
       expect(result.goldSpent).toBeGreaterThan(0);
       expect(result.gold).toBeLessThan(25);
     });
 
-    test('should upgrade T2 card to T3', async () => {
+    test('should upgrade T2 unit to T3', async () => {
       const mockRun = createMockRun({ gold: 25 });
       repository.findOne.mockResolvedValue(mockRun);
       repository.save.mockImplementation((run) => Promise.resolve(run));
 
       const result = await service.upgradeUnit(mockRunId, mockPlayerId, 'priest-1');
 
-      expect(result.upgradedCard.tier).toBe(3);
+      expect(result.upgradedUnit.tier).toBe(3);
     });
 
-    test('should throw InvalidUpgradeException for max tier card', async () => {
+    test('should throw InvalidUpgradeException for max tier unit', async () => {
       const mockRun = createMockRun();
       repository.findOne.mockResolvedValue(mockRun);
 
@@ -183,7 +187,7 @@ describe('UpgradeService', () => {
       ).rejects.toThrow(InvalidUpgradeException);
     });
 
-    test('should throw InvalidUpgradeException for non-existent card', async () => {
+    test('should throw InvalidUpgradeException for non-existent unit', async () => {
       const mockRun = createMockRun();
       repository.findOne.mockResolvedValue(mockRun);
 
@@ -241,13 +245,14 @@ describe('UpgradeService', () => {
       expect(result.reason).toContain('золота');
     });
 
-    test('should return canUpgrade=false for non-existent card', async () => {
+    test('should return canUpgrade=false for non-existent unit', async () => {
       const mockRun = createMockRun();
       repository.findOne.mockResolvedValue(mockRun);
 
       const result = await service.canUpgrade(mockRunId, mockPlayerId, 'nonexistent-1');
 
       expect(result.canUpgrade).toBe(false);
+      expect(result.reason).toContain('поле');
     });
 
     test('should return canUpgrade=false for completed run', async () => {
