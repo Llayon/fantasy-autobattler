@@ -243,9 +243,15 @@ export class DraftService {
     const run = await this.getRunWithAccessCheck(runId, playerId);
 
     // Determine if this is initial or post-battle draft
-    const isInitial = run.hand.length === 0;
-    const requiredPicks = isInitial ? DRAFT_CONFIG.INITIAL_PICKS : DRAFT_CONFIG.POST_BATTLE_PICKS;
-    const optionsCount = isInitial ? DRAFT_CONFIG.INITIAL_OPTIONS : DRAFT_CONFIG.POST_BATTLE_OPTIONS;
+    // Initial draft: hand AND field are empty (start of run)
+    // Post-battle draft: player has cards (from initial draft or previous battles)
+    const isInitial = run.hand.length === 0 && run.field.length === 0;
+    const requiredPicks = isInitial
+      ? DRAFT_CONFIG.INITIAL_PICKS
+      : DRAFT_CONFIG.POST_BATTLE_PICKS;
+    const optionsCount = isInitial
+      ? DRAFT_CONFIG.INITIAL_OPTIONS
+      : DRAFT_CONFIG.POST_BATTLE_OPTIONS;
 
     // Validate pick count
     if (picks.length !== requiredPicks) {

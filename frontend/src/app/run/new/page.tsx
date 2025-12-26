@@ -80,6 +80,8 @@ export default function NewRunPage() {
   const [loadingLeaders, setLoadingLeaders] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [useRussian] = useState(true);
+  // Track if we're in the process of creating a run (to avoid showing active run warning)
+  const [isCreating, setIsCreating] = useState(false);
 
   const labels = useRussian ? LABELS.ru : LABELS.en;
 
@@ -197,9 +199,12 @@ export default function NewRunPage() {
   const handleStartRun = useCallback(async () => {
     if (!selectedFaction || !selectedLeader) return;
 
+    setIsCreating(true);
     const run = await createRun(selectedFaction, selectedLeader);
     if (run) {
       router.push(`/run/${run.id}/draft`);
+    } else {
+      setIsCreating(false);
     }
   }, [selectedFaction, selectedLeader, createRun, router]);
 
@@ -228,8 +233,8 @@ export default function NewRunPage() {
     return <FullPageLoader message={labels.loadingFactions} icon="🎮" />;
   }
 
-  // Active run warning (only show if we've checked and found one)
-  if (runLoaded && currentRun && currentRun.status === 'active') {
+  // Active run warning (only show if we've checked and found one, and we're not creating a new run)
+  if (runLoaded && currentRun && currentRun.status === 'active' && !isCreating) {
     return (
       <div className="min-h-screen bg-gray-900 text-white">
         <Navigation />
