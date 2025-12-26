@@ -84,7 +84,7 @@ export default function NewRunPage() {
   const labels = useRussian ? LABELS.ru : LABELS.en;
 
   // Store state
-  const { currentRun, loading: runLoading, error: runError, createRun, loadActiveRun, clearError, runLoaded } = useRunStore();
+  const { currentRun, loading: runLoading, createRun, loadActiveRun, clearError, runLoaded } = useRunStore();
   const { initPlayer } = usePlayerStore();
 
   // Initialize player and check for active run
@@ -222,13 +222,14 @@ export default function NewRunPage() {
     }
   }, [currentRun, router]);
 
-  // Loading state - wait for both factions and run check
-  if (loadingFactions || !runLoaded) {
+  // Loading state - only wait for factions, not run check
+  // Run check happens in background and will show warning if needed
+  if (loadingFactions) {
     return <FullPageLoader message={labels.loadingFactions} icon="🎮" />;
   }
 
-  // Active run warning
-  if (currentRun && currentRun.status === 'active') {
+  // Active run warning (only show if we've checked and found one)
+  if (runLoaded && currentRun && currentRun.status === 'active') {
     return (
       <div className="min-h-screen bg-gray-900 text-white">
         <Navigation />
@@ -278,10 +279,11 @@ export default function NewRunPage() {
             </div>
           </div>
 
-          {/* Error display */}
-          {(error || runError) && (
+          {/* Error display - only show local errors, not runError 
+              (missing active run is normal on this page) */}
+          {error && (
             <div className="mb-6">
-              <ErrorMessage message={error || runError || ''} severity="error" />
+              <ErrorMessage message={error} severity="error" />
             </div>
           )}
 

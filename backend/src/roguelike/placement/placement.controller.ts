@@ -12,13 +12,24 @@ import {
   Delete,
   Body,
   Param,
-  Headers,
   HttpCode,
   HttpStatus,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiHeader, ApiParam } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiSecurity } from '@nestjs/swagger';
 import { PlacementService } from './placement.service';
-import { PlaceUnitDto, RepositionUnitDto } from '../dto/placement.dto';
+import { PlaceUnitDto, RepositionUnitDto } from '../dto';
+import { GuestGuard } from '../../auth/guest.guard';
+
+/**
+ * Authenticated request interface with player information.
+ */
+interface AuthenticatedRequest extends Request {
+  player: {
+    id: string;
+  };
+}
 
 /**
  * Controller for unit placement operations.
@@ -29,7 +40,9 @@ import { PlaceUnitDto, RepositionUnitDto } from '../dto/placement.dto';
  * - Removing units from field
  */
 @ApiTags('Roguelike Placement')
+@ApiSecurity('guest-token')
 @Controller('roguelike/runs/:runId/placement')
+@UseGuards(GuestGuard)
 export class PlacementController {
   constructor(private readonly placementService: PlacementService) {}
 
@@ -37,7 +50,7 @@ export class PlacementController {
    * Places a unit from hand onto the deployment field.
    *
    * @param runId - Run ID from URL
-   * @param guestToken - Player's guest token
+   * @param req - Authenticated request with player info
    * @param dto - Placement details
    * @returns Updated run state
    */
@@ -46,11 +59,6 @@ export class PlacementController {
   @ApiOperation({
     summary: 'Place unit from hand to field',
     description: 'Places a unit from hand onto the deployment field. Costs gold equal to unit cost.',
-  })
-  @ApiHeader({
-    name: 'x-guest-token',
-    description: 'Guest authentication token',
-    required: true,
   })
   @ApiParam({
     name: 'runId',
@@ -71,12 +79,12 @@ export class PlacementController {
   })
   async placeUnit(
     @Param('runId') runId: string,
-    @Headers('x-guest-token') guestToken: string,
+    @Req() req: AuthenticatedRequest,
     @Body() dto: PlaceUnitDto,
   ) {
     const run = await this.placementService.placeUnit(
       runId,
-      guestToken,
+      req.player.id,
       dto.instanceId,
       dto.position,
     );
@@ -93,7 +101,7 @@ export class PlacementController {
    * Repositions a unit on the deployment field.
    *
    * @param runId - Run ID from URL
-   * @param guestToken - Player's guest token
+   * @param req - Authenticated request with player info
    * @param dto - Reposition details
    * @returns Updated run state
    */
@@ -102,11 +110,6 @@ export class PlacementController {
   @ApiOperation({
     summary: 'Reposition unit on field',
     description: 'Moves a unit to a new position on the field. Free (no gold cost).',
-  })
-  @ApiHeader({
-    name: 'x-guest-token',
-    description: 'Guest authentication token',
-    required: true,
   })
   @ApiParam({
     name: 'runId',
@@ -127,12 +130,12 @@ export class PlacementController {
   })
   async repositionUnit(
     @Param('runId') runId: string,
-    @Headers('x-guest-token') guestToken: string,
+    @Req() req: AuthenticatedRequest,
     @Body() dto: RepositionUnitDto,
   ) {
     const run = await this.placementService.repositionUnit(
       runId,
-      guestToken,
+      req.player.id,
       dto.instanceId,
       dto.position,
     );
@@ -148,7 +151,7 @@ export class PlacementController {
    *
    * @param runId - Run ID from URL
    * @param instanceId - Unit instance ID from URL
-   * @param guestToken - Player's guest token
+   * @param req - Authenticated request with player info
    * @returns Updated run state
    */
   @Delete(':instanceId')
@@ -156,11 +159,6 @@ export class PlacementController {
   @ApiOperation({
     summary: 'Remove unit from field',
     description: 'Removes a unit from the field back to hand. Refunds gold.',
-  })
-  @ApiHeader({
-    name: 'x-guest-token',
-    description: 'Guest authentication token',
-    required: true,
   })
   @ApiParam({
     name: 'runId',
@@ -187,11 +185,11 @@ export class PlacementController {
   async removeFromField(
     @Param('runId') runId: string,
     @Param('instanceId') instanceId: string,
-    @Headers('x-guest-token') guestToken: string,
+    @Req() req: AuthenticatedRequest,
   ) {
     const run = await this.placementService.removeFromField(
       runId,
-      guestToken,
+      req.player.id,
       instanceId,
     );
 

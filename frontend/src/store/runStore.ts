@@ -288,7 +288,8 @@ export const useRunStore = create<RunStore>((set, get) => ({
       });
     } catch (error) {
       // 404 means no active run - this is not an error
-      if (error instanceof ApiError && error.status === 404) {
+      // 401 means unauthorized (new user) - also not an error for this check
+      if (error instanceof ApiError && (error.status === 404 || error.status === 401)) {
         set({ 
           currentRun: null, 
           loading: false, 
