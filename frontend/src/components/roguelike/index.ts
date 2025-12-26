@@ -52,3 +52,21 @@ export type { SpellTimingInfo, SpellTiming } from './SpellTimingSelect';
 export { SpellTimingPanel } from './SpellTimingPanel';
 export type { SpellTimingPanelProps } from './SpellTimingPanel';
 export type { SpellTimingConfig } from './SpellTimingPanel';
+
+// =============================================================================
+// STATUS & RESULT COMPONENTS
+// =============================================================================
+
+export { RunStatusBar } from './RunStatusBar';
+export type { RunStatusBarProps } from './RunStatusBar';
+export type { StatusBarLeader } from './RunStatusBar';
+
+export { RunEndScreen } from './RunEndScreen';
+export type { RunEndScreenProps } from './RunEndScreen';
+export type {
+  RunResult,
+  RunStats,
+  RatingChange,
+  BattleHistoryEntry,
+  EndScreenLeader,
+} from './RunEndScreen';

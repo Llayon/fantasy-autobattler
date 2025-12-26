@@ -346,14 +346,14 @@ Roguelike-run использует переиспользуемые систем
 ### Task 13: Create Status & Result Components
 **Estimate**: 45 min | **Requirement**: REQ-13
 
-- [ ] 13.1 Create `frontend/src/components/roguelike/RunStatusBar.tsx`
+- [x] 13.1 Create `frontend/src/components/roguelike/RunStatusBar.tsx`
   - Display wins/losses (9 win slots, 4 loss slots)
   - Show gold balance
   - Show leader portrait
-- [ ] 13.2 Create `frontend/src/components/roguelike/RunEndScreen.tsx`
+- [x] 13.2 Create `frontend/src/components/roguelike/RunEndScreen.tsx`
   - Victory screen (9 wins): rewards, rating change
   - Defeat screen (4 losses): stats, retry button
-- [ ] 13.3 **VERIFY**: `npm run build`
+- [x] 13.3 **VERIFY**: `npm run build`
 
 ### Task 14: Create Pages
 **Estimate**: 90 min | **Requirement**: REQ-13
