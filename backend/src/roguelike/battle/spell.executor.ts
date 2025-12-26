@@ -539,3 +539,57 @@ export function createSpellExecutions(
     triggered: false,
   }));
 }
+
+/**
+ * Spell timing HP thresholds.
+ */
+const SPELL_TIMING_THRESHOLDS: Record<SpellTiming, number> = {
+  early: 1.0, // 100% HP (battle start)
+  mid: 0.7, // 70% HP
+  late: 0.4, // 40% HP
+};
+
+/**
+ * SpellExecutor class with static utility methods.
+ * Provides spell execution logic for roguelike battles.
+ */
+export class SpellExecutor {
+  /**
+   * Checks if a spell should trigger based on HP threshold.
+   *
+   * @param timing - Spell timing configuration
+   * @param currentHp - Current HP of the unit
+   * @param maxHp - Maximum HP of the unit
+   * @returns True if spell should trigger
+   *
+   * @example
+   * const shouldTrigger = SpellExecutor.shouldTriggerSpell('mid', 65, 100);
+   * // Returns true because 65% < 70% threshold
+   */
+  static shouldTriggerSpell(timing: SpellTiming, currentHp: number, maxHp: number): boolean {
+    if (maxHp <= 0) return false;
+
+    const hpPercent = currentHp / maxHp;
+    const threshold = SPELL_TIMING_THRESHOLDS[timing];
+
+    // Early triggers at battle start (100% HP)
+    if (timing === 'early') {
+      return hpPercent >= threshold;
+    }
+
+    // Mid and Late trigger when HP drops below threshold
+    return hpPercent < threshold;
+  }
+
+  /**
+   * Creates spell executions from spell timing configurations.
+   *
+   * @param spellTimings - Array of spell ID and timing pairs
+   * @returns Array of spell execution objects
+   */
+  static createSpellExecutions(
+    spellTimings: Array<{ spellId: string; timing: SpellTiming }>,
+  ): SpellExecution[] {
+    return createSpellExecutions(spellTimings);
+  }
+}
