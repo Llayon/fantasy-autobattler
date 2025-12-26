@@ -33,6 +33,7 @@ import {
   UpgradeUnitDto,
   UpgradeResultDto,
   UpgradeCostDto,
+  FieldUnitDto,
 } from '../dto/upgrade.dto';
 import { RunIdParamDto } from '../dto/run.dto';
 import { ErrorResponseDto } from '../../common/dto/api-response.dto';
@@ -49,15 +50,16 @@ interface AuthenticatedRequest extends Request {
 /**
  * Controller for roguelike upgrade shop operations.
  *
- * Provides endpoints for viewing shop state and upgrading units.
+ * Provides endpoints for viewing shop state and upgrading units on the field.
+ * Only units placed on the deployment field can be upgraded.
  * All endpoints require guest authentication via x-guest-token header.
  *
  * @example
- * // Get shop state
+ * // Get shop state with field units
  * GET /api/runs/:id/shop
  *
  * @example
- * // Upgrade a unit
+ * // Upgrade a unit on the field
  * POST /api/runs/:id/shop/upgrade
  * { "cardInstanceId": "footman-1" }
  */
@@ -79,8 +81,9 @@ export class UpgradeController {
   @ApiOperation({
     summary: 'Get shop state',
     description:
-      'Returns the current hand with upgrade costs for each card. ' +
-      'Only cards below max tier (T3) can be upgraded.',
+      'Returns the current field units with upgrade costs for each. ' +
+      'Only units below max tier (T3) can be upgraded. ' +
+      'Units must be placed on the field to be upgraded.',
   })
   @ApiParam({
     name: 'id',
@@ -131,9 +134,10 @@ export class UpgradeController {
   @Post('upgrade')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Upgrade a unit',
+    summary: 'Upgrade a unit on the field',
     description:
-      'Upgrades the specified unit to the next tier. ' +
+      'Upgrades the specified unit on the field to the next tier. ' +
+      'Only units placed on the deployment field can be upgraded. ' +
       'Deducts gold based on the unit\'s base cost. ' +
       'T1→T2: 100% of base cost, T2→T3: 150% of base cost.',
   })
@@ -289,10 +293,12 @@ export class UpgradeController {
    */
   private mapToShopStateDto(state: ShopState): ShopStateDto {
     return {
-      hand: state.hand.map((card) => ({
-        unitId: card.unitId,
-        tier: card.tier,
-        instanceId: card.instanceId,
+      field: state.field.map((unit) => ({
+        unitId: unit.unitId,
+        tier: unit.tier,
+        instanceId: unit.instanceId,
+        position: unit.position,
+        hasBattled: unit.hasBattled,
       })),
       gold: state.gold,
       upgradeCosts: state.upgradeCosts.map((cost) => this.mapToUpgradeCostDto(cost)),
@@ -325,15 +331,19 @@ export class UpgradeController {
    */
   private mapToUpgradeResultDto(result: UpgradeResult): UpgradeResultDto {
     return {
-      upgradedCard: {
-        unitId: result.upgradedCard.unitId,
-        tier: result.upgradedCard.tier,
-        instanceId: result.upgradedCard.instanceId,
+      upgradedUnit: {
+        unitId: result.upgradedUnit.unitId,
+        tier: result.upgradedUnit.tier,
+        instanceId: result.upgradedUnit.instanceId,
+        position: result.upgradedUnit.position,
+        hasBattled: result.upgradedUnit.hasBattled,
       },
-      hand: result.hand.map((card) => ({
-        unitId: card.unitId,
-        tier: card.tier,
-        instanceId: card.instanceId,
+      field: result.field.map((unit) => ({
+        unitId: unit.unitId,
+        tier: unit.tier,
+        instanceId: unit.instanceId,
+        position: unit.position,
+        hasBattled: unit.hasBattled,
       })),
       gold: result.gold,
       goldSpent: result.goldSpent,

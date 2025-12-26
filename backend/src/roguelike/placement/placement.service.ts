@@ -168,12 +168,13 @@ export class PlacementService {
     const newHand = [...run.hand];
     newHand.splice(cardIndex, 1);
 
-    // Add to field
+    // Add to field with hasBattled = false (new units haven't fought yet)
     const fieldUnit: FieldUnit = {
       instanceId: card.instanceId,
       unitId: card.unitId,
       tier: card.tier,
       position,
+      hasBattled: false,
     };
     const newField = [...run.field, fieldUnit];
 
@@ -287,6 +288,7 @@ export class PlacementService {
   /**
    * Removes a unit from the field back to hand.
    * Refunds the unit's gold cost.
+   * Only units that have NOT participated in battle can be returned.
    *
    * @param runId - ID of the run
    * @param playerId - ID of the player (for access control)
@@ -295,7 +297,7 @@ export class PlacementService {
    * @throws RunNotFoundException if run doesn't exist
    * @throws RunAccessDeniedException if player doesn't own the run
    * @throws RunAlreadyCompletedException if run is already complete
-   * @throws BadRequestException if removal is invalid
+   * @throws BadRequestException if removal is invalid or unit has battled
    *
    * @example
    * const run = await placementService.removeFromField(
@@ -332,6 +334,18 @@ export class PlacementService {
     if (!fieldUnit) {
       this.logger.error('Field unit at index is undefined', { runId, unitIndex });
       throw new BadRequestException('Unit not found on field');
+    }
+
+    // Check if unit has participated in battle - cannot return to hand if so
+    if (fieldUnit.hasBattled) {
+      this.logger.warn('Cannot return battled unit to hand', {
+        runId,
+        instanceId,
+        unitId: fieldUnit.unitId,
+      });
+      throw new BadRequestException(
+        'Юнит уже участвовал в бою и не может быть возвращён в руку. Можно только переместить его на поле.',
+      );
     }
 
     // Get unit data for refund

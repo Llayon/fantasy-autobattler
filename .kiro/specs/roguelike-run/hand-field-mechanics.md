@@ -94,6 +94,31 @@ function repositionUnit(field: PlacedUnit[], fromIndex: number, newPosition: Pos
 - Units cannot be sold back for gold
 - Once placed, units stay on field
 - Can only reposition, not remove
+- **Exception**: Units that have NOT participated in battle can be returned to hand (with gold refund)
+- After battle, all units on field are marked as `hasBattled = true` and cannot be returned
+
+## Upgrade Mechanics
+
+### Upgrading Units on Field
+- Only units **placed on the field** can be upgraded
+- Units in hand cannot be upgraded
+- Upgrade costs gold based on unit's base cost:
+  - T1 → T2: 100% of base cost
+  - T2 → T3: 150% of base cost
+
+```typescript
+// Upgrade a unit on the field
+POST /api/runs/:id/shop/upgrade
+{ "cardInstanceId": "footman-1" }
+
+// Response
+{
+  "upgradedUnit": { "unitId": "footman", "tier": 2, "instanceId": "footman-1", "position": { "x": 0, "y": 0 }, "hasBattled": false },
+  "field": [...],
+  "gold": 22,
+  "goldSpent": 3
+}
+```
 
 ## UI Layout (Adapted from MVP)
 

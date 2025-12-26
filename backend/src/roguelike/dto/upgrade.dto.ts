@@ -9,21 +9,56 @@
 
 import { ApiProperty } from '@nestjs/swagger';
 import { IsString } from 'class-validator';
-import { DeckCardDto } from './run.dto';
 import { UnitTier } from '../types/unit.types';
+
+/**
+ * DTO for a unit on the deployment field.
+ */
+export class FieldUnitDto {
+  @ApiProperty({
+    description: 'Unit template ID',
+    example: 'footman',
+  })
+  unitId!: string;
+
+  @ApiProperty({
+    description: 'Unit tier (1-3)',
+    example: 1,
+    enum: [1, 2, 3],
+  })
+  tier!: UnitTier;
+
+  @ApiProperty({
+    description: 'Unique instance ID',
+    example: 'footman-1',
+  })
+  instanceId!: string;
+
+  @ApiProperty({
+    description: 'Position on deployment grid',
+    example: { x: 0, y: 0 },
+  })
+  position!: { x: number; y: number };
+
+  @ApiProperty({
+    description: 'Whether unit has participated in battle',
+    example: false,
+  })
+  hasBattled!: boolean;
+}
 
 /**
  * DTO for upgrade cost information.
  */
 export class UpgradeCostDto {
   @ApiProperty({
-    description: 'Card instance ID',
+    description: 'Unit instance ID',
     example: 'footman-1',
   })
   instanceId!: string;
 
   @ApiProperty({
-    description: 'Current tier of the card',
+    description: 'Current tier of the unit',
     example: 1,
     enum: [1, 2, 3],
   })
@@ -51,21 +86,22 @@ export class UpgradeCostDto {
 
 /**
  * DTO for shop state response.
- * Returns current hand with upgrade options.
+ * Returns current field units with upgrade options.
+ * Only units on the field can be upgraded.
  *
  * @example
  * const response: ShopStateDto = {
- *   hand: [...],
+ *   field: [...],
  *   gold: 25,
  *   upgradeCosts: [...],
  * };
  */
 export class ShopStateDto {
   @ApiProperty({
-    description: 'Current hand of cards',
-    type: [DeckCardDto],
+    description: 'Current units on deployment field',
+    type: [FieldUnitDto],
   })
-  hand!: DeckCardDto[];
+  field!: FieldUnitDto[];
 
   @ApiProperty({
     description: 'Current gold balance',
@@ -74,14 +110,14 @@ export class ShopStateDto {
   gold!: number;
 
   @ApiProperty({
-    description: 'Upgrade costs for each upgradeable card',
+    description: 'Upgrade costs for each upgradeable unit on field',
     type: [UpgradeCostDto],
   })
   upgradeCosts!: UpgradeCostDto[];
 }
 
 /**
- * DTO for upgrading a unit.
+ * DTO for upgrading a unit on the field.
  *
  * @example
  * const dto: UpgradeUnitDto = {
@@ -90,7 +126,7 @@ export class ShopStateDto {
  */
 export class UpgradeUnitDto {
   @ApiProperty({
-    description: 'Instance ID of the card to upgrade',
+    description: 'Instance ID of the unit on field to upgrade',
     example: 'footman-1',
   })
   @IsString({ message: 'Card instance ID must be a string' })
@@ -102,24 +138,24 @@ export class UpgradeUnitDto {
  *
  * @example
  * const response: UpgradeResultDto = {
- *   upgradedCard: { unitId: 'footman', tier: 2, instanceId: 'footman-1' },
- *   hand: [...],
+ *   upgradedUnit: { unitId: 'footman', tier: 2, instanceId: 'footman-1', position: { x: 0, y: 0 }, hasBattled: false },
+ *   field: [...],
  *   gold: 22,
  *   goldSpent: 3,
  * };
  */
 export class UpgradeResultDto {
   @ApiProperty({
-    description: 'The upgraded card',
-    type: DeckCardDto,
+    description: 'The upgraded unit',
+    type: FieldUnitDto,
   })
-  upgradedCard!: DeckCardDto;
+  upgradedUnit!: FieldUnitDto;
 
   @ApiProperty({
-    description: 'Updated hand after upgrade',
-    type: [DeckCardDto],
+    description: 'Updated field after upgrade',
+    type: [FieldUnitDto],
   })
-  hand!: DeckCardDto[];
+  field!: FieldUnitDto[];
 
   @ApiProperty({
     description: 'Remaining gold after upgrade',

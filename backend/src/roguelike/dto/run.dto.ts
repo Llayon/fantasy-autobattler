@@ -169,6 +169,12 @@ export class FieldUnitDto {
     example: { x: 0, y: 0 },
   })
   position!: { x: number; y: number };
+
+  @ApiProperty({
+    description: 'Whether unit has participated in a battle (cannot be returned to hand if true)',
+    example: false,
+  })
+  hasBattled!: boolean;
 }
 
 /**

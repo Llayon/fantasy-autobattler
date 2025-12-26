@@ -309,6 +309,7 @@ export class RunController {
         unitId: unit.unitId,
         tier: unit.tier,
         position: unit.position,
+        hasBattled: unit.hasBattled ?? false,
       })),
       spells: run.spells.map((spell) => {
         const dto: SpellCardDto = { spellId: spell.spellId };

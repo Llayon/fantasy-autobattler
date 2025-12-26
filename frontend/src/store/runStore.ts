@@ -108,6 +108,8 @@ export interface FieldUnit {
   tier: 1 | 2 | 3;
   /** Position on field (x: 0-7, y: 0-1) */
   position: { x: number; y: number };
+  /** Whether unit has participated in battle (cannot be returned to hand if true) */
+  hasBattled: boolean;
 }
 
 /**

@@ -359,6 +359,12 @@ export class RunService {
       timestamp: new Date().toISOString(),
     };
 
+    // Mark all units on field as having battled (cannot be returned to hand)
+    const updatedField = run.field.map((unit) => ({
+      ...unit,
+      hasBattled: true,
+    }));
+
     return this.updateRunState(runId, playerId, {
       wins: newWins,
       consecutiveWins: newConsecutiveWins,
@@ -367,6 +373,7 @@ export class RunService {
       battleHistory: [...run.battleHistory, battleEntry],
       status: newStatus,
       rating: run.rating + ratingChange,
+      field: updatedField,
     });
   }
 
@@ -423,6 +430,12 @@ export class RunService {
       timestamp: new Date().toISOString(),
     };
 
+    // Mark all units on field as having battled (cannot be returned to hand)
+    const updatedField = run.field.map((unit) => ({
+      ...unit,
+      hasBattled: true,
+    }));
+
     return this.updateRunState(runId, playerId, {
       losses: newLosses,
       consecutiveLosses: newConsecutiveLosses,
@@ -431,6 +444,7 @@ export class RunService {
       battleHistory: [...run.battleHistory, battleEntry],
       status: newStatus,
       rating: run.rating + ratingChange,
+      field: updatedField,
     });
   }
 

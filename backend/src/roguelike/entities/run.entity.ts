@@ -34,6 +34,8 @@ export interface FieldUnit {
   tier: 1 | 2 | 3;
   /** Position on deployment grid (x: 0-7, y: 0-1) */
   position: { x: number; y: number };
+  /** Whether this unit has participated in a battle (cannot be returned to hand if true) */
+  hasBattled: boolean;
 }
 
 /**

@@ -875,6 +875,8 @@ export interface RoguelikeFieldUnit {
   unitId: string;
   tier: 1 | 2 | 3;
   position: { x: number; y: number };
+  /** Whether unit has participated in battle (cannot be returned to hand if true) */
+  hasBattled: boolean;
 }
 
 /**
