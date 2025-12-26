@@ -50,8 +50,8 @@ export interface BattleHistoryEntry {
     faction: string;
     rating: number;
   };
-  /** Timestamp */
-  timestamp: Date;
+  /** Timestamp (ISO string) */
+  timestamp: string;
 }
 
 /**
@@ -246,6 +246,18 @@ export const useRunStore = create<RunStore>((set, get) => ({
     
     try {
       const run = await api.getActiveRoguelikeRun();
+      
+      // Backend returns null if no active run
+      if (!run) {
+        set({ 
+          currentRun: null, 
+          loading: false, 
+          runLoaded: true,
+          error: null 
+        });
+        return;
+      }
+      
       set({ 
         currentRun: run, 
         loading: false, 

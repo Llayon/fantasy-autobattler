@@ -191,8 +191,9 @@ export class DraftService {
   /**
    * Submits draft picks and updates run state.
    *
-   * Validates picks are from available options, adds to hand,
-   * and removes all shown options from remaining deck.
+   * Validates picks are from available options, adds picked cards to hand,
+   * and returns unpicked cards to the end of the deck.
+   * All 12 cards will eventually reach the player's hand.
    *
    * @param runId - ID of the run
    * @param playerId - ID of the player (for access control)
@@ -270,12 +271,19 @@ export class DraftService {
       return card;
     });
 
+    // Find unpicked cards from shown options
+    const pickedIds = new Set(picks);
+    const unpickedCards = availableOptions.filter((c) => !pickedIds.has(c.instanceId));
+
     // Update hand (add picked cards)
     const newHand = [...run.hand, ...pickedCards];
 
-    // Update remaining deck (remove all shown options, not just picked)
+    // Update remaining deck:
+    // 1. Remove all shown options from the front
+    // 2. Add unpicked cards to the end (they go back to deck)
     const shownOptionIds = new Set(availableOptions.map((c) => c.instanceId));
-    const newRemainingDeck = run.remainingDeck.filter((c) => !shownOptionIds.has(c.instanceId));
+    const deckWithoutShown = run.remainingDeck.filter((c) => !shownOptionIds.has(c.instanceId));
+    const newRemainingDeck = [...deckWithoutShown, ...unpickedCards];
 
     // Save updated run
     run.hand = newHand;
@@ -286,6 +294,7 @@ export class DraftService {
       runId,
       playerId,
       pickedCount: pickedCards.length,
+      unpickedCount: unpickedCards.length,
       newHandSize: newHand.length,
       remainingDeckSize: newRemainingDeck.length,
     });

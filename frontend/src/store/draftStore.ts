@@ -190,7 +190,7 @@ export const useDraftStore = create<DraftStore>((set, get) => ({
         error: null 
       });
     } catch (error) {
-      // 404 means no draft available
+      // 404 means no draft available (deck empty or draft already done)
       if (error instanceof ApiError && error.status === 404) {
         set({ 
           options: [],
@@ -202,11 +202,19 @@ export const useDraftStore = create<DraftStore>((set, get) => ({
         return;
       }
       
+      // Network errors or other issues - show error but don't redirect
       const errorMessage = error instanceof ApiError 
         ? error.message 
-        : 'Не удалось загрузить драфт';
+        : error instanceof Error
+          ? `Ошибка сети: ${error.message}`
+          : 'Не удалось загрузить драфт';
       
-      set({ error: errorMessage, loading: false });
+      set({ 
+        error: errorMessage, 
+        loading: false,
+        // Keep isDraftAvailable as undefined/previous state on network errors
+        // so we don't incorrectly redirect
+      });
     }
   },
 

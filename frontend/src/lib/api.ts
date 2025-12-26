@@ -575,13 +575,13 @@ export const api = {
   /**
    * Get active roguelike run for current player.
    * 
-   * @returns Active run or throws 404 if none
-   * @throws ApiError if no active run or unauthorized
+   * @returns Active run or null if none
+   * @throws ApiError if unauthorized
    * @example
    * const run = await api.getActiveRoguelikeRun();
    */
-  async getActiveRoguelikeRun(): Promise<RoguelikeRun> {
-    return fetchApi<RoguelikeRun>('/runs/active');
+  async getActiveRoguelikeRun(): Promise<RoguelikeRun | null> {
+    return fetchApi<RoguelikeRun | null>('/runs/active');
   },
 
   /**
@@ -674,8 +674,8 @@ export const api = {
    * @example
    * const { available } = await api.getRoguelikeDraftStatus('run-123');
    */
-  async getRoguelikeDraftStatus(runId: string): Promise<{ available: boolean; type?: 'initial' | 'post-battle' }> {
-    return fetchApi<{ available: boolean; type?: 'initial' | 'post-battle' }>(`/runs/${runId}/draft/status`);
+  async getRoguelikeDraftStatus(runId: string): Promise<{ available: boolean; isInitial?: boolean; reason?: string }> {
+    return fetchApi<{ available: boolean; isInitial?: boolean; reason?: string }>(`/runs/${runId}/draft/status`);
   },
 
   /**
@@ -718,7 +718,7 @@ export const api = {
    * const opponent = await api.findRoguelikeOpponent('run-123');
    */
   async findRoguelikeOpponent(runId: string): Promise<RoguelikeOpponent> {
-    return fetchApi<RoguelikeOpponent>(`/runs/${runId}/battle/find`, {
+    return fetchApi<RoguelikeOpponent>(`/roguelike/battle/${runId}/find`, {
       method: 'POST',
     });
   },
@@ -739,7 +739,7 @@ export const api = {
     team: RoguelikePlacedUnit[], 
     spellTimings: RoguelikeSpellTiming[]
   ): Promise<RoguelikeBattleResult> {
-    return fetchApi<RoguelikeBattleResult>(`/runs/${runId}/battle`, {
+    return fetchApi<RoguelikeBattleResult>(`/roguelike/battle/${runId}`, {
       method: 'POST',
       body: JSON.stringify({ team, spellTimings }),
     });
@@ -825,7 +825,7 @@ export interface RoguelikeBattleHistoryEntry {
     faction: string;
     rating: number;
   };
-  timestamp: Date;
+  timestamp: string;
 }
 
 /**
@@ -909,16 +909,16 @@ export interface RoguelikeUpgradeResult {
  * Opponent snapshot for battle.
  */
 export interface RoguelikeOpponent {
-  snapshotId: string;
-  playerId: string;
-  playerName: string;
-  faction: string;
-  leaderId: string;
-  wins: number;
-  rating: number;
-  team: RoguelikePlacedUnit[];
-  spellTimings: RoguelikeSpellTiming[];
-  isBot: boolean;
+  opponent: {
+    id: string;
+    playerId: string;
+    wins: number;
+    rating: number;
+    faction: string;
+    leaderId: string;
+    isBot: boolean;
+  };
+  difficulty: 'easy' | 'medium' | 'hard';
 }
 
 /**
@@ -944,13 +944,14 @@ export interface RoguelikeSpellTiming {
  */
 export interface RoguelikeBattleResult {
   battleId: string;
-  result: 'win' | 'loss';
+  result: 'win' | 'lose';
   goldEarned: number;
   newGold: number;
   wins: number;
   losses: number;
-  rating: number;
+  newRating: number;
   ratingChange: number;
+  runComplete: boolean;
   runStatus: 'active' | 'won' | 'lost';
 }
 

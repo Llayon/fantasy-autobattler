@@ -513,6 +513,7 @@ export function SynergyIndicator({
 
   /**
    * Detect newly activated synergies and highlight them.
+   * Uses ref to track previous synergies to avoid infinite loop.
    */
   useEffect(() => {
     if (!showHighlight) return;
@@ -527,7 +528,7 @@ export function SynergyIndicator({
       }
     });
 
-    // Update highlighted synergies
+    // Update highlighted synergies if there are new ones
     if (newIds.size > 0) {
       setHighlightedIds(newIds);
       
@@ -536,13 +537,25 @@ export function SynergyIndicator({
         setHighlightedIds(new Set());
       }, 2000);
 
+      // Update previous synergies only when we have new ones
+      setPreviousSynergyIds(currentIds);
+
       return () => clearTimeout(timer);
     }
 
-    // Update previous synergies
-    setPreviousSynergyIds(currentIds);
+    // Update previous synergies only if the set actually changed
+    // Compare by converting to sorted arrays
+    const prevArray = Array.from(previousSynergyIds).sort();
+    const currArray = Array.from(currentIds).sort();
+    const setsAreEqual = prevArray.length === currArray.length && 
+      prevArray.every((id, i) => id === currArray[i]);
+    
+    if (!setsAreEqual) {
+      setPreviousSynergyIds(currentIds);
+    }
+
     return undefined;
-  }, [activeSynergies, previousSynergyIds, showHighlight]);
+  }, [activeSynergies, showHighlight]); // Removed previousSynergyIds from deps to prevent infinite loop
 
   // Empty state
   if (activeSynergies.length === 0) {

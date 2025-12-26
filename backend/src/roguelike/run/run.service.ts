@@ -126,6 +126,13 @@ export class RunService {
     // Expand starter deck into individual cards
     const deck: DeckCard[] = expandStarterDeck(starterDeck);
 
+    this.logger.debug('Expanded starter deck', {
+      playerId,
+      faction,
+      deckSize: deck.length,
+      cards: deck.map((c) => c.instanceId),
+    });
+
     // Initialize spells from leader (timing will be selected before battle)
     const spells: SpellCard[] = leader.spellIds.map((spellId) => ({
       spellId,
@@ -158,6 +165,7 @@ export class RunService {
       faction,
       leaderId,
       deckSize: deck.length,
+      remainingDeckSize: savedRun.remainingDeck.length,
     });
 
     return savedRun;
@@ -307,6 +315,7 @@ export class RunService {
    * @param goldEarned - Gold earned from the battle
    * @param battleId - ID of the battle log
    * @param ratingChange - Rating change from the battle
+   * @param opponent - Opponent information for history
    * @returns Updated run entity
    *
    * @example
@@ -315,7 +324,8 @@ export class RunService {
    *   'player-uuid',
    *   7,
    *   'battle-uuid',
-   *   15
+   *   15,
+   *   { name: 'Bot', faction: 'humans', rating: 1000 }
    * );
    */
   async recordWin(
@@ -324,6 +334,7 @@ export class RunService {
     goldEarned: number,
     battleId: string,
     ratingChange: number,
+    opponent: { name: string; faction: string; rating: number } = { name: 'Unknown', faction: 'unknown', rating: 1000 },
   ): Promise<RoguelikeRunEntity> {
     this.logger.log('Recording win', { runId, playerId, goldEarned, battleId });
 
@@ -337,12 +348,21 @@ export class RunService {
     const newConsecutiveWins = run.consecutiveWins + 1;
     const newStatus = newWins >= RUN_CONSTANTS.MAX_WINS ? 'won' : 'active';
 
+    // Create battle history entry with full information
+    const battleEntry = {
+      battleId,
+      result: 'win' as const,
+      goldEarned,
+      opponent,
+      timestamp: new Date().toISOString(),
+    };
+
     return this.updateRunState(runId, playerId, {
       wins: newWins,
       consecutiveWins: newConsecutiveWins,
       consecutiveLosses: 0,
       gold: run.gold + goldEarned,
-      battleHistory: [...run.battleHistory, battleId],
+      battleHistory: [...run.battleHistory, battleEntry],
       status: newStatus,
       rating: run.rating + ratingChange,
     });
@@ -359,6 +379,7 @@ export class RunService {
    * @param goldEarned - Gold earned from the battle (catch-up mechanic)
    * @param battleId - ID of the battle log
    * @param ratingChange - Rating change from the battle
+   * @param opponent - Opponent information for history
    * @returns Updated run entity
    *
    * @example
@@ -367,7 +388,8 @@ export class RunService {
    *   'player-uuid',
    *   9,
    *   'battle-uuid',
-   *   -10
+   *   -10,
+   *   { name: 'Bot', faction: 'humans', rating: 1000 }
    * );
    */
   async recordLoss(
@@ -376,6 +398,7 @@ export class RunService {
     goldEarned: number,
     battleId: string,
     ratingChange: number,
+    opponent: { name: string; faction: string; rating: number } = { name: 'Unknown', faction: 'unknown', rating: 1000 },
   ): Promise<RoguelikeRunEntity> {
     this.logger.log('Recording loss', { runId, playerId, goldEarned, battleId });
 
@@ -389,12 +412,21 @@ export class RunService {
     const newConsecutiveLosses = run.consecutiveLosses + 1;
     const newStatus = newLosses >= RUN_CONSTANTS.MAX_LOSSES ? 'lost' : 'active';
 
+    // Create battle history entry with full information
+    const battleEntry = {
+      battleId,
+      result: 'loss' as const,
+      goldEarned,
+      opponent,
+      timestamp: new Date().toISOString(),
+    };
+
     return this.updateRunState(runId, playerId, {
       losses: newLosses,
       consecutiveLosses: newConsecutiveLosses,
       consecutiveWins: 0,
       gold: run.gold + goldEarned,
-      battleHistory: [...run.battleHistory, battleId],
+      battleHistory: [...run.battleHistory, battleEntry],
       status: newStatus,
       rating: run.rating + ratingChange,
     });

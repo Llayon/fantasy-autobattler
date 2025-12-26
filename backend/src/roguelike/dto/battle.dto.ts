@@ -7,7 +7,7 @@
  * @module roguelike/dto/battle
  */
 
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsArray,
   IsString,
@@ -18,6 +18,7 @@ import {
   Max,
   ArrayMinSize,
   ArrayMaxSize,
+  IsOptional,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { SpellTiming } from '../types/leader.types';
@@ -60,6 +61,25 @@ export class PlacedUnitDto {
   })
   @IsString({ message: 'Instance ID must be a string' })
   instanceId!: string;
+
+  @ApiPropertyOptional({
+    description: 'Unit ID (optional, resolved from hand)',
+    example: 'footman',
+  })
+  @IsOptional()
+  @IsString({ message: 'Unit ID must be a string' })
+  unitId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Unit tier (optional, resolved from hand)',
+    example: 1,
+    enum: [1, 2, 3],
+  })
+  @IsOptional()
+  @IsInt({ message: 'Tier must be an integer' })
+  @Min(1, { message: 'Tier must be at least 1' })
+  @Max(3, { message: 'Tier must be at most 3' })
+  tier?: 1 | 2 | 3;
 
   @ApiProperty({
     description: 'Position on deployment grid',
@@ -190,6 +210,7 @@ export class SubmitBattleDto {
     type: [SpellTimingDto],
   })
   @IsArray({ message: 'Spell timings must be an array' })
+  @ArrayMinSize(0, { message: 'Spell timings array is required' })
   @ValidateNested({ each: true })
   @Type(() => SpellTimingDto)
   spellTimings!: SpellTimingDto[];

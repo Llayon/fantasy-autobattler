@@ -170,7 +170,24 @@ describe('DraftService', () => {
       const result = await service.submitPicks(mockRunId, mockPlayerId, picks);
 
       expect(result.handSize).toBe(3);
-      expect(result.deckRemaining).toBe(7); // 12 - 5 (all shown options removed)
+      // 12 - 3 picked = 9 remaining (unpicked cards return to deck)
+      expect(result.deckRemaining).toBe(9);
+    });
+
+    test('should return unpicked cards to end of deck', async () => {
+      const remainingDeck = createMockDeckCards(12);
+      const mockRun = createMockRun({ remainingDeck, hand: [] });
+      repository.findOne.mockResolvedValue(mockRun);
+      repository.save.mockImplementation((run) => Promise.resolve(run));
+
+      // Pick cards 0, 1, 2 from options 0-4
+      const picks = remainingDeck.slice(0, 3).map((c) => c.instanceId);
+      const result = await service.submitPicks(mockRunId, mockPlayerId, picks);
+
+      // Unpicked cards (3, 4) should be at the end of remaining deck
+      const lastTwoCards = result.remainingDeck.slice(-2);
+      expect(lastTwoCards[0]?.instanceId).toBe(remainingDeck[3]?.instanceId);
+      expect(lastTwoCards[1]?.instanceId).toBe(remainingDeck[4]?.instanceId);
     });
 
     test('should add picked card to hand for post-battle draft', async () => {
@@ -187,7 +204,8 @@ describe('DraftService', () => {
       const result = await service.submitPicks(mockRunId, mockPlayerId, picks);
 
       expect(result.handSize).toBe(4);
-      expect(result.deckRemaining).toBe(6); // 9 - 3 (all shown options removed)
+      // 9 - 1 picked = 8 remaining (2 unpicked return to deck)
+      expect(result.deckRemaining).toBe(8);
     });
 
     test('should throw InvalidDraftPickException for wrong pick count', async () => {
@@ -226,6 +244,40 @@ describe('DraftService', () => {
       await expect(
         service.submitPicks(mockRunId, mockPlayerId, ['unit-0-1', 'unit-1-1', 'unit-2-1']),
       ).rejects.toThrow(RunAlreadyCompletedException);
+    });
+
+    test('should eventually get all 12 cards to hand after full draft cycle', async () => {
+      // Simulate full draft cycle: initial (3 from 5) + 9 post-battle (1 from 3 each)
+      const remainingDeck = createMockDeckCards(12);
+      let currentHand: DeckCard[] = [];
+      let currentDeck = [...remainingDeck];
+
+      // Initial draft: pick 3 from 5
+      const mockRun1 = createMockRun({ remainingDeck: currentDeck, hand: currentHand });
+      repository.findOne.mockResolvedValue(mockRun1);
+      repository.save.mockImplementation((run) => {
+        currentHand = run.hand;
+        currentDeck = run.remainingDeck;
+        return Promise.resolve(run);
+      });
+
+      const initialPicks = currentDeck.slice(0, 3).map((c) => c.instanceId);
+      await service.submitPicks(mockRunId, mockPlayerId, initialPicks);
+      expect(currentHand.length).toBe(3);
+      expect(currentDeck.length).toBe(9);
+
+      // 9 post-battle drafts: pick 1 from 3 each
+      for (let i = 0; i < 9; i++) {
+        const mockRun = createMockRun({ remainingDeck: currentDeck, hand: currentHand });
+        repository.findOne.mockResolvedValue(mockRun);
+
+        const postBattlePicks = [currentDeck[0]?.instanceId ?? ''];
+        await service.submitPicks(mockRunId, mockPlayerId, postBattlePicks);
+      }
+
+      // All 12 cards should be in hand
+      expect(currentHand.length).toBe(12);
+      expect(currentDeck.length).toBe(0);
     });
   });
 

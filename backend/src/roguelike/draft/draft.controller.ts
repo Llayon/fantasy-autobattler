@@ -17,6 +17,7 @@ import {
   Req,
   HttpCode,
   HttpStatus,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -31,6 +32,7 @@ import { GuestGuard } from '../../auth/guest.guard';
 import { DraftOptionsDto, SubmitDraftDto, DraftResultDto } from '../dto/draft.dto';
 import { RunIdParamDto } from '../dto/run.dto';
 import { ErrorResponseDto } from '../../common/dto/api-response.dto';
+import { getRoguelikeUnit } from '../data/units.helpers';
 
 /**
  * Authenticated request interface with player information.
@@ -62,6 +64,52 @@ interface AuthenticatedRequest extends Request {
 @UseGuards(GuestGuard)
 export class DraftController {
   constructor(private readonly draftService: DraftService) {}
+
+  /**
+   * Gets draft options (auto-detects initial or post-battle).
+   *
+   * @param req - Authenticated request with player info
+   * @param params - Path parameters with run ID
+   * @returns Draft options
+   */
+  @Get()
+  @ApiOperation({
+    summary: 'Get draft options',
+    description:
+      'Returns draft options. Automatically detects if initial (5 cards, pick 3) ' +
+      'or post-battle (3 cards, pick 1) based on run state.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Run identifier (UUID)',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Draft options retrieved successfully',
+    type: DraftOptionsDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Draft not available or run not found',
+    type: ErrorResponseDto,
+  })
+  async getDraft(
+    @Req() req: AuthenticatedRequest,
+    @Param() params: RunIdParamDto,
+  ): Promise<DraftOptionsDto> {
+    const status = await this.draftService.isDraftAvailable(params.id, req.player.id);
+    
+    if (!status.available) {
+      throw new NotFoundException('Draft not available');
+    }
+    
+    const options = status.isInitial
+      ? await this.draftService.getInitialDraft(params.id, req.player.id)
+      : await this.draftService.getPostBattleDraft(params.id, req.player.id);
+    
+    return this.mapToOptionsDto(options);
+  }
 
   /**
    * Gets initial draft options (5 cards, pick 3).
@@ -273,11 +321,30 @@ export class DraftController {
    */
   private mapToOptionsDto(options: DraftOptions): DraftOptionsDto {
     return {
-      cards: options.cards.map((card) => ({
-        unitId: card.unitId,
-        tier: card.tier,
-        instanceId: card.instanceId,
-      })),
+      cards: options.cards.map((card) => {
+        const unit = getRoguelikeUnit(card.unitId);
+        return {
+          unitId: card.unitId,
+          tier: card.tier,
+          instanceId: card.instanceId,
+          // Enriched unit data
+          name: unit?.name ?? card.unitId,
+          nameRu: unit?.nameRu ?? card.unitId,
+          role: unit?.role ?? 'tank',
+          cost: unit?.cost ?? 3,
+          stats: {
+            hp: unit?.hp ?? 100,
+            atk: unit?.atk ?? 10,
+            armor: unit?.armor ?? 0,
+            speed: unit?.speed ?? 2,
+            initiative: unit?.initiative ?? 10,
+            range: unit?.range ?? 1,
+            attackCount: unit?.attackCount ?? 1,
+            dodge: unit?.dodge ?? 0,
+          },
+          abilityId: unit?.abilityId,
+        };
+      }),
       isInitial: options.isInitial,
       requiredPicks: options.requiredPicks,
       remainingInDeck: options.remainingInDeck,

@@ -11,6 +11,9 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+// Auth module for GuestGuard
+import { AuthModule } from '../auth/auth.module';
+
 // Entities
 import { RoguelikeRunEntity } from './entities/run.entity';
 import { RoguelikeSnapshotEntity } from './entities/snapshot.entity';
@@ -26,6 +29,8 @@ import { MatchmakingService } from './matchmaking/matchmaking.service';
 import { RunController } from './run/run.controller';
 import { DraftController } from './draft/draft.controller';
 import { UpgradeController } from './upgrade/upgrade.controller';
+import { DataController } from './data/data.controller';
+import { BattleController } from './battle/battle.controller';
 
 /**
  * RoguelikeModule provides all roguelike run mode functionality.
@@ -50,11 +55,14 @@ import { UpgradeController } from './upgrade/upgrade.controller';
 @Module({
   imports: [
     TypeOrmModule.forFeature([RoguelikeRunEntity, RoguelikeSnapshotEntity]),
+    AuthModule,
   ],
   controllers: [
     RunController,
     DraftController,
     UpgradeController,
+    DataController,
+    BattleController,
   ],
   providers: [
     RunService,

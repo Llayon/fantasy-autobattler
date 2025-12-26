@@ -30,6 +30,26 @@ import { SpellTiming } from '../types/leader.types';
 export type RunStatus = 'active' | 'won' | 'lost';
 
 /**
+ * Battle history entry with full battle information.
+ */
+export interface BattleHistoryEntry {
+  /** Battle log ID */
+  battleId: string;
+  /** Battle result */
+  result: 'win' | 'loss';
+  /** Gold earned from this battle */
+  goldEarned: number;
+  /** Opponent information */
+  opponent: {
+    name: string;
+    faction: string;
+    rating: number;
+  };
+  /** Battle timestamp */
+  timestamp: string;
+}
+
+/**
  * Spell card with player-selected timing.
  */
 export interface SpellCard {
@@ -162,10 +182,10 @@ export class RoguelikeRunEntity {
   gold!: number;
 
   /**
-   * Battle log IDs for this run's history.
+   * Battle history with full information about each battle.
    */
   @Column({ type: 'json', default: [] })
-  battleHistory!: string[];
+  battleHistory!: BattleHistoryEntry[];
 
   /**
    * Current run status.

@@ -137,21 +137,39 @@ export default function ResultPage() {
   // Calculate stats from run
   const result: RunResult = currentRun?.status === 'won' ? 'victory' : 'defeat';
 
+  // Calculate total gold earned from battle history
+  // Handle both old format (string[]) and new format (BattleHistoryEntry[])
+  const calculateTotalGold = (): number => {
+    if (!currentRun?.battleHistory || currentRun.battleHistory.length === 0) {
+      return 0;
+    }
+    // Check if first entry is an object (new format) or string (old format)
+    const firstEntry = currentRun.battleHistory[0];
+    if (typeof firstEntry === 'string') {
+      // Old format - can't calculate, return current gold minus starting gold
+      return Math.max(0, (currentRun?.gold ?? 0) - 10);
+    }
+    // New format - sum goldEarned from all entries
+    return currentRun.battleHistory.reduce((sum, b) => sum + (b.goldEarned ?? 0), 0);
+  };
+
   const stats: RunStats = {
     wins: currentRun?.wins ?? 0,
     losses: currentRun?.losses ?? 0,
-    totalGoldEarned: currentRun?.battleHistory?.reduce((sum, b) => sum + b.goldEarned, 0) ?? 0,
+    totalGoldEarned: calculateTotalGold(),
     totalGoldSpent: 0, // TODO: Track gold spent on upgrades
     finalGold: currentRun?.gold ?? 0,
     unitsUpgraded: 0, // TODO: Track upgrades
     longestStreak: currentRun?.consecutiveWins ?? 0,
     battleHistory:
-      currentRun?.battleHistory?.map(b => ({
-        battleId: b.battleId,
-        won: b.result === 'win',
-        goldEarned: b.goldEarned,
-        opponentName: b.opponent?.name,
-      })) ?? [],
+      currentRun?.battleHistory
+        ?.filter((b): b is typeof b & { battleId: string } => typeof b !== 'string')
+        ?.map(b => ({
+          battleId: b.battleId,
+          won: b.result === 'win',
+          goldEarned: b.goldEarned ?? 0,
+          opponentName: b.opponent?.name,
+        })) ?? [],
   };
 
   // Rating change (if available)

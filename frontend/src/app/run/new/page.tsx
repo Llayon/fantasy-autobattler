@@ -84,17 +84,19 @@ export default function NewRunPage() {
   const labels = useRussian ? LABELS.ru : LABELS.en;
 
   // Store state
-  const { currentRun, loading: runLoading, error: runError, createRun, loadActiveRun } = useRunStore();
+  const { currentRun, loading: runLoading, error: runError, createRun, loadActiveRun, clearError, runLoaded } = useRunStore();
   const { initPlayer } = usePlayerStore();
 
   // Initialize player and check for active run
   useEffect(() => {
     const init = async () => {
+      // Clear any previous errors before checking for active run
+      clearError();
       await initPlayer();
       await loadActiveRun();
     };
     init();
-  }, [initPlayer, loadActiveRun]);
+  }, [initPlayer, loadActiveRun, clearError]);
 
   // Load factions on mount
   useEffect(() => {
@@ -201,15 +203,27 @@ export default function NewRunPage() {
     }
   }, [selectedFaction, selectedLeader, createRun, router]);
 
-  // Handle navigation to active run
-  const handleGoToActiveRun = useCallback(() => {
-    if (currentRun) {
-      router.push(`/run/${currentRun.id}/draft`);
+  // Handle navigation to active run - determine correct page based on run state
+  const handleGoToActiveRun = useCallback(async () => {
+    if (!currentRun) return;
+    
+    // Check if draft is available
+    try {
+      const draftStatus = await api.getRoguelikeDraftStatus(currentRun.id);
+      if (draftStatus.available) {
+        router.push(`/run/${currentRun.id}/draft`);
+      } else {
+        // No draft available - go to battle
+        router.push(`/run/${currentRun.id}/battle`);
+      }
+    } catch {
+      // If draft status check fails, default to battle
+      router.push(`/run/${currentRun.id}/battle`);
     }
   }, [currentRun, router]);
 
-  // Loading state
-  if (loadingFactions) {
+  // Loading state - wait for both factions and run check
+  if (loadingFactions || !runLoaded) {
     return <FullPageLoader message={labels.loadingFactions} icon="🎮" />;
   }
 

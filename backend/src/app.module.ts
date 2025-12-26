@@ -12,6 +12,8 @@ import { Player } from './entities/player.entity';
 import { BattleLog } from './entities/battle-log.entity';
 import { Team } from './entities/team.entity';
 import { MatchmakingQueue } from './entities/matchmaking-queue.entity';
+import { RoguelikeRunEntity } from './roguelike/entities/run.entity';
+import { RoguelikeSnapshotEntity } from './roguelike/entities/snapshot.entity';
 
 @Module({
   imports: [
@@ -22,7 +24,7 @@ import { MatchmakingQueue } from './entities/matchmaking-queue.entity';
       username: 'postgres',
       password: 'postgres',
       database: 'autobattler',
-      entities: [Player, BattleLog, Team, MatchmakingQueue],
+      entities: [Player, BattleLog, Team, MatchmakingQueue, RoguelikeRunEntity, RoguelikeSnapshotEntity],
       synchronize: true, // Auto-create tables (dev only)
     }),
     AuthModule,

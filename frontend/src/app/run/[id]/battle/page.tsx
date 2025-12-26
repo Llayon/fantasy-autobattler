@@ -16,7 +16,7 @@ import { RunStatusBar, SpellTimingPanel } from '@/components/roguelike';
 import type { SpellTimingConfig, SpellTiming, SpellTimingInfo } from '@/components/roguelike';
 import { useRunStore } from '@/store/runStore';
 import { usePlayerStore } from '@/store/playerStore';
-import { api, RoguelikeOpponent, RoguelikePlacedUnit, RoguelikeSpellTiming } from '@/lib/api';
+import { api, RoguelikePlacedUnit, RoguelikeSpellTiming } from '@/lib/api';
 
 // =============================================================================
 // TYPES
@@ -29,6 +29,29 @@ interface PlacedUnit {
   unitId: string;
   tier: 1 | 2 | 3;
   position: { x: number; y: number };
+}
+
+interface OpponentDisplay {
+  id: string;
+  playerId: string;
+  playerName: string;
+  faction: string;
+  leaderId: string;
+  wins: number;
+  rating: number;
+  isBot: boolean;
+}
+
+interface BattleResultDisplay {
+  result: 'win' | 'lose';
+  goldEarned: number;
+  newGold: number;
+  wins: number;
+  losses: number;
+  ratingChange: number;
+  newRating: number;
+  runComplete: boolean;
+  runStatus: 'active' | 'won' | 'lost';
 }
 
 // =============================================================================
@@ -101,7 +124,8 @@ export default function BattlePage() {
   const [placedUnits, setPlacedUnits] = useState<PlacedUnit[]>([]);
   const [spellInfos, setSpellInfos] = useState<SpellTimingInfo[]>([]);
   const [spellTimings, setSpellTimings] = useState<SpellTimingConfig[]>([]);
-  const [opponent, setOpponent] = useState<RoguelikeOpponent | null>(null);
+  const [opponent, setOpponent] = useState<OpponentDisplay | null>(null);
+  const [battleResult, setBattleResult] = useState<BattleResultDisplay | null>(null);
   const [battleLoading, setBattleLoading] = useState(false);
   const [battleError, setBattleError] = useState<string | null>(null);
 
@@ -174,7 +198,20 @@ export default function BattlePage() {
     setBattleError(null);
 
     try {
-      const opp = await api.findRoguelikeOpponent(runId);
+      const response = await api.findRoguelikeOpponent(runId);
+      // Map response to display format
+      const opp: OpponentDisplay = {
+        id: response.opponent.id,
+        playerId: response.opponent.playerId,
+        playerName: response.opponent.isBot 
+          ? `Bot_${response.opponent.id.slice(-4)}` 
+          : `Player_${response.opponent.playerId.slice(0, 8)}`,
+        faction: response.opponent.faction,
+        leaderId: response.opponent.leaderId,
+        wins: response.opponent.wins,
+        rating: response.opponent.rating,
+        isBot: response.opponent.isBot,
+      };
       setOpponent(opp);
       setStep('battle');
     } catch (err) {
@@ -205,14 +242,19 @@ export default function BattlePage() {
 
       const result = await api.submitRoguelikeBattle(runId, team, timings);
 
-      // Navigate based on result
-      if (result.runStatus === 'active') {
-        // Continue run - go to shop or draft
-        router.push(`/run/${runId}/shop`);
-      } else {
-        // Run ended - go to results
-        router.push(`/run/${runId}/result`);
-      }
+      // Show battle result screen
+      setBattleResult({
+        result: result.result,
+        goldEarned: result.goldEarned,
+        newGold: result.newGold,
+        wins: result.wins,
+        losses: result.losses,
+        ratingChange: result.ratingChange,
+        newRating: result.newRating,
+        runComplete: result.runComplete,
+        runStatus: result.runStatus,
+      });
+      setStep('result');
     } catch (err) {
       setBattleError('Не удалось провести бой');
     } finally {
@@ -241,6 +283,19 @@ export default function BattlePage() {
   const handleBackToMenu = useCallback(() => {
     router.push('/');
   }, [router]);
+
+  // Handle continue after battle result
+  const handleContinueAfterBattle = useCallback(() => {
+    if (!battleResult) return;
+    
+    if (battleResult.runStatus === 'active') {
+      // Continue run - go to shop
+      router.push(`/run/${runId}/shop`);
+    } else {
+      // Run ended - go to results
+      router.push(`/run/${runId}/result`);
+    }
+  }, [battleResult, runId, router]);
 
   // Loading state
   if (runLoading) {
@@ -468,6 +523,88 @@ export default function BattlePage() {
                   {battleLoading ? 'Бой...' : labels.startBattle}
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* Step: Result */}
+          {step === 'result' && battleResult && (
+            <div className="text-center">
+              {/* Result icon and title */}
+              <div className="text-8xl mb-4">
+                {battleResult.result === 'win' ? '🏆' : '💀'}
+              </div>
+              <h2 className={`text-3xl font-bold mb-2 ${
+                battleResult.result === 'win' ? 'text-green-400' : 'text-red-400'
+              }`}>
+                {battleResult.result === 'win' ? 'Победа!' : 'Поражение'}
+              </h2>
+
+              {/* Stats card */}
+              <div className="bg-gray-800/50 rounded-xl p-6 mb-6 max-w-md mx-auto">
+                {/* Gold earned */}
+                <div className="flex items-center justify-between py-3 border-b border-gray-700">
+                  <span className="text-gray-400">Золото заработано:</span>
+                  <span className="text-2xl font-bold text-yellow-400">
+                    +{battleResult.goldEarned} 🪙
+                  </span>
+                </div>
+
+                {/* New gold total */}
+                <div className="flex items-center justify-between py-3 border-b border-gray-700">
+                  <span className="text-gray-400">Всего золота:</span>
+                  <span className="text-xl font-bold text-yellow-300">
+                    {battleResult.newGold} 🪙
+                  </span>
+                </div>
+
+                {/* Rating change */}
+                <div className="flex items-center justify-between py-3 border-b border-gray-700">
+                  <span className="text-gray-400">Рейтинг:</span>
+                  <span className={`text-lg font-bold ${
+                    battleResult.ratingChange >= 0 ? 'text-green-400' : 'text-red-400'
+                  }`}>
+                    {battleResult.ratingChange >= 0 ? '+' : ''}{battleResult.ratingChange} ({battleResult.newRating})
+                  </span>
+                </div>
+
+                {/* Win/Loss record */}
+                <div className="flex items-center justify-between py-3">
+                  <span className="text-gray-400">Счёт:</span>
+                  <span className="text-lg font-bold">
+                    <span className="text-green-400">{battleResult.wins}</span>
+                    {' / '}
+                    <span className="text-red-400">{battleResult.losses}</span>
+                  </span>
+                </div>
+              </div>
+
+              {/* Run status message */}
+              {battleResult.runComplete && (
+                <div className={`mb-6 p-4 rounded-lg ${
+                  battleResult.runStatus === 'won' 
+                    ? 'bg-green-900/30 border border-green-500' 
+                    : 'bg-red-900/30 border border-red-500'
+                }`}>
+                  <div className="text-2xl mb-2">
+                    {battleResult.runStatus === 'won' ? '🎉' : '😢'}
+                  </div>
+                  <div className="font-bold">
+                    {battleResult.runStatus === 'won' 
+                      ? 'Забег завершён победой!' 
+                      : 'Забег завершён'}
+                  </div>
+                </div>
+              )}
+
+              {/* Continue button */}
+              <button
+                onClick={handleContinueAfterBattle}
+                className="px-8 py-4 bg-yellow-500 text-black font-bold rounded-lg hover:bg-yellow-400 transition-colors text-lg"
+              >
+                {battleResult.runComplete 
+                  ? 'Посмотреть результаты' 
+                  : 'Продолжить →'}
+              </button>
             </div>
           )}
         </div>

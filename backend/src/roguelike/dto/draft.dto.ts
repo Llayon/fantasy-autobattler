@@ -12,6 +12,58 @@ import { IsArray, IsString, ArrayMinSize, ArrayMaxSize } from 'class-validator';
 import { DeckCardDto } from './run.dto';
 
 /**
+ * Unit stats for draft card display.
+ */
+export class DraftUnitStatsDto {
+  @ApiProperty({ description: 'Hit points', example: 100 })
+  hp!: number;
+
+  @ApiProperty({ description: 'Attack damage', example: 15 })
+  atk!: number;
+
+  @ApiProperty({ description: 'Armor value', example: 10 })
+  armor!: number;
+
+  @ApiProperty({ description: 'Movement speed', example: 2 })
+  speed!: number;
+
+  @ApiProperty({ description: 'Turn order priority', example: 10 })
+  initiative!: number;
+
+  @ApiProperty({ description: 'Attack range', example: 1 })
+  range!: number;
+
+  @ApiProperty({ description: 'Number of attacks per turn', example: 1 })
+  attackCount!: number;
+
+  @ApiProperty({ description: 'Dodge chance percentage', example: 5 })
+  dodge!: number;
+}
+
+/**
+ * Enriched draft card with full unit data.
+ */
+export class EnrichedDraftCardDto extends DeckCardDto {
+  @ApiProperty({ description: 'Unit name', example: 'Footman' })
+  name!: string;
+
+  @ApiProperty({ description: 'Unit name in Russian', example: 'Пехотинец' })
+  nameRu!: string;
+
+  @ApiProperty({ description: 'Unit role', example: 'tank' })
+  role!: string;
+
+  @ApiProperty({ description: 'Unit cost', example: 3 })
+  cost!: number;
+
+  @ApiProperty({ description: 'Unit stats', type: DraftUnitStatsDto })
+  stats!: DraftUnitStatsDto;
+
+  @ApiProperty({ description: 'Ability ID if unit has one', example: 'shield_wall', required: false })
+  abilityId?: string | undefined;
+}
+
+/**
  * DTO for draft options response.
  * Returns available cards for player to pick from.
  *
@@ -25,10 +77,10 @@ import { DeckCardDto } from './run.dto';
  */
 export class DraftOptionsDto {
   @ApiProperty({
-    description: 'Cards available for selection',
-    type: [DeckCardDto],
+    description: 'Cards available for selection with full unit data',
+    type: [EnrichedDraftCardDto],
   })
-  cards!: DeckCardDto[];
+  cards!: EnrichedDraftCardDto[];
 
   @ApiProperty({
     description: 'Whether this is the initial draft (3 picks) or post-battle (1 pick)',
