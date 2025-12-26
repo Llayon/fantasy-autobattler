@@ -537,4 +537,453 @@ export const api = {
       body: JSON.stringify({ team }),
     });
   },
+
+  // ===========================================================================
+  // ROGUELIKE MODE
+  // ===========================================================================
+
+  /**
+   * Create a new roguelike run.
+   * 
+   * @param faction - Selected faction ID
+   * @param leaderId - Selected leader ID
+   * @returns Created run with initial state
+   * @throws ApiError if faction/leader invalid or active run exists
+   * @example
+   * const run = await api.createRoguelikeRun('humans', 'commander-aldric');
+   */
+  async createRoguelikeRun(faction: string, leaderId: string): Promise<RoguelikeRun> {
+    return fetchApi<RoguelikeRun>('/runs', {
+      method: 'POST',
+      body: JSON.stringify({ faction, leaderId }),
+    });
+  },
+
+  /**
+   * Get roguelike run by ID.
+   * 
+   * @param runId - Run identifier
+   * @returns Run state with all details
+   * @throws ApiError if run not found or not owned
+   * @example
+   * const run = await api.getRoguelikeRun('run-123');
+   */
+  async getRoguelikeRun(runId: string): Promise<RoguelikeRun> {
+    return fetchApi<RoguelikeRun>(`/runs/${runId}`);
+  },
+
+  /**
+   * Get active roguelike run for current player.
+   * 
+   * @returns Active run or throws 404 if none
+   * @throws ApiError if no active run or unauthorized
+   * @example
+   * const run = await api.getActiveRoguelikeRun();
+   */
+  async getActiveRoguelikeRun(): Promise<RoguelikeRun> {
+    return fetchApi<RoguelikeRun>('/runs/active');
+  },
+
+  /**
+   * Get roguelike run history for current player.
+   * 
+   * @returns Array of completed runs
+   * @throws ApiError if unauthorized
+   * @example
+   * const { runs } = await api.getRoguelikeRunHistory();
+   */
+  async getRoguelikeRunHistory(): Promise<{ runs: RoguelikeRun[]; total: number }> {
+    return fetchApi<{ runs: RoguelikeRun[]; total: number }>('/runs');
+  },
+
+  /**
+   * Abandon a roguelike run.
+   * 
+   * @param runId - Run identifier
+   * @throws ApiError if run not found, not owned, or already completed
+   * @example
+   * await api.abandonRoguelikeRun('run-123');
+   */
+  async abandonRoguelikeRun(runId: string): Promise<void> {
+    return fetchApi<void>(`/runs/${runId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  /**
+   * Get draft options for a run.
+   * 
+   * @param runId - Run identifier
+   * @returns Draft options with cards and metadata
+   * @throws ApiError if run not found or draft not available
+   * @example
+   * const draft = await api.getRoguelikeDraft('run-123');
+   */
+  async getRoguelikeDraft(runId: string): Promise<RoguelikeDraftResponse> {
+    return fetchApi<RoguelikeDraftResponse>(`/runs/${runId}/draft`);
+  },
+
+  /**
+   * Get initial draft options (pick 3 from 5).
+   * 
+   * @param runId - Run identifier
+   * @returns Initial draft options
+   * @throws ApiError if run not found or initial draft not available
+   * @example
+   * const draft = await api.getRoguelikeInitialDraft('run-123');
+   */
+  async getRoguelikeInitialDraft(runId: string): Promise<RoguelikeDraftResponse> {
+    return fetchApi<RoguelikeDraftResponse>(`/runs/${runId}/draft/initial`);
+  },
+
+  /**
+   * Get post-battle draft options (pick 1 from 3).
+   * 
+   * @param runId - Run identifier
+   * @returns Post-battle draft options
+   * @throws ApiError if run not found or deck empty
+   * @example
+   * const draft = await api.getRoguelikePostBattleDraft('run-123');
+   */
+  async getRoguelikePostBattleDraft(runId: string): Promise<RoguelikeDraftResponse> {
+    return fetchApi<RoguelikeDraftResponse>(`/runs/${runId}/draft/post-battle`);
+  },
+
+  /**
+   * Submit draft picks.
+   * 
+   * @param runId - Run identifier
+   * @param picks - Array of card instance IDs to pick
+   * @returns Updated hand and deck state
+   * @throws ApiError if picks invalid or draft not available
+   * @example
+   * const result = await api.submitRoguelikeDraft('run-123', ['card-1', 'card-2', 'card-3']);
+   */
+  async submitRoguelikeDraft(runId: string, picks: string[]): Promise<RoguelikeDraftResult> {
+    return fetchApi<RoguelikeDraftResult>(`/runs/${runId}/draft`, {
+      method: 'POST',
+      body: JSON.stringify({ picks }),
+    });
+  },
+
+  /**
+   * Check if draft is available for a run.
+   * 
+   * @param runId - Run identifier
+   * @returns Draft availability status
+   * @example
+   * const { available } = await api.getRoguelikeDraftStatus('run-123');
+   */
+  async getRoguelikeDraftStatus(runId: string): Promise<{ available: boolean; type?: 'initial' | 'post-battle' }> {
+    return fetchApi<{ available: boolean; type?: 'initial' | 'post-battle' }>(`/runs/${runId}/draft/status`);
+  },
+
+  /**
+   * Get upgrade shop state for a run.
+   * 
+   * @param runId - Run identifier
+   * @returns Shop state with hand, gold, and upgrade costs
+   * @throws ApiError if run not found or not owned
+   * @example
+   * const shop = await api.getRoguelikeShop('run-123');
+   */
+  async getRoguelikeShop(runId: string): Promise<RoguelikeShopState> {
+    return fetchApi<RoguelikeShopState>(`/runs/${runId}/shop`);
+  },
+
+  /**
+   * Upgrade a unit in the run.
+   * 
+   * @param runId - Run identifier
+   * @param cardInstanceId - Card instance ID to upgrade
+   * @returns Updated card and gold state
+   * @throws ApiError if insufficient gold or invalid upgrade
+   * @example
+   * const result = await api.upgradeRoguelikeUnit('run-123', 'card-1');
+   */
+  async upgradeRoguelikeUnit(runId: string, cardInstanceId: string): Promise<RoguelikeUpgradeResult> {
+    return fetchApi<RoguelikeUpgradeResult>(`/runs/${runId}/shop/upgrade`, {
+      method: 'POST',
+      body: JSON.stringify({ cardInstanceId }),
+    });
+  },
+
+  /**
+   * Find opponent for roguelike battle.
+   * 
+   * @param runId - Run identifier
+   * @returns Opponent snapshot for battle
+   * @throws ApiError if run not found or matchmaking fails
+   * @example
+   * const opponent = await api.findRoguelikeOpponent('run-123');
+   */
+  async findRoguelikeOpponent(runId: string): Promise<RoguelikeOpponent> {
+    return fetchApi<RoguelikeOpponent>(`/runs/${runId}/battle/find`, {
+      method: 'POST',
+    });
+  },
+
+  /**
+   * Submit roguelike battle.
+   * 
+   * @param runId - Run identifier
+   * @param team - Placed units with positions
+   * @param spellTimings - Spell timing selections
+   * @returns Battle result with gold earned and updated state
+   * @throws ApiError if team invalid or run not active
+   * @example
+   * const result = await api.submitRoguelikeBattle('run-123', team, spellTimings);
+   */
+  async submitRoguelikeBattle(
+    runId: string, 
+    team: RoguelikePlacedUnit[], 
+    spellTimings: RoguelikeSpellTiming[]
+  ): Promise<RoguelikeBattleResult> {
+    return fetchApi<RoguelikeBattleResult>(`/runs/${runId}/battle`, {
+      method: 'POST',
+      body: JSON.stringify({ team, spellTimings }),
+    });
+  },
+
+  /**
+   * Get available factions for roguelike mode.
+   * 
+   * @returns Array of faction data
+   * @example
+   * const factions = await api.getRoguelikeFactions();
+   */
+  async getRoguelikeFactions(): Promise<RoguelikeFaction[]> {
+    return fetchApi<RoguelikeFaction[]>('/roguelike/factions');
+  },
+
+  /**
+   * Get leaders for a faction.
+   * 
+   * @param faction - Faction ID
+   * @returns Array of leader data
+   * @example
+   * const leaders = await api.getRoguelikeLeaders('humans');
+   */
+  async getRoguelikeLeaders(faction: string): Promise<RoguelikeLeader[]> {
+    return fetchApi<RoguelikeLeader[]>(`/roguelike/factions/${faction}/leaders`);
+  },
 };
+
+// =============================================================================
+// ROGUELIKE TYPES
+// =============================================================================
+
+/**
+ * Roguelike run entity.
+ */
+export interface RoguelikeRun {
+  id: string;
+  playerId: string;
+  faction: string;
+  leaderId: string;
+  deck: RoguelikeDeckCard[];
+  remainingDeck: RoguelikeDeckCard[];
+  hand: RoguelikeDeckCard[];
+  spells: RoguelikeSpellCard[];
+  wins: number;
+  losses: number;
+  consecutiveWins: number;
+  gold: number;
+  battleHistory: RoguelikeBattleHistoryEntry[];
+  status: 'active' | 'won' | 'lost';
+  rating: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * Deck card in roguelike run.
+ */
+export interface RoguelikeDeckCard {
+  instanceId: string;
+  unitId: string;
+  tier: 1 | 2 | 3;
+}
+
+/**
+ * Spell card in roguelike run.
+ */
+export interface RoguelikeSpellCard {
+  spellId: string;
+  timing?: 'early' | 'mid' | 'late';
+}
+
+/**
+ * Battle history entry.
+ */
+export interface RoguelikeBattleHistoryEntry {
+  battleId: string;
+  result: 'win' | 'loss';
+  goldEarned: number;
+  opponent: {
+    name: string;
+    faction: string;
+    rating: number;
+  };
+  timestamp: Date;
+}
+
+/**
+ * Draft response with options.
+ */
+export interface RoguelikeDraftResponse {
+  cards: RoguelikeDraftOption[];
+  isInitial: boolean;
+  requiredPicks: number;
+  remainingInDeck: number;
+}
+
+/**
+ * Draft option card.
+ */
+export interface RoguelikeDraftOption {
+  instanceId: string;
+  unitId: string;
+  name: string;
+  role: string;
+  tier: 1 | 2 | 3;
+  cost: number;
+  stats: {
+    hp: number;
+    atk: number;
+    armor: number;
+    speed: number;
+    initiative: number;
+    range: number;
+    attackCount: number;
+    dodge: number;
+  };
+  ability?: {
+    id: string;
+    name: string;
+    description: string;
+  };
+}
+
+/**
+ * Draft result after submission.
+ */
+export interface RoguelikeDraftResult {
+  hand: RoguelikeDeckCard[];
+  remainingDeck: RoguelikeDeckCard[];
+  handSize: number;
+  remainingDeckSize: number;
+}
+
+/**
+ * Shop state for upgrades.
+ */
+export interface RoguelikeShopState {
+  hand: RoguelikeDeckCard[];
+  gold: number;
+  upgradeCosts: RoguelikeUpgradeCost[];
+}
+
+/**
+ * Upgrade cost for a card.
+ */
+export interface RoguelikeUpgradeCost {
+  instanceId: string;
+  currentTier: 1 | 2 | 3;
+  nextTier: 2 | 3;
+  cost: number;
+  canAfford: boolean;
+}
+
+/**
+ * Upgrade result.
+ */
+export interface RoguelikeUpgradeResult {
+  upgradedCard: RoguelikeDeckCard;
+  hand: RoguelikeDeckCard[];
+  gold: number;
+  goldSpent: number;
+}
+
+/**
+ * Opponent snapshot for battle.
+ */
+export interface RoguelikeOpponent {
+  snapshotId: string;
+  playerId: string;
+  playerName: string;
+  faction: string;
+  leaderId: string;
+  wins: number;
+  rating: number;
+  team: RoguelikePlacedUnit[];
+  spellTimings: RoguelikeSpellTiming[];
+  isBot: boolean;
+}
+
+/**
+ * Placed unit for battle.
+ */
+export interface RoguelikePlacedUnit {
+  instanceId: string;
+  unitId: string;
+  tier: 1 | 2 | 3;
+  position: { x: number; y: number };
+}
+
+/**
+ * Spell timing selection.
+ */
+export interface RoguelikeSpellTiming {
+  spellId: string;
+  timing: 'early' | 'mid' | 'late';
+}
+
+/**
+ * Battle result.
+ */
+export interface RoguelikeBattleResult {
+  battleId: string;
+  result: 'win' | 'loss';
+  goldEarned: number;
+  newGold: number;
+  wins: number;
+  losses: number;
+  rating: number;
+  ratingChange: number;
+  runStatus: 'active' | 'won' | 'lost';
+}
+
+/**
+ * Faction data.
+ */
+export interface RoguelikeFaction {
+  id: string;
+  name: string;
+  description: string;
+  bonus: {
+    stat: string;
+    value: number;
+  };
+  icon: string;
+}
+
+/**
+ * Leader data.
+ */
+export interface RoguelikeLeader {
+  id: string;
+  name: string;
+  faction: string;
+  passive: {
+    id: string;
+    name: string;
+    description: string;
+  };
+  spells: {
+    id: string;
+    name: string;
+    description: string;
+  }[];
+  portrait: string;
+}

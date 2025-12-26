@@ -294,30 +294,30 @@ Roguelike-run использует переиспользуемые систем
 ### Task 10: Create Zustand Stores
 **Estimate**: 45 min | **Requirement**: REQ-4, REQ-5
 
-- [ ] 10.1 Create `frontend/src/store/runStore.ts`
+- [x] 10.1 Create `frontend/src/store/runStore.ts`
   - State: currentRun, isLoading, error
   - Actions: createRun(), loadRun(), loadActiveRun(), abandonRun()
   - **Error handling**: try/catch with proper error messages
-- [ ] 10.2 Create `frontend/src/store/draftStore.ts`
+- [x] 10.2 Create `frontend/src/store/draftStore.ts`
   - State: options, selected, isInitial
   - Actions: loadDraft(), selectCard(), submitDraft()
-- [ ] 10.3 Add API client methods in `frontend/src/lib/api.ts`
+- [x] 10.3 Add API client methods in `frontend/src/lib/api.ts`
   - Roguelike endpoints with proper error handling
-- [ ] 10.4 **VERIFY**: `npm run build`
+- [x] 10.4 **VERIFY**: `npm run build`
 
 ### Task 11: Create Selection Components
 **Estimate**: 45 min | **Requirement**: REQ-13
 
-- [ ] 11.1 Create `frontend/src/components/roguelike/FactionSelect.tsx`
+- [x] 11.1 Create `frontend/src/components/roguelike/FactionSelect.tsx`
   - Display 2 faction cards with bonuses
   - Handle selection state
   - **Accessibility**: aria-labels, keyboard navigation
-- [ ] 11.2 Create `frontend/src/components/roguelike/LeaderSelect.tsx`
+- [x] 11.2 Create `frontend/src/components/roguelike/LeaderSelect.tsx`
   - Display 2 leader cards per faction
   - Show passive ability and spell options
-- [ ] 11.3 Create `frontend/src/components/roguelike/LeaderCard.tsx`
+- [x] 11.3 Create `frontend/src/components/roguelike/LeaderCard.tsx`
   - Portrait, name, passive description, spell icons
-- [ ] 11.4 **VERIFY**: `npm run build`
+- [x] 11.4 **VERIFY**: `npm run build`
 
 ### Task 12: Create Draft & Shop Components
 **Estimate**: 60 min | **Requirement**: REQ-13

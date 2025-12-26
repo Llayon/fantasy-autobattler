@@ -53,11 +53,37 @@ export {
   selectHasMatch,
 } from './matchmakingStore';
 
+// Roguelike run store
+export {
+  useRunStore,
+  selectCurrentRun,
+  selectRunLoading,
+  selectRunError,
+  selectHasActiveRun,
+  selectRunProgress,
+  selectRunHand,
+  selectRunSpells,
+} from './runStore';
+
+// Roguelike draft store
+export {
+  useDraftStore,
+  selectDraftOptions,
+  selectSelectedCards,
+  selectDraftLoading,
+  selectDraftError,
+  selectIsDraftComplete,
+  selectRemainingPicks,
+  selectDraftInfo,
+} from './draftStore';
+
 // Import stores for utilities
 import { usePlayerStore } from './playerStore';
 import { useTeamStore } from './teamStore';
 import { useMatchmakingStore } from './matchmakingStore';
 import { useBattleStore } from './battleStore';
+import { useRunStore } from './runStore';
+import { useDraftStore } from './draftStore';
 
 // =============================================================================
 // STORE UTILITIES
@@ -123,6 +149,17 @@ export function resetAllStores(): void {
       speed: 1,
     },
   });
+
+  // Reset roguelike run store
+  useRunStore.getState().clearCurrentRun();
+  useRunStore.setState({
+    runHistory: [],
+    loading: false,
+    error: null,
+  });
+
+  // Reset roguelike draft store
+  useDraftStore.getState().clearDraft();
 }
 
 // =============================================================================
