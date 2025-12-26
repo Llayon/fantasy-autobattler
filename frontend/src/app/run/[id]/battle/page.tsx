@@ -647,7 +647,7 @@ export default function BattlePage() {
   }, [runId, router]);
 
   const handleViewResults = useCallback(() => {
-    router.push(`/run/${runId}/result`);
+    router.replace(`/run/${runId}/result`);
   }, [runId, router]);
 
   const handleBackToMenu = useCallback(() => {
@@ -658,9 +658,9 @@ export default function BattlePage() {
     if (!battleResult) return;
     
     if (battleResult.runStatus === 'active') {
-      router.push(`/run/${runId}/shop`);
+      router.replace(`/run/${runId}/shop`);
     } else {
-      router.push(`/run/${runId}/result`);
+      router.replace(`/run/${runId}/result`);
     }
   }, [battleResult, runId, router]);
 
