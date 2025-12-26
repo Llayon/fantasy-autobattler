@@ -358,18 +358,18 @@ Roguelike-run использует переиспользуемые систем
 ### Task 14: Create Pages
 **Estimate**: 90 min | **Requirement**: REQ-13
 
-- [ ] 14.1 Create `frontend/src/app/run/new/page.tsx`
+- [x] 14.1 Create `frontend/src/app/run/new/page.tsx`
   - Faction selection → Leader selection → Start run
   - **Error handling**: Show error states
-- [ ] 14.2 Create `frontend/src/app/run/[id]/draft/page.tsx`
+- [x] 14.2 Create `frontend/src/app/run/[id]/draft/page.tsx`
   - Initial draft or post-battle draft
-- [ ] 14.3 Create `frontend/src/app/run/[id]/battle/page.tsx`
+- [x] 14.3 Create `frontend/src/app/run/[id]/battle/page.tsx`
   - Team placement → Spell timing selection → Battle replay
-- [ ] 14.4 Create `frontend/src/app/run/[id]/shop/page.tsx`
+- [x] 14.4 Create `frontend/src/app/run/[id]/shop/page.tsx`
   - Upgrade shop after battle
-- [ ] 14.5 Create `frontend/src/app/run/[id]/result/page.tsx`
+- [x] 14.5 Create `frontend/src/app/run/[id]/result/page.tsx`
   - Run end screen (victory/defeat)
-- [ ] 14.6 **VERIFY**: `npm run build`
+- [x] 14.6 **VERIFY**: `npm run build`
 
 ### Task 15: Add i18n & Navigation
 **Estimate**: 30 min | **Requirement**: REQ-13
