@@ -111,19 +111,19 @@ export default function ShopPage() {
 
       try {
         const result = await api.upgradeRoguelikeUnit(runId, instanceId);
-        // Update shop state with new values
+        // Update shop state with new values (now uses field instead of hand)
         setShopState(prev =>
           prev
             ? {
                 ...prev,
-                hand: result.hand,
+                field: result.field,
                 gold: result.gold,
                 upgradeCosts: prev.upgradeCosts.map(c =>
                   c.instanceId === instanceId
                     ? {
                         ...c,
-                        currentTier: result.upgradedCard.tier as 1 | 2,
-                        nextTier: (result.upgradedCard.tier + 1) as 2 | 3,
+                        currentTier: result.upgradedUnit.tier as 1 | 2,
+                        targetTier: (result.upgradedUnit.tier + 1) as 2 | 3,
                         canAfford: result.gold >= c.cost,
                       }
                     : { ...c, canAfford: result.gold >= c.cost }
@@ -155,16 +155,16 @@ export default function ShopPage() {
     router.push('/');
   }, [router]);
 
-  // Convert shop state to UpgradeCardData
+  // Convert shop state to UpgradeCardData (now uses field instead of hand)
   const upgradeCards: UpgradeCardData[] =
-    shopState?.hand.map(card => {
-      const upgradeCost = shopState.upgradeCosts.find(c => c.instanceId === card.instanceId);
+    shopState?.field.map(unit => {
+      const upgradeCost = shopState.upgradeCosts.find(c => c.instanceId === unit.instanceId);
       return {
-        instanceId: card.instanceId,
-        unitId: card.unitId,
-        name: card.unitId, // TODO: Get unit name from data
-        nameRu: card.unitId,
-        tier: card.tier,
+        instanceId: unit.instanceId,
+        unitId: unit.unitId,
+        name: unit.unitId, // TODO: Get unit name from data
+        nameRu: unit.unitId,
+        tier: unit.tier,
         cost: 0, // Base cost not needed for display
         role: 'tank' as const, // TODO: Get role from data
         stats: {
@@ -178,8 +178,8 @@ export default function ShopPage() {
           dodge: 0,
         },
         upgradeCost: upgradeCost?.cost,
-        canUpgrade: (upgradeCost?.canAfford ?? false) && card.tier < 3,
-        maxTier: card.tier >= 3,
+        canUpgrade: (upgradeCost?.canAfford ?? false) && unit.tier < 3,
+        maxTier: unit.tier >= 3,
       };
     }) ?? [];
 

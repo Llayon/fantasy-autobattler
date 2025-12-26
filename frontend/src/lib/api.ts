@@ -960,20 +960,21 @@ export interface RoguelikeDraftResult {
 
 /**
  * Shop state for upgrades.
+ * Now uses field (units on deployment grid) instead of hand.
  */
 export interface RoguelikeShopState {
-  hand: RoguelikeDeckCard[];
+  field: RoguelikeFieldUnit[];
   gold: number;
   upgradeCosts: RoguelikeUpgradeCost[];
 }
 
 /**
- * Upgrade cost for a card.
+ * Upgrade cost for a unit on field.
  */
 export interface RoguelikeUpgradeCost {
   instanceId: string;
   currentTier: 1 | 2 | 3;
-  nextTier: 2 | 3;
+  targetTier: 2 | 3;
   cost: number;
   canAfford: boolean;
 }
@@ -982,8 +983,8 @@ export interface RoguelikeUpgradeCost {
  * Upgrade result.
  */
 export interface RoguelikeUpgradeResult {
-  upgradedCard: RoguelikeDeckCard;
-  hand: RoguelikeDeckCard[];
+  upgradedUnit: RoguelikeFieldUnit;
+  field: RoguelikeFieldUnit[];
   gold: number;
   goldSpent: number;
 }
