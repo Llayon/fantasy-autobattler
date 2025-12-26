@@ -141,10 +141,11 @@ interface FieldCellProps {
   unit: FieldUnit | null;
   unitName: string | null;
   isValidDrop: boolean;
+  isSelected: boolean;
   onClick: () => void;
 }
 
-function FieldCell({ unit, unitName, isValidDrop, onClick }: FieldCellProps) {
+function FieldCell({ unit, unitName, isValidDrop, isSelected, onClick }: FieldCellProps) {
   const tierColors = {
     1: 'bg-gray-700 border-gray-500',
     2: 'bg-blue-900/50 border-blue-500',
@@ -158,7 +159,9 @@ function FieldCell({ unit, unitName, isValidDrop, onClick }: FieldCellProps) {
         aspect-square rounded border-2 transition-all flex items-center justify-center
         ${unit ? tierColors[unit.tier] : 'bg-gray-800/50 border-gray-600'}
         ${isValidDrop ? 'border-green-400 bg-green-900/30' : ''}
-        ${unit ? 'hover:border-red-400' : isValidDrop ? 'hover:bg-green-800/50' : ''}
+        ${isSelected ? 'ring-2 ring-yellow-400 border-yellow-400' : ''}
+        ${unit && !isSelected ? 'hover:border-yellow-400' : ''}
+        ${!unit && isValidDrop ? 'hover:bg-green-800/50' : ''}
       `}
     >
       {unit && (
@@ -198,6 +201,10 @@ export default function BattlePage() {
 
   // Unit data from API (names and costs)
   const [unitData, setUnitData] = useState<Record<string, RoguelikeUnitData>>({});
+  const [unitDataLoading, setUnitDataLoading] = useState(true);
+  
+  // Selected field unit for repositioning
+  const [selectedFieldUnit, setSelectedFieldUnit] = useState<string | null>(null);
 
   // Store state
   const { 
@@ -207,6 +214,7 @@ export default function BattlePage() {
     loadRun, 
     updateSpellTiming,
     placeUnit,
+    repositionUnit,
     removeFromField,
   } = useRunStore();
   const { initPlayer } = usePlayerStore();
@@ -220,6 +228,7 @@ export default function BattlePage() {
       }
       // Load unit data from API
       try {
+        setUnitDataLoading(true);
         const units = await api.getRoguelikeUnits();
         const unitMap: Record<string, RoguelikeUnitData> = {};
         for (const unit of units) {
@@ -228,6 +237,8 @@ export default function BattlePage() {
         setUnitData(unitMap);
       } catch {
         // Fallback: unit data will be empty, costs will default to 0
+      } finally {
+        setUnitDataLoading(false);
       }
     };
     init();
@@ -274,6 +285,8 @@ export default function BattlePage() {
 
   // Handle hand card click
   const handleHandCardClick = useCallback((instanceId: string) => {
+    // Deselect field unit when selecting hand card
+    setSelectedFieldUnit(null);
     setSelectedHandCard(prev => prev === instanceId ? null : instanceId);
   }, []);
 
@@ -282,18 +295,40 @@ export default function BattlePage() {
     // Check if there's a unit at this position
     const unitAtPosition = field.find(u => u.position.x === x && u.position.y === y);
     
-    if (unitAtPosition) {
-      // Remove unit from field (refund gold)
-      await removeFromField(unitAtPosition.instanceId);
-      setSelectedHandCard(null);
-    } else if (selectedHandCard) {
-      // Place selected card at this position
-      const success = await placeUnit(selectedHandCard, { x, y });
-      if (success) {
-        setSelectedHandCard(null);
+    if (selectedFieldUnit) {
+      // We have a field unit selected - try to reposition it
+      if (unitAtPosition) {
+        // Clicked on another unit - select it instead
+        if (unitAtPosition.instanceId === selectedFieldUnit) {
+          // Clicked on same unit - deselect
+          setSelectedFieldUnit(null);
+        } else {
+          // Select the new unit
+          setSelectedFieldUnit(unitAtPosition.instanceId);
+        }
+      } else {
+        // Empty cell - reposition the selected unit
+        await repositionUnit(selectedFieldUnit, { x, y });
+        setSelectedFieldUnit(null);
       }
+    } else if (selectedHandCard) {
+      // We have a hand card selected - try to place it
+      if (unitAtPosition) {
+        // Position occupied - select the field unit instead
+        setSelectedHandCard(null);
+        setSelectedFieldUnit(unitAtPosition.instanceId);
+      } else {
+        // Place selected card at this position
+        const success = await placeUnit(selectedHandCard, { x, y });
+        if (success) {
+          setSelectedHandCard(null);
+        }
+      }
+    } else if (unitAtPosition) {
+      // No selection - select the field unit for repositioning or removal
+      setSelectedFieldUnit(unitAtPosition.instanceId);
     }
-  }, [field, selectedHandCard, placeUnit, removeFromField]);
+  }, [field, selectedHandCard, selectedFieldUnit, placeUnit, repositionUnit]);
 
   // Handle spell timing change
   const handleSpellTimingChange = useCallback(
@@ -411,7 +446,7 @@ export default function BattlePage() {
   const canProceedToSpells = field.length > 0;
 
   // Loading state
-  if (runLoading) {
+  if (runLoading || unitDataLoading) {
     return <FullPageLoader message={labels.loadingRun} icon="⚔️" />;
   }
 
@@ -533,7 +568,8 @@ export default function BattlePage() {
                     const x = i % FIELD_WIDTH;
                     const y = Math.floor(i / FIELD_WIDTH);
                     const unit = field.find(u => u.position.x === x && u.position.y === y);
-                    const isValidDrop = selectedHandCard !== null && !unit;
+                    const isValidDrop = (selectedHandCard !== null || selectedFieldUnit !== null) && !unit;
+                    const isSelected = unit?.instanceId === selectedFieldUnit;
 
                     return (
                       <FieldCell
@@ -543,14 +579,35 @@ export default function BattlePage() {
                         unit={unit || null}
                         unitName={unit ? getUnitName(unit.unitId) : null}
                         isValidDrop={isValidDrop}
+                        isSelected={isSelected}
                         onClick={() => handleFieldCellClick(x, y)}
                       />
                     );
                   })}
                 </div>
                 <p className="text-center text-gray-500 text-xs mt-2">
-                  {selectedHandCard ? labels.clickToPlace : labels.clickToRemove}
+                  {selectedFieldUnit 
+                    ? 'Нажмите на пустую клетку для перемещения или кнопку ниже для возврата в руку'
+                    : selectedHandCard 
+                      ? labels.clickToPlace 
+                      : 'Нажмите на юнита для выбора'}
                 </p>
+                {/* Remove from field button */}
+                {selectedFieldUnit && (
+                  <div className="text-center mt-2">
+                    <button
+                      onClick={async () => {
+                        const success = await removeFromField(selectedFieldUnit);
+                        if (success) {
+                          setSelectedFieldUnit(null);
+                        }
+                      }}
+                      className="px-4 py-2 bg-red-600 text-white text-sm rounded hover:bg-red-500 transition-colors"
+                    >
+                      Вернуть в руку
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Hand */}
