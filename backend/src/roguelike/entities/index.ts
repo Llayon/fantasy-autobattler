@@ -11,6 +11,8 @@ export {
   RoguelikeRunEntity,
   RunStatus,
   SpellCard,
+  FieldUnit,
+  BattleHistoryEntry,
   RUN_CONSTANTS,
 } from './run.entity';
 

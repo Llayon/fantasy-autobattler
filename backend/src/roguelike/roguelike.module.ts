@@ -24,6 +24,7 @@ import { DraftService } from './draft/draft.service';
 import { UpgradeService } from './upgrade/upgrade.service';
 import { EconomyService } from './economy/economy.service';
 import { MatchmakingService } from './matchmaking/matchmaking.service';
+import { PlacementService } from './placement/placement.service';
 
 // Controllers
 import { RunController } from './run/run.controller';
@@ -31,6 +32,7 @@ import { DraftController } from './draft/draft.controller';
 import { UpgradeController } from './upgrade/upgrade.controller';
 import { DataController } from './data/data.controller';
 import { BattleController } from './battle/battle.controller';
+import { PlacementController } from './placement/placement.controller';
 
 /**
  * RoguelikeModule provides all roguelike run mode functionality.
@@ -63,6 +65,7 @@ import { BattleController } from './battle/battle.controller';
     UpgradeController,
     DataController,
     BattleController,
+    PlacementController,
   ],
   providers: [
     RunService,
@@ -70,6 +73,7 @@ import { BattleController } from './battle/battle.controller';
     UpgradeService,
     EconomyService,
     MatchmakingService,
+    PlacementService,
   ],
   exports: [
     RunService,
@@ -77,6 +81,7 @@ import { BattleController } from './battle/battle.controller';
     UpgradeService,
     EconomyService,
     MatchmakingService,
+    PlacementService,
   ],
 })
 export class RoguelikeModule {}

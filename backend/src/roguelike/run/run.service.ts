@@ -146,6 +146,7 @@ export class RunService {
       deck,
       remainingDeck: [...deck], // Copy deck to remaining
       hand: [], // Empty hand, will be filled during initial draft
+      field: [], // Empty field, units placed from hand
       spells,
       wins: 0,
       losses: 0,
@@ -261,6 +262,7 @@ export class RunService {
       Pick<
         RoguelikeRunEntity,
         | 'hand'
+        | 'field'
         | 'remainingDeck'
         | 'spells'
         | 'wins'

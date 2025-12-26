@@ -22,6 +22,21 @@ import { DeckCard } from '../types/unit.types';
 import { SpellTiming } from '../types/leader.types';
 
 /**
+ * Unit placed on the deployment field (8×2 grid).
+ * Separate from hand - must pay gold to place.
+ */
+export interface FieldUnit {
+  /** Card instance ID (links to original deck card) */
+  instanceId: string;
+  /** Unit type ID */
+  unitId: string;
+  /** Unit tier (1-3) */
+  tier: 1 | 2 | 3;
+  /** Position on deployment grid (x: 0-7, y: 0-1) */
+  position: { x: number; y: number };
+}
+
+/**
  * Run status type.
  * - 'active': Run is in progress
  * - 'won': Player achieved 9 wins
@@ -144,6 +159,14 @@ export class RoguelikeRunEntity {
   hand!: DeckCard[];
 
   /**
+   * Units placed on the deployment field (8×2 grid).
+   * These units will fight in battle.
+   * Separate from hand - must pay gold to place.
+   */
+  @Column({ type: 'json', default: [] })
+  field!: FieldUnit[];
+
+  /**
    * Spells available for this run (2 spells from leader).
    * Always available, not drafted.
    */
@@ -261,6 +284,9 @@ export class RoguelikeRunEntity {
     if (!Array.isArray(this.hand)) {
       throw new Error('Hand must be an array');
     }
+    if (!Array.isArray(this.field)) {
+      throw new Error('Field must be an array');
+    }
     if (this.hand.length > RUN_CONSTANTS.MAX_HAND_SIZE) {
       throw new Error(`Hand cannot exceed ${RUN_CONSTANTS.MAX_HAND_SIZE} cards`);
     }
@@ -326,6 +352,7 @@ export class RoguelikeRunEntity {
     gold: number;
     status: RunStatus;
     handSize: number;
+    fieldSize: number;
     deckRemaining: number;
   } {
     return {
@@ -336,6 +363,7 @@ export class RoguelikeRunEntity {
       gold: this.gold,
       status: this.status,
       handSize: this.hand.length,
+      fieldSize: this.field.length,
       deckRemaining: this.remainingDeck.length,
     };
   }

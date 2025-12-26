@@ -83,6 +83,95 @@ export class SpellCardDto {
 }
 
 /**
+ * DTO for opponent info in battle history.
+ */
+export class BattleOpponentDto {
+  @ApiProperty({
+    description: 'Opponent name',
+    example: 'Bot_1234',
+  })
+  name!: string;
+
+  @ApiProperty({
+    description: 'Opponent faction',
+    example: 'humans',
+  })
+  faction!: string;
+
+  @ApiProperty({
+    description: 'Opponent rating',
+    example: 1000,
+  })
+  rating!: number;
+}
+
+/**
+ * DTO for battle history entry.
+ */
+export class BattleHistoryEntryDto {
+  @ApiProperty({
+    description: 'Battle log ID',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  battleId!: string;
+
+  @ApiProperty({
+    description: 'Battle result',
+    example: 'win',
+    enum: ['win', 'loss'],
+  })
+  result!: 'win' | 'loss';
+
+  @ApiProperty({
+    description: 'Gold earned from this battle',
+    example: 7,
+  })
+  goldEarned!: number;
+
+  @ApiProperty({
+    description: 'Opponent information',
+    type: BattleOpponentDto,
+  })
+  opponent!: BattleOpponentDto;
+
+  @ApiProperty({
+    description: 'Battle timestamp (ISO string)',
+    example: '2025-12-26T10:30:00.000Z',
+  })
+  timestamp!: string;
+}
+
+/**
+ * DTO for field unit (placed on deployment grid).
+ */
+export class FieldUnitDto {
+  @ApiProperty({
+    description: 'Card instance ID',
+    example: 'footman-1',
+  })
+  instanceId!: string;
+
+  @ApiProperty({
+    description: 'Unit type ID',
+    example: 'footman',
+  })
+  unitId!: string;
+
+  @ApiProperty({
+    description: 'Unit tier',
+    example: 1,
+    enum: [1, 2, 3],
+  })
+  tier!: UnitTier;
+
+  @ApiProperty({
+    description: 'Position on deployment grid',
+    example: { x: 0, y: 0 },
+  })
+  position!: { x: number; y: number };
+}
+
+/**
  * DTO for run response.
  */
 export class RunResponseDto {
@@ -130,6 +219,12 @@ export class RunResponseDto {
   hand!: DeckCardDto[];
 
   @ApiProperty({
+    description: 'Units placed on deployment field (8×2 grid)',
+    type: [FieldUnitDto],
+  })
+  field!: FieldUnitDto[];
+
+  @ApiProperty({
     description: 'Available spells (2 spells)',
     type: [SpellCardDto],
   })
@@ -164,10 +259,10 @@ export class RunResponseDto {
   gold!: number;
 
   @ApiProperty({
-    description: 'Battle log IDs for history',
-    type: [String],
+    description: 'Battle history with full information',
+    type: [BattleHistoryEntryDto],
   })
-  battleHistory!: string[];
+  battleHistory!: BattleHistoryEntryDto[];
 
   @ApiProperty({
     description: 'Current run status',

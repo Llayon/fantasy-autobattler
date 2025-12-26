@@ -1,20 +1,20 @@
 /**
  * Battle page for Roguelike mode.
- * Team placement → Spell timing selection → Find opponent → Battle.
+ * Hand/Field placement → Spell timing → Find opponent → Battle.
  *
- * @fileoverview Battle preparation and execution screen.
+ * @fileoverview Battle preparation with hand/field mechanics.
  */
 
 'use client';
 
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Navigation, NavigationWrapper } from '@/components/Navigation';
 import { FullPageLoader } from '@/components/LoadingStates';
 import { ErrorMessage } from '@/components/ErrorStates';
 import { RunStatusBar, SpellTimingPanel } from '@/components/roguelike';
 import type { SpellTimingConfig, SpellTiming, SpellTimingInfo } from '@/components/roguelike';
-import { useRunStore } from '@/store/runStore';
+import { useRunStore, FieldUnit, DeckCard } from '@/store/runStore';
 import { usePlayerStore } from '@/store/playerStore';
 import { api, RoguelikePlacedUnit, RoguelikeSpellTiming } from '@/lib/api';
 
@@ -23,13 +23,6 @@ import { api, RoguelikePlacedUnit, RoguelikeSpellTiming } from '@/lib/api';
 // =============================================================================
 
 type BattleStep = 'placement' | 'spells' | 'finding' | 'battle' | 'result';
-
-interface PlacedUnit {
-  instanceId: string;
-  unitId: string;
-  tier: 1 | 2 | 3;
-  position: { x: number; y: number };
-}
 
 interface OpponentDisplay {
   id: string;
@@ -58,28 +51,11 @@ interface BattleResultDisplay {
 // CONSTANTS
 // =============================================================================
 
+/** Field grid dimensions */
+const FIELD_WIDTH = 8;
+const FIELD_HEIGHT = 2;
+
 const LABELS = {
-  en: {
-    loading: 'Loading...',
-    loadingRun: 'Loading run...',
-    findingOpponent: 'Finding opponent...',
-    runNotFound: 'Run not found',
-    runNotFoundDesc: 'The run you are looking for does not exist.',
-    backToMenu: 'Back to Menu',
-    placement: 'Place Your Units',
-    placementDesc: 'Drag units to the grid to position them for battle.',
-    spells: 'Set Spell Timings',
-    spellsDesc: 'Choose when your spells will activate during battle.',
-    findOpponent: 'Find Opponent',
-    startBattle: 'Start Battle',
-    back: 'Back',
-    noUnits: 'No units in hand',
-    noUnitsDesc: 'Complete a draft first to get units.',
-    goToDraft: 'Go to Draft',
-    runComplete: 'Run Complete',
-    runCompleteDesc: 'This run has ended.',
-    viewResults: 'View Results',
-  },
   ru: {
     loading: 'Загрузка...',
     loadingRun: 'Загрузка забега...',
@@ -88,7 +64,7 @@ const LABELS = {
     runNotFoundDesc: 'Запрашиваемый забег не существует.',
     backToMenu: 'В главное меню',
     placement: 'Расставьте юнитов',
-    placementDesc: 'Перетащите юнитов на поле для расстановки.',
+    placementDesc: 'Перетащите юнитов из руки на поле. Размещение стоит золото.',
     spells: 'Настройте заклинания',
     spellsDesc: 'Выберите, когда заклинания активируются в бою.',
     findOpponent: 'Найти противника',
@@ -100,8 +76,100 @@ const LABELS = {
     runComplete: 'Забег завершён',
     runCompleteDesc: 'Этот забег уже закончился.',
     viewResults: 'Посмотреть результаты',
+    hand: 'Рука',
+    field: 'Поле боя',
+    gold: 'Золото',
+    cost: 'Стоимость',
+    notEnoughGold: 'Недостаточно золота',
+    clickToPlace: 'Нажмите на карту, затем на клетку поля',
+    clickToRemove: 'Нажмите на юнита на поле, чтобы вернуть в руку',
+    emptyField: 'Разместите хотя бы одного юнита',
   },
 };
+
+// =============================================================================
+// HELPER COMPONENTS
+// =============================================================================
+
+/**
+ * Hand card component for displaying a card in hand.
+ */
+interface HandCardProps {
+  card: DeckCard;
+  unitName: string;
+  cost: number;
+  isSelected: boolean;
+  canAfford: boolean;
+  onClick: () => void;
+}
+
+function HandCard({ card, unitName, cost, isSelected, canAfford, onClick }: HandCardProps) {
+  const tierColors = {
+    1: 'border-gray-500 bg-gray-800',
+    2: 'border-blue-500 bg-blue-900/30',
+    3: 'border-purple-500 bg-purple-900/30',
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={!canAfford}
+      className={`
+        relative p-3 rounded-lg border-2 transition-all min-w-[100px]
+        ${tierColors[card.tier]}
+        ${isSelected ? 'ring-2 ring-yellow-400 scale-105' : ''}
+        ${canAfford ? 'hover:scale-105 cursor-pointer' : 'opacity-50 cursor-not-allowed'}
+      `}
+    >
+      <div className="text-sm font-medium truncate">{unitName}</div>
+      <div className="text-xs text-gray-400">T{card.tier}</div>
+      <div className={`absolute -top-2 -right-2 px-2 py-0.5 rounded-full text-xs font-bold
+        ${canAfford ? 'bg-yellow-500 text-black' : 'bg-red-500 text-white'}
+      `}>
+        {cost}🪙
+      </div>
+    </button>
+  );
+}
+
+/**
+ * Field grid cell component.
+ */
+interface FieldCellProps {
+  x: number;
+  y: number;
+  unit: FieldUnit | null;
+  unitName: string | null;
+  isValidDrop: boolean;
+  onClick: () => void;
+}
+
+function FieldCell({ unit, unitName, isValidDrop, onClick }: FieldCellProps) {
+  const tierColors = {
+    1: 'bg-gray-700 border-gray-500',
+    2: 'bg-blue-900/50 border-blue-500',
+    3: 'bg-purple-900/50 border-purple-500',
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      className={`
+        aspect-square rounded border-2 transition-all flex items-center justify-center
+        ${unit ? tierColors[unit.tier] : 'bg-gray-800/50 border-gray-600'}
+        ${isValidDrop ? 'border-green-400 bg-green-900/30' : ''}
+        ${unit ? 'hover:border-red-400' : isValidDrop ? 'hover:bg-green-800/50' : ''}
+      `}
+    >
+      {unit && (
+        <div className="text-center">
+          <div className="text-xs font-medium truncate px-1">{unitName}</div>
+          <div className="text-[10px] text-gray-400">T{unit.tier}</div>
+        </div>
+      )}
+    </button>
+  );
+}
 
 // =============================================================================
 // MAIN COMPONENT
@@ -109,19 +177,18 @@ const LABELS = {
 
 /**
  * Battle page component.
- * Handles unit placement, spell timing, and battle execution.
+ * Handles unit placement from hand to field, spell timing, and battle execution.
  */
 export default function BattlePage() {
   const router = useRouter();
   const params = useParams();
   const runId = params?.id as string;
-  const [useRussian] = useState(true);
 
-  const labels = useRussian ? LABELS.ru : LABELS.en;
+  const labels = LABELS.ru;
 
   // Local state
   const [step, setStep] = useState<BattleStep>('placement');
-  const [placedUnits, setPlacedUnits] = useState<PlacedUnit[]>([]);
+  const [selectedHandCard, setSelectedHandCard] = useState<string | null>(null);
   const [spellInfos, setSpellInfos] = useState<SpellTimingInfo[]>([]);
   const [spellTimings, setSpellTimings] = useState<SpellTimingConfig[]>([]);
   const [opponent, setOpponent] = useState<OpponentDisplay | null>(null);
@@ -129,8 +196,48 @@ export default function BattlePage() {
   const [battleLoading, setBattleLoading] = useState(false);
   const [battleError, setBattleError] = useState<string | null>(null);
 
+  // Unit name cache (would come from API in real implementation)
+  const [unitNames] = useState<Record<string, string>>({
+    footman: 'Пехотинец',
+    archer: 'Лучник',
+    priest: 'Жрец',
+    knight: 'Рыцарь',
+    mage: 'Маг',
+    paladin: 'Паладин',
+    skeleton: 'Скелет',
+    zombie: 'Зомби',
+    necromancer: 'Некромант',
+    vampire: 'Вампир',
+    ghost: 'Призрак',
+    lich: 'Лич',
+  });
+
+  // Unit costs (would come from API in real implementation)
+  const [unitCosts] = useState<Record<string, number>>({
+    footman: 3,
+    archer: 3,
+    priest: 4,
+    knight: 5,
+    mage: 4,
+    paladin: 6,
+    skeleton: 2,
+    zombie: 3,
+    necromancer: 5,
+    vampire: 5,
+    ghost: 4,
+    lich: 7,
+  });
+
   // Store state
-  const { currentRun, loading: runLoading, error: runError, loadRun, updateSpellTiming } = useRunStore();
+  const { 
+    currentRun, 
+    loading: runLoading, 
+    error: runError, 
+    loadRun, 
+    updateSpellTiming,
+    placeUnit,
+    removeFromField,
+  } = useRunStore();
   const { initPlayer } = usePlayerStore();
 
   // Initialize
@@ -147,18 +254,16 @@ export default function BattlePage() {
   // Initialize spell timings from run
   useEffect(() => {
     if (currentRun?.spells) {
-      // Create spell info for display
       setSpellInfos(
         currentRun.spells.map(s => ({
           id: s.spellId,
-          name: s.spellId, // TODO: Get spell name from data
+          name: s.spellId,
           nameRu: s.spellId,
           description: '',
           descriptionRu: '',
           recommendedTiming: (s.timing || 'mid') as SpellTiming,
         }))
       );
-      // Create timing config
       setSpellTimings(
         currentRun.spells.map(s => ({
           spellId: s.spellId,
@@ -168,18 +273,43 @@ export default function BattlePage() {
     }
   }, [currentRun?.spells]);
 
-  // Auto-place units for now (simplified)
-  useEffect(() => {
-    if (currentRun?.hand && placedUnits.length === 0) {
-      const placed: PlacedUnit[] = currentRun.hand.slice(0, 8).map((card, index) => ({
-        instanceId: card.instanceId,
-        unitId: card.unitId,
-        tier: card.tier,
-        position: { x: index % 8, y: Math.floor(index / 8) },
-      }));
-      setPlacedUnits(placed);
+  // Computed values - memoized to prevent unnecessary re-renders
+  const hand = useMemo(() => currentRun?.hand ?? [], [currentRun?.hand]);
+  const field = useMemo(() => currentRun?.field ?? [], [currentRun?.field]);
+  const gold = currentRun?.gold ?? 0;
+
+  // Get unit name helper
+  const getUnitName = useCallback((unitId: string) => {
+    return unitNames[unitId] || unitId;
+  }, [unitNames]);
+
+  // Get unit cost helper
+  const getUnitCost = useCallback((unitId: string) => {
+    return unitCosts[unitId] || 3;
+  }, [unitCosts]);
+
+  // Handle hand card click
+  const handleHandCardClick = useCallback((instanceId: string) => {
+    setSelectedHandCard(prev => prev === instanceId ? null : instanceId);
+  }, []);
+
+  // Handle field cell click
+  const handleFieldCellClick = useCallback(async (x: number, y: number) => {
+    // Check if there's a unit at this position
+    const unitAtPosition = field.find(u => u.position.x === x && u.position.y === y);
+    
+    if (unitAtPosition) {
+      // Remove unit from field (refund gold)
+      await removeFromField(unitAtPosition.instanceId);
+      setSelectedHandCard(null);
+    } else if (selectedHandCard) {
+      // Place selected card at this position
+      const success = await placeUnit(selectedHandCard, { x, y });
+      if (success) {
+        setSelectedHandCard(null);
+      }
     }
-  }, [currentRun?.hand, placedUnits.length]);
+  }, [field, selectedHandCard, placeUnit, removeFromField]);
 
   // Handle spell timing change
   const handleSpellTimingChange = useCallback(
@@ -199,7 +329,6 @@ export default function BattlePage() {
 
     try {
       const response = await api.findRoguelikeOpponent(runId);
-      // Map response to display format
       const opp: OpponentDisplay = {
         id: response.opponent.id,
         playerId: response.opponent.playerId,
@@ -214,7 +343,7 @@ export default function BattlePage() {
       };
       setOpponent(opp);
       setStep('battle');
-    } catch (err) {
+    } catch {
       setBattleError('Не удалось найти противника');
       setStep('spells');
     }
@@ -228,7 +357,8 @@ export default function BattlePage() {
     setBattleError(null);
 
     try {
-      const team: RoguelikePlacedUnit[] = placedUnits.map(u => ({
+      // Convert field units to battle format
+      const team: RoguelikePlacedUnit[] = field.map(u => ({
         instanceId: u.instanceId,
         unitId: u.unitId,
         tier: u.tier,
@@ -242,7 +372,6 @@ export default function BattlePage() {
 
       const result = await api.submitRoguelikeBattle(runId, team, timings);
 
-      // Show battle result screen
       setBattleResult({
         result: result.result,
         goldEarned: result.goldEarned,
@@ -255,12 +384,12 @@ export default function BattlePage() {
         runStatus: result.runStatus,
       });
       setStep('result');
-    } catch (err) {
+    } catch {
       setBattleError('Не удалось провести бой');
     } finally {
       setBattleLoading(false);
     }
-  }, [runId, opponent, placedUnits, spellTimings, router]);
+  }, [runId, opponent, field, spellTimings]);
 
   // Navigation handlers
   const handleBack = useCallback(() => {
@@ -284,18 +413,18 @@ export default function BattlePage() {
     router.push('/');
   }, [router]);
 
-  // Handle continue after battle result
   const handleContinueAfterBattle = useCallback(() => {
     if (!battleResult) return;
     
     if (battleResult.runStatus === 'active') {
-      // Continue run - go to shop
       router.push(`/run/${runId}/shop`);
     } else {
-      // Run ended - go to results
       router.push(`/run/${runId}/result`);
     }
   }, [battleResult, runId, router]);
+
+  // Check if can proceed to spells
+  const canProceedToSpells = field.length > 0;
 
   // Loading state
   if (runLoading) {
@@ -346,8 +475,8 @@ export default function BattlePage() {
     );
   }
 
-  // No units in hand
-  if (currentRun && (!currentRun.hand || currentRun.hand.length === 0)) {
+  // No units in hand AND no units on field - need draft
+  if (currentRun && hand.length === 0 && field.length === 0) {
     return (
       <div className="min-h-screen bg-gray-900 text-white">
         <Navigation />
@@ -377,13 +506,13 @@ export default function BattlePage() {
     <div className="min-h-screen bg-gray-900 text-white">
       <Navigation />
       <NavigationWrapper>
-        <div className="max-w-4xl mx-auto p-6">
+        <div className="max-w-4xl mx-auto p-4 md:p-6">
           {/* Run status bar */}
           {currentRun && (
             <RunStatusBar
               wins={currentRun.wins}
               losses={currentRun.losses}
-              gold={currentRun.gold}
+              gold={gold}
               leader={{
                 id: currentRun.leaderId,
                 name: currentRun.leaderId,
@@ -391,14 +520,14 @@ export default function BattlePage() {
                 faction: currentRun.faction,
               }}
               consecutiveWins={currentRun.consecutiveWins}
-              useRussian={useRussian}
-              className="mb-6"
+              useRussian={true}
+              className="mb-4"
             />
           )}
 
           {/* Error display */}
           {(runError || battleError) && (
-            <div className="mb-6">
+            <div className="mb-4">
               <ErrorMessage message={runError || battleError || ''} severity="error" />
             </div>
           )}
@@ -407,45 +536,78 @@ export default function BattlePage() {
           {step === 'placement' && (
             <div>
               <h2 className="text-xl font-bold text-center mb-2">{labels.placement}</h2>
-              <p className="text-gray-400 text-center mb-6">{labels.placementDesc}</p>
+              <p className="text-gray-400 text-center mb-4 text-sm">{labels.placementDesc}</p>
 
-              {/* Simplified grid display */}
-              <div className="bg-gray-800/50 rounded-xl p-4 mb-6">
+              {/* Field (8×2 grid) */}
+              <div className="bg-gray-800/50 rounded-xl p-4 mb-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-medium text-gray-300">{labels.field}</h3>
+                  <span className="text-sm text-gray-500">{field.length} юнитов</span>
+                </div>
                 <div className="grid grid-cols-8 gap-1">
-                  {Array.from({ length: 16 }).map((_, i) => {
-                    const x = i % 8;
-                    const y = Math.floor(i / 8);
-                    const unit = placedUnits.find(u => u.position.x === x && u.position.y === y);
+                  {Array.from({ length: FIELD_WIDTH * FIELD_HEIGHT }).map((_, i) => {
+                    const x = i % FIELD_WIDTH;
+                    const y = Math.floor(i / FIELD_WIDTH);
+                    const unit = field.find(u => u.position.x === x && u.position.y === y);
+                    const isValidDrop = selectedHandCard !== null && !unit;
 
                     return (
-                      <div
-                        key={i}
-                        className={`aspect-square rounded border ${
-                          unit
-                            ? 'bg-blue-900/50 border-blue-500'
-                            : 'bg-gray-700/30 border-gray-600'
-                        } flex items-center justify-center text-xs`}
-                      >
-                        {unit && (
-                          <span className="truncate px-1">
-                            {unit.unitId.slice(0, 3)}
-                          </span>
-                        )}
-                      </div>
+                      <FieldCell
+                        key={`${x}-${y}`}
+                        x={x}
+                        y={y}
+                        unit={unit || null}
+                        unitName={unit ? getUnitName(unit.unitId) : null}
+                        isValidDrop={isValidDrop}
+                        onClick={() => handleFieldCellClick(x, y)}
+                      />
                     );
                   })}
                 </div>
-                <p className="text-center text-gray-500 text-sm mt-2">
-                  {placedUnits.length} юнитов расставлено
+                <p className="text-center text-gray-500 text-xs mt-2">
+                  {selectedHandCard ? labels.clickToPlace : labels.clickToRemove}
                 </p>
               </div>
 
+              {/* Hand */}
+              <div className="bg-gray-800/50 rounded-xl p-4 mb-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-medium text-gray-300">{labels.hand}</h3>
+                  <span className="text-yellow-400 font-bold">{gold} 🪙</span>
+                </div>
+                {hand.length === 0 ? (
+                  <p className="text-gray-500 text-center py-4">Рука пуста</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {hand.map(card => {
+                      const cost = getUnitCost(card.unitId);
+                      const canAfford = gold >= cost;
+                      return (
+                        <HandCard
+                          key={card.instanceId}
+                          card={card}
+                          unitName={getUnitName(card.unitId)}
+                          cost={cost}
+                          isSelected={selectedHandCard === card.instanceId}
+                          canAfford={canAfford}
+                          onClick={() => handleHandCardClick(card.instanceId)}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Action buttons */}
               <div className="text-center">
+                {!canProceedToSpells && (
+                  <p className="text-red-400 text-sm mb-2">{labels.emptyField}</p>
+                )}
                 <button
                   onClick={() => setStep('spells')}
-                  disabled={placedUnits.length === 0}
+                  disabled={!canProceedToSpells}
                   className={`px-6 py-3 font-bold rounded-lg transition-colors ${
-                    placedUnits.length === 0
+                    !canProceedToSpells
                       ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
                       : 'bg-yellow-500 text-black hover:bg-yellow-400'
                   }`}
@@ -466,7 +628,7 @@ export default function BattlePage() {
                 spells={spellInfos}
                 timings={spellTimings}
                 onTimingChange={handleSpellTimingChange}
-                useRussian={useRussian}
+                useRussian={true}
                 className="mb-6"
               />
 
@@ -492,7 +654,6 @@ export default function BattlePage() {
             <div>
               <h2 className="text-xl font-bold text-center mb-6">Противник найден!</h2>
 
-              {/* Opponent info */}
               <div className="bg-gray-800/50 rounded-xl p-6 mb-6 text-center">
                 <div className="text-4xl mb-2">⚔️</div>
                 <div className="text-lg font-bold">{opponent.playerName}</div>
@@ -529,7 +690,6 @@ export default function BattlePage() {
           {/* Step: Result */}
           {step === 'result' && battleResult && (
             <div className="text-center">
-              {/* Result icon and title */}
               <div className="text-8xl mb-4">
                 {battleResult.result === 'win' ? '🏆' : '💀'}
               </div>
@@ -539,9 +699,7 @@ export default function BattlePage() {
                 {battleResult.result === 'win' ? 'Победа!' : 'Поражение'}
               </h2>
 
-              {/* Stats card */}
               <div className="bg-gray-800/50 rounded-xl p-6 mb-6 max-w-md mx-auto">
-                {/* Gold earned */}
                 <div className="flex items-center justify-between py-3 border-b border-gray-700">
                   <span className="text-gray-400">Золото заработано:</span>
                   <span className="text-2xl font-bold text-yellow-400">
@@ -549,7 +707,6 @@ export default function BattlePage() {
                   </span>
                 </div>
 
-                {/* New gold total */}
                 <div className="flex items-center justify-between py-3 border-b border-gray-700">
                   <span className="text-gray-400">Всего золота:</span>
                   <span className="text-xl font-bold text-yellow-300">
@@ -557,7 +714,6 @@ export default function BattlePage() {
                   </span>
                 </div>
 
-                {/* Rating change */}
                 <div className="flex items-center justify-between py-3 border-b border-gray-700">
                   <span className="text-gray-400">Рейтинг:</span>
                   <span className={`text-lg font-bold ${
@@ -567,7 +723,6 @@ export default function BattlePage() {
                   </span>
                 </div>
 
-                {/* Win/Loss record */}
                 <div className="flex items-center justify-between py-3">
                   <span className="text-gray-400">Счёт:</span>
                   <span className="text-lg font-bold">
@@ -578,7 +733,6 @@ export default function BattlePage() {
                 </div>
               </div>
 
-              {/* Run status message */}
               {battleResult.runComplete && (
                 <div className={`mb-6 p-4 rounded-lg ${
                   battleResult.runStatus === 'won' 
@@ -596,7 +750,6 @@ export default function BattlePage() {
                 </div>
               )}
 
-              {/* Continue button */}
               <button
                 onClick={handleContinueAfterBattle}
                 className="px-8 py-4 bg-yellow-500 text-black font-bold rounded-lg hover:bg-yellow-400 transition-colors text-lg"

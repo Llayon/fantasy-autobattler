@@ -767,6 +767,76 @@ export const api = {
   async getRoguelikeLeaders(faction: string): Promise<RoguelikeLeader[]> {
     return fetchApi<RoguelikeLeader[]>(`/roguelike/factions/${faction}/leaders`);
   },
+
+  // ===========================================================================
+  // ROGUELIKE PLACEMENT
+  // ===========================================================================
+
+  /**
+   * Place a unit from hand onto the deployment field.
+   * Costs gold equal to the unit's cost.
+   * 
+   * @param runId - Run identifier
+   * @param instanceId - Card instance ID from hand
+   * @param position - Target position on field (x: 0-7, y: 0-1)
+   * @returns Updated hand, field, and gold
+   * @throws ApiError if not enough gold or position occupied
+   * @example
+   * const result = await api.placeUnit('run-123', 'card-1', { x: 0, y: 0 });
+   */
+  async placeUnit(
+    runId: string,
+    instanceId: string,
+    position: { x: number; y: number }
+  ): Promise<RoguelikePlacementResult> {
+    return fetchApi<RoguelikePlacementResult>(`/roguelike/runs/${runId}/placement`, {
+      method: 'POST',
+      body: JSON.stringify({ instanceId, position }),
+    });
+  },
+
+  /**
+   * Reposition a unit on the deployment field.
+   * Free (no gold cost).
+   * 
+   * @param runId - Run identifier
+   * @param instanceId - Unit instance ID on field
+   * @param position - New position on field
+   * @returns Updated field
+   * @throws ApiError if position occupied or unit not on field
+   * @example
+   * const result = await api.repositionUnit('run-123', 'card-1', { x: 1, y: 0 });
+   */
+  async repositionUnit(
+    runId: string,
+    instanceId: string,
+    position: { x: number; y: number }
+  ): Promise<RoguelikeRepositionResult> {
+    return fetchApi<RoguelikeRepositionResult>(`/roguelike/runs/${runId}/placement/reposition`, {
+      method: 'POST',
+      body: JSON.stringify({ instanceId, position }),
+    });
+  },
+
+  /**
+   * Remove a unit from the field back to hand.
+   * Refunds the unit's gold cost.
+   * 
+   * @param runId - Run identifier
+   * @param instanceId - Unit instance ID on field
+   * @returns Updated hand, field, and gold
+   * @throws ApiError if unit not on field
+   * @example
+   * const result = await api.removeFromField('run-123', 'card-1');
+   */
+  async removeFromField(
+    runId: string,
+    instanceId: string
+  ): Promise<RoguelikePlacementResult> {
+    return fetchApi<RoguelikePlacementResult>(`/roguelike/runs/${runId}/placement/${instanceId}`, {
+      method: 'DELETE',
+    });
+  },
 };
 
 // =============================================================================
@@ -784,6 +854,7 @@ export interface RoguelikeRun {
   deck: RoguelikeDeckCard[];
   remainingDeck: RoguelikeDeckCard[];
   hand: RoguelikeDeckCard[];
+  field: RoguelikeFieldUnit[];
   spells: RoguelikeSpellCard[];
   wins: number;
   losses: number;
@@ -794,6 +865,16 @@ export interface RoguelikeRun {
   rating: number;
   createdAt: Date;
   updatedAt: Date;
+}
+
+/**
+ * Unit placed on the deployment field.
+ */
+export interface RoguelikeFieldUnit {
+  instanceId: string;
+  unitId: string;
+  tier: 1 | 2 | 3;
+  position: { x: number; y: number };
 }
 
 /**
@@ -903,6 +984,24 @@ export interface RoguelikeUpgradeResult {
   hand: RoguelikeDeckCard[];
   gold: number;
   goldSpent: number;
+}
+
+/**
+ * Result of placing or removing a unit.
+ */
+export interface RoguelikePlacementResult {
+  success: boolean;
+  hand: RoguelikeDeckCard[];
+  field: RoguelikeFieldUnit[];
+  gold: number;
+}
+
+/**
+ * Result of repositioning a unit.
+ */
+export interface RoguelikeRepositionResult {
+  success: boolean;
+  field: RoguelikeFieldUnit[];
 }
 
 /**

@@ -72,6 +72,8 @@ export interface Run {
   remainingDeck: DeckCard[];
   /** Units available for placement (3-12) */
   hand: DeckCard[];
+  /** Units placed on deployment field (8×2 grid) */
+  field: FieldUnit[];
   /** 2 spells (always available) */
   spells: SpellCard[];
   /** Current wins (0-9) */
@@ -92,6 +94,20 @@ export interface Run {
   createdAt: Date;
   /** Last update timestamp */
   updatedAt: Date;
+}
+
+/**
+ * Unit placed on the deployment field.
+ */
+export interface FieldUnit {
+  /** Card instance ID */
+  instanceId: string;
+  /** Unit template ID */
+  unitId: string;
+  /** Current tier */
+  tier: 1 | 2 | 3;
+  /** Position on field (x: 0-7, y: 0-1) */
+  position: { x: number; y: number };
 }
 
 /**
@@ -128,6 +144,12 @@ interface RunActions {
   updateRunAfterBattle: (result: 'win' | 'loss', goldEarned: number) => void;
   /** Update spell timing */
   updateSpellTiming: (spellId: string, timing: 'early' | 'mid' | 'late') => void;
+  /** Place unit from hand to field */
+  placeUnit: (instanceId: string, position: { x: number; y: number }) => Promise<boolean>;
+  /** Reposition unit on field */
+  repositionUnit: (instanceId: string, position: { x: number; y: number }) => Promise<boolean>;
+  /** Remove unit from field back to hand */
+  removeFromField: (instanceId: string) => Promise<boolean>;
   /** Clear current run */
   clearCurrentRun: () => void;
   /** Clear error state */
@@ -402,6 +424,138 @@ export const useRunStore = create<RunStore>((set, get) => ({
   },
 
   /**
+   * Place a unit from hand onto the deployment field.
+   * Costs gold equal to the unit's cost.
+   * 
+   * @param instanceId - Card instance ID from hand
+   * @param position - Target position on field
+   * @returns True if placement succeeded
+   * @example
+   * const success = await placeUnit('card-1', { x: 0, y: 0 });
+   */
+  placeUnit: async (instanceId: string, position: { x: number; y: number }) => {
+    const { currentRun } = get();
+    
+    if (!currentRun) {
+      set({ error: 'Нет активного забега' });
+      return false;
+    }
+
+    set({ loading: true, error: null });
+
+    try {
+      const result = await api.placeUnit(currentRun.id, instanceId, position);
+      
+      set({
+        currentRun: {
+          ...currentRun,
+          hand: result.hand,
+          field: result.field,
+          gold: result.gold,
+        },
+        loading: false,
+        error: null,
+      });
+      
+      return true;
+    } catch (error) {
+      const errorMessage = error instanceof ApiError 
+        ? error.message 
+        : 'Не удалось разместить юнита';
+      
+      set({ error: errorMessage, loading: false });
+      return false;
+    }
+  },
+
+  /**
+   * Reposition a unit on the deployment field.
+   * Free (no gold cost).
+   * 
+   * @param instanceId - Unit instance ID on field
+   * @param position - New position on field
+   * @returns True if reposition succeeded
+   * @example
+   * const success = await repositionUnit('card-1', { x: 1, y: 0 });
+   */
+  repositionUnit: async (instanceId: string, position: { x: number; y: number }) => {
+    const { currentRun } = get();
+    
+    if (!currentRun) {
+      set({ error: 'Нет активного забега' });
+      return false;
+    }
+
+    set({ loading: true, error: null });
+
+    try {
+      const result = await api.repositionUnit(currentRun.id, instanceId, position);
+      
+      set({
+        currentRun: {
+          ...currentRun,
+          field: result.field,
+        },
+        loading: false,
+        error: null,
+      });
+      
+      return true;
+    } catch (error) {
+      const errorMessage = error instanceof ApiError 
+        ? error.message 
+        : 'Не удалось переместить юнита';
+      
+      set({ error: errorMessage, loading: false });
+      return false;
+    }
+  },
+
+  /**
+   * Remove a unit from the field back to hand.
+   * Refunds the unit's gold cost.
+   * 
+   * @param instanceId - Unit instance ID on field
+   * @returns True if removal succeeded
+   * @example
+   * const success = await removeFromField('card-1');
+   */
+  removeFromField: async (instanceId: string) => {
+    const { currentRun } = get();
+    
+    if (!currentRun) {
+      set({ error: 'Нет активного забега' });
+      return false;
+    }
+
+    set({ loading: true, error: null });
+
+    try {
+      const result = await api.removeFromField(currentRun.id, instanceId);
+      
+      set({
+        currentRun: {
+          ...currentRun,
+          hand: result.hand,
+          field: result.field,
+          gold: result.gold,
+        },
+        loading: false,
+        error: null,
+      });
+      
+      return true;
+    } catch (error) {
+      const errorMessage = error instanceof ApiError 
+        ? error.message 
+        : 'Не удалось убрать юнита с поля';
+      
+      set({ error: errorMessage, loading: false });
+      return false;
+    }
+  },
+
+  /**
    * Clear current run from state.
    * 
    * @example
@@ -506,6 +660,16 @@ export const selectRunProgress = (state: RunStore) => {
  */
 export const selectRunHand = (state: RunStore) => 
   state.currentRun?.hand ?? [];
+
+/**
+ * Selector for run field (placed units).
+ * 
+ * @returns Field units or empty array
+ * @example
+ * const field = useRunStore(selectRunField);
+ */
+export const selectRunField = (state: RunStore) => 
+  state.currentRun?.field ?? [];
 
 /**
  * Selector for run spells.

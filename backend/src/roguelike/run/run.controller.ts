@@ -304,6 +304,12 @@ export class RunController {
         tier: card.tier,
         instanceId: card.instanceId,
       })),
+      field: run.field.map((unit) => ({
+        instanceId: unit.instanceId,
+        unitId: unit.unitId,
+        tier: unit.tier,
+        position: unit.position,
+      })),
       spells: run.spells.map((spell) => {
         const dto: SpellCardDto = { spellId: spell.spellId };
         if (spell.timing) {

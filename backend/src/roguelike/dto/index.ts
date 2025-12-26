@@ -38,3 +38,8 @@ export {
   BattleResultDto,
 } from './battle.dto';
 
+// Placement DTOs
+export {
+  PlaceUnitDto,
+  RepositionUnitDto,
+} from './placement.dto';
