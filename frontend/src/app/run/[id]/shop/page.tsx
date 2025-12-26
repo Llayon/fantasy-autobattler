@@ -77,12 +77,13 @@ export default function ShopPage() {
   const { currentRun, loading: runLoading, error: runError, loadRun } = useRunStore();
   const { initPlayer } = usePlayerStore();
 
-  // Initialize
+  // Initialize - force reload to get fresh run data
   useEffect(() => {
     const init = async () => {
       await initPlayer();
       if (runId) {
-        await loadRun(runId);
+        // Force reload to ensure we have fresh run data
+        await loadRun(runId, true);
         await loadShop();
       }
     };
@@ -142,9 +143,10 @@ export default function ShopPage() {
     [runId, loadRun]
   );
 
-  // Navigation handlers
+  // Navigation handlers - go to draft for post-battle card selection
   const handleContinueToBattle = useCallback(() => {
-    router.push(`/run/${runId}/draft`);
+    // Use replace to avoid back navigation issues
+    router.replace(`/run/${runId}/draft`);
   }, [runId, router]);
 
   const handleViewResults = useCallback(() => {

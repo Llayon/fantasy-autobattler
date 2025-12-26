@@ -57,16 +57,17 @@ export default function ResultPage() {
 
   const labels = useRussian ? LABELS.ru : LABELS.en;
 
-  // Store state
-  const { currentRun, loading: runLoading, loadRun } = useRunStore();
+  // Store state - use runLoaded to know when data is fresh
+  const { currentRun, loading: runLoading, loadRun, runLoaded } = useRunStore();
   const { initPlayer } = usePlayerStore();
 
-  // Initialize
+  // Initialize - force reload to get fresh status
   useEffect(() => {
     const init = async () => {
       await initPlayer();
       if (runId) {
-        await loadRun(runId);
+        // Force reload to get fresh run status (important for result page)
+        await loadRun(runId, true);
       }
     };
     init();
@@ -85,8 +86,8 @@ export default function ResultPage() {
     router.push(`/run/${runId}/battle`);
   }, [runId, router]);
 
-  // Loading state
-  if (runLoading) {
+  // Loading state - wait for data to be loaded
+  if (runLoading || !runLoaded) {
     return <FullPageLoader message={labels.loading} icon="🏆" />;
   }
 

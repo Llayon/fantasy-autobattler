@@ -199,37 +199,36 @@ export default function NewRunPage() {
   const handleStartRun = useCallback(async () => {
     if (!selectedFaction || !selectedLeader) return;
 
+    // Set creating flag BEFORE async call to prevent active run warning flash
     setIsCreating(true);
-    const run = await createRun(selectedFaction, selectedLeader);
-    if (run) {
-      router.push(`/run/${run.id}/draft`);
-    } else {
+    
+    try {
+      const run = await createRun(selectedFaction, selectedLeader);
+      if (run) {
+        // Use replace instead of push to prevent back navigation to this page
+        router.replace(`/run/${run.id}/draft`);
+      } else {
+        setIsCreating(false);
+      }
+    } catch {
       setIsCreating(false);
     }
   }, [selectedFaction, selectedLeader, createRun, router]);
 
-  // Handle navigation to active run - determine correct page based on run state
-  const handleGoToActiveRun = useCallback(async () => {
+  // Handle navigation to active run - go directly to draft (initial draft is always available for new runs)
+  const handleGoToActiveRun = useCallback(() => {
     if (!currentRun) return;
     
-    // Check if draft is available
-    try {
-      const draftStatus = await api.getRoguelikeDraftStatus(currentRun.id);
-      if (draftStatus.available) {
-        router.push(`/run/${currentRun.id}/draft`);
-      } else {
-        // No draft available - go to battle
-        router.push(`/run/${currentRun.id}/battle`);
-      }
-    } catch {
-      // If draft status check fails, default to battle
-      router.push(`/run/${currentRun.id}/battle`);
-    }
+    // Set creating flag to prevent intermediate screen flash during navigation
+    setIsCreating(true);
+    
+    // Always try draft first - if no draft available, draft page will redirect to battle
+    router.replace(`/run/${currentRun.id}/draft`);
   }, [currentRun, router]);
 
-  // Loading state - only wait for factions, not run check
-  // Run check happens in background and will show warning if needed
-  if (loadingFactions) {
+  // Loading state - wait for factions AND run check to complete
+  // This prevents flash of content before we know if there's an active run
+  if (loadingFactions || (!runLoaded && !isCreating)) {
     return <FullPageLoader message={labels.loadingFactions} icon="🎮" />;
   }
 

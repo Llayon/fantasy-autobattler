@@ -78,12 +78,15 @@ export default function DraftPage() {
   // Track if we should redirect
   const [shouldRedirect, setShouldRedirect] = useState(false);
 
-  // Initialize
+  // Initialize - force reload to get fresh run data
   useEffect(() => {
     const init = async () => {
+      // Clear draft state first to avoid showing stale data
+      clearDraft();
       await initPlayer();
       if (runId) {
-        await loadRun(runId);
+        // Force reload to ensure we have fresh run data
+        await loadRun(runId, true);
         await loadDraft(runId);
         setInitialLoadDone(true);
       }

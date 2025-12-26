@@ -9,6 +9,20 @@
 
 import { useEffect, useCallback, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import {
+  DndContext,
+  DragOverlay,
+  DragStartEvent,
+  DragEndEvent,
+  DragOverEvent,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+  useDraggable,
+  useDroppable,
+} from '@dnd-kit/core';
 import { Navigation, NavigationWrapper } from '@/components/Navigation';
 import { FullPageLoader } from '@/components/LoadingStates';
 import { ErrorMessage } from '@/components/ErrorStates';
@@ -23,6 +37,25 @@ import { api, RoguelikePlacedUnit, RoguelikeSpellTiming, RoguelikeUnitData } fro
 // =============================================================================
 
 type BattleStep = 'placement' | 'spells' | 'finding' | 'battle' | 'result';
+
+/** Drag data for hand cards */
+interface HandCardDragData {
+  type: 'hand-card';
+  instanceId: string;
+  unitId: string;
+  tier: 1 | 2 | 3;
+}
+
+/** Drag data for field units */
+interface FieldUnitDragData {
+  type: 'field-unit';
+  instanceId: string;
+  unitId: string;
+  tier: 1 | 2 | 3;
+  position: { x: number; y: number };
+}
+
+type DragData = HandCardDragData | FieldUnitDragData;
 
 interface OpponentDisplay {
   id: string;
@@ -93,6 +126,7 @@ const LABELS = {
 
 /**
  * Hand card component for displaying a card in hand.
+ * Supports both click selection and drag & drop.
  */
 interface HandCardProps {
   card: DeckCard;
@@ -104,6 +138,17 @@ interface HandCardProps {
 }
 
 function HandCard({ card, unitName, cost, isSelected, canAfford, onClick }: HandCardProps) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `hand-${card.instanceId}`,
+    data: {
+      type: 'hand-card',
+      instanceId: card.instanceId,
+      unitId: card.unitId,
+      tier: card.tier,
+    } as HandCardDragData,
+    disabled: !canAfford,
+  });
+
   const tierColors = {
     1: 'border-gray-500 bg-gray-800',
     2: 'border-blue-500 bg-blue-900/30',
@@ -112,13 +157,17 @@ function HandCard({ card, unitName, cost, isSelected, canAfford, onClick }: Hand
 
   return (
     <button
+      ref={setNodeRef}
       onClick={onClick}
       disabled={!canAfford}
+      {...attributes}
+      {...listeners}
       className={`
-        relative p-3 rounded-lg border-2 transition-all min-w-[100px]
+        relative p-3 rounded-lg border-2 transition-all min-w-[100px] touch-none
         ${tierColors[card.tier]}
         ${isSelected ? 'ring-2 ring-yellow-400 scale-105' : ''}
-        ${canAfford ? 'hover:scale-105 cursor-pointer' : 'opacity-50 cursor-not-allowed'}
+        ${canAfford ? 'hover:scale-105 cursor-grab active:cursor-grabbing' : 'opacity-50 cursor-not-allowed'}
+        ${isDragging ? 'opacity-50' : ''}
       `}
     >
       <div className="text-sm font-medium truncate">{unitName}</div>
@@ -134,6 +183,7 @@ function HandCard({ card, unitName, cost, isSelected, canAfford, onClick }: Hand
 
 /**
  * Field grid cell component.
+ * Supports both click selection and drag & drop.
  */
 interface FieldCellProps {
   x: number;
@@ -142,35 +192,131 @@ interface FieldCellProps {
   unitName: string | null;
   isValidDrop: boolean;
   isSelected: boolean;
+  isDragOver: boolean;
   onClick: () => void;
 }
 
-function FieldCell({ unit, unitName, isValidDrop, isSelected, onClick }: FieldCellProps) {
+function FieldCell({ x, y, unit, unitName, isValidDrop, isSelected, isDragOver, onClick }: FieldCellProps) {
+  const { setNodeRef: setDropRef, isOver } = useDroppable({
+    id: `field-${x}-${y}`,
+    data: {
+      type: 'field-cell',
+      x,
+      y,
+    },
+  });
+
+  const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({
+    id: `field-unit-${unit?.instanceId || 'empty'}`,
+    data: unit ? {
+      type: 'field-unit',
+      instanceId: unit.instanceId,
+      unitId: unit.unitId,
+      tier: unit.tier,
+      position: { x, y },
+    } as FieldUnitDragData : undefined,
+    disabled: !unit,
+  });
+
   const tierColors = {
     1: 'bg-gray-700 border-gray-500',
     2: 'bg-blue-900/50 border-blue-500',
     3: 'bg-purple-900/50 border-purple-500',
   };
 
+  const showDropHighlight = (isOver || isDragOver) && !unit;
+
   return (
-    <button
-      onClick={onClick}
+    <div
+      ref={setDropRef}
+      className="aspect-square"
+    >
+      <button
+        ref={unit ? setDragRef : undefined}
+        onClick={onClick}
+        {...(unit ? attributes : {})}
+        {...(unit ? listeners : {})}
+        className={`
+          w-full h-full rounded border-2 transition-all flex items-center justify-center touch-none
+          ${unit ? tierColors[unit.tier] : 'bg-gray-800/50 border-gray-600'}
+          ${showDropHighlight ? 'border-green-400 bg-green-900/30' : ''}
+          ${isSelected ? 'ring-2 ring-yellow-400 border-yellow-400' : ''}
+          ${unit && !isSelected ? 'hover:border-yellow-400 cursor-grab active:cursor-grabbing' : ''}
+          ${!unit && isValidDrop ? 'hover:bg-green-800/50' : ''}
+          ${isDragging ? 'opacity-50' : ''}
+        `}
+      >
+        {unit && !isDragging && (
+          <div className="text-center">
+            <div className="text-xs font-medium truncate px-1">{unitName}</div>
+            <div className="text-[10px] text-gray-400">T{unit.tier}</div>
+          </div>
+        )}
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Droppable hand area for returning units from field.
+ */
+interface HandAreaDropZoneProps {
+  isActive: boolean;
+  children: React.ReactNode;
+}
+
+function HandAreaDropZone({ isActive, children }: HandAreaDropZoneProps) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: 'hand-area',
+    data: {
+      type: 'hand-area',
+    },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
       className={`
-        aspect-square rounded border-2 transition-all flex items-center justify-center
-        ${unit ? tierColors[unit.tier] : 'bg-gray-800/50 border-gray-600'}
-        ${isValidDrop ? 'border-green-400 bg-green-900/30' : ''}
-        ${isSelected ? 'ring-2 ring-yellow-400 border-yellow-400' : ''}
-        ${unit && !isSelected ? 'hover:border-yellow-400' : ''}
-        ${!unit && isValidDrop ? 'hover:bg-green-800/50' : ''}
+        bg-gray-800/50 rounded-xl p-4 mb-4 transition-all
+        ${isActive && isOver ? 'ring-2 ring-red-400 bg-red-900/20' : ''}
+        ${isActive && !isOver ? 'ring-1 ring-dashed ring-gray-500' : ''}
       `}
     >
-      {unit && (
-        <div className="text-center">
-          <div className="text-xs font-medium truncate px-1">{unitName}</div>
-          <div className="text-[10px] text-gray-400">T{unit.tier}</div>
-        </div>
+      {children}
+      {isActive && (
+        <p className="text-center text-red-400 text-xs mt-2">
+          Отпустите здесь, чтобы вернуть в руку
+        </p>
       )}
-    </button>
+    </div>
+  );
+}
+
+/**
+ * Drag overlay component for visual feedback during drag.
+ */
+interface DragOverlayContentProps {
+  dragData: DragData;
+  getUnitName: (unitId: string) => string;
+}
+
+function DragOverlayContent({ dragData, getUnitName }: DragOverlayContentProps) {
+  const tierColors = {
+    1: 'border-gray-500 bg-gray-800',
+    2: 'border-blue-500 bg-blue-900/30',
+    3: 'border-purple-500 bg-purple-900/30',
+  };
+
+  return (
+    <div
+      className={`
+        p-3 rounded-lg border-2 min-w-[80px] transform rotate-3 scale-105 shadow-2xl
+        ${tierColors[dragData.tier]}
+      `}
+    >
+      <div className="text-sm font-medium truncate">{getUnitName(dragData.unitId)}</div>
+      <div className="text-xs text-gray-400">T{dragData.tier}</div>
+    </div>
   );
 }
 
@@ -203,8 +349,28 @@ export default function BattlePage() {
   const [unitData, setUnitData] = useState<Record<string, RoguelikeUnitData>>({});
   const [unitDataLoading, setUnitDataLoading] = useState(true);
   
-  // Selected field unit for repositioning
+  // Selected field unit for repositioning (click-based)
   const [selectedFieldUnit, setSelectedFieldUnit] = useState<string | null>(null);
+  
+  // Drag state
+  const [activeDragData, setActiveDragData] = useState<DragData | null>(null);
+  const [dragOverCell, setDragOverCell] = useState<{ x: number; y: number } | null>(null);
+
+  // Configure sensors for both mouse and touch
+  const pointerSensor = useSensor(PointerSensor, {
+    activationConstraint: {
+      distance: 5,
+    },
+  });
+  
+  const touchSensor = useSensor(TouchSensor, {
+    activationConstraint: {
+      delay: 150,
+      tolerance: 8,
+    },
+  });
+  
+  const sensors = useSensors(pointerSensor, touchSensor);
 
   // Store state
   const { 
@@ -219,12 +385,13 @@ export default function BattlePage() {
   } = useRunStore();
   const { initPlayer } = usePlayerStore();
 
-  // Initialize
+  // Initialize - force reload to get fresh hand/field data
   useEffect(() => {
     const init = async () => {
       await initPlayer();
       if (runId) {
-        await loadRun(runId);
+        // Force reload to ensure we have fresh hand/field data
+        await loadRun(runId, true);
       }
       // Load unit data from API
       try {
@@ -329,6 +496,61 @@ export default function BattlePage() {
       setSelectedFieldUnit(unitAtPosition.instanceId);
     }
   }, [field, selectedHandCard, selectedFieldUnit, placeUnit, repositionUnit]);
+
+  // Drag & Drop handlers
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const data = event.active.data.current as DragData;
+    setActiveDragData(data);
+    // Clear click-based selections when starting drag
+    setSelectedHandCard(null);
+    setSelectedFieldUnit(null);
+  }, []);
+
+  const handleDragOver = useCallback((event: DragOverEvent) => {
+    const { over } = event;
+    if (over?.data.current?.type === 'field-cell') {
+      setDragOverCell({ x: over.data.current.x, y: over.data.current.y });
+    } else {
+      setDragOverCell(null);
+    }
+  }, []);
+
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+    const { active, over } = event;
+    const dragData = active.data.current as DragData;
+    
+    setActiveDragData(null);
+    setDragOverCell(null);
+
+    if (!over) return;
+
+    const dropType = over.data.current?.type;
+
+    if (dragData.type === 'hand-card') {
+      // Dragging from hand
+      if (dropType === 'field-cell') {
+        const { x, y } = over.data.current as { x: number; y: number };
+        // Check if cell is empty
+        const unitAtPosition = field.find(u => u.position.x === x && u.position.y === y);
+        if (!unitAtPosition) {
+          await placeUnit(dragData.instanceId, { x, y });
+        }
+      }
+    } else if (dragData.type === 'field-unit') {
+      // Dragging from field
+      if (dropType === 'field-cell') {
+        const { x, y } = over.data.current as { x: number; y: number };
+        // Check if cell is empty (and not the same position)
+        const unitAtPosition = field.find(u => u.position.x === x && u.position.y === y);
+        if (!unitAtPosition && (x !== dragData.position.x || y !== dragData.position.y)) {
+          await repositionUnit(dragData.instanceId, { x, y });
+        }
+      } else if (dropType === 'hand-area') {
+        // Return to hand
+        await removeFromField(dragData.instanceId);
+      }
+    }
+  }, [field, placeUnit, repositionUnit, removeFromField]);
 
   // Handle spell timing change
   const handleSpellTimingChange = useCallback(
@@ -553,110 +775,129 @@ export default function BattlePage() {
 
           {/* Step: Placement */}
           {step === 'placement' && (
-            <div>
-              <h2 className="text-xl font-bold text-center mb-2">{labels.placement}</h2>
-              <p className="text-gray-400 text-center mb-4 text-sm">{labels.placementDesc}</p>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDragEnd={handleDragEnd}
+            >
+              <div>
+                <h2 className="text-xl font-bold text-center mb-2">{labels.placement}</h2>
+                <p className="text-gray-400 text-center mb-4 text-sm">{labels.placementDesc}</p>
 
-              {/* Field (8×2 grid) */}
-              <div className="bg-gray-800/50 rounded-xl p-4 mb-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-medium text-gray-300">{labels.field}</h3>
-                  <span className="text-sm text-gray-500">{field.length} юнитов</span>
-                </div>
-                <div className="grid grid-cols-8 gap-1">
-                  {Array.from({ length: FIELD_WIDTH * FIELD_HEIGHT }).map((_, i) => {
-                    const x = i % FIELD_WIDTH;
-                    const y = Math.floor(i / FIELD_WIDTH);
-                    const unit = field.find(u => u.position.x === x && u.position.y === y);
-                    const isValidDrop = (selectedHandCard !== null || selectedFieldUnit !== null) && !unit;
-                    const isSelected = unit?.instanceId === selectedFieldUnit;
-
-                    return (
-                      <FieldCell
-                        key={`${x}-${y}`}
-                        x={x}
-                        y={y}
-                        unit={unit || null}
-                        unitName={unit ? getUnitName(unit.unitId) : null}
-                        isValidDrop={isValidDrop}
-                        isSelected={isSelected}
-                        onClick={() => handleFieldCellClick(x, y)}
-                      />
-                    );
-                  })}
-                </div>
-                <p className="text-center text-gray-500 text-xs mt-2">
-                  {selectedFieldUnit 
-                    ? 'Нажмите на пустую клетку для перемещения или кнопку ниже для возврата в руку'
-                    : selectedHandCard 
-                      ? labels.clickToPlace 
-                      : 'Нажмите на юнита для выбора'}
-                </p>
-                {/* Remove from field button */}
-                {selectedFieldUnit && (
-                  <div className="text-center mt-2">
-                    <button
-                      onClick={async () => {
-                        const success = await removeFromField(selectedFieldUnit);
-                        if (success) {
-                          setSelectedFieldUnit(null);
-                        }
-                      }}
-                      className="px-4 py-2 bg-red-600 text-white text-sm rounded hover:bg-red-500 transition-colors"
-                    >
-                      Вернуть в руку
-                    </button>
+                {/* Field (8×2 grid) */}
+                <div className="bg-gray-800/50 rounded-xl p-4 mb-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-medium text-gray-300">{labels.field}</h3>
+                    <span className="text-sm text-gray-500">{field.length} юнитов</span>
                   </div>
-                )}
-              </div>
+                  <div className="grid grid-cols-8 gap-1">
+                    {Array.from({ length: FIELD_WIDTH * FIELD_HEIGHT }).map((_, i) => {
+                      const x = i % FIELD_WIDTH;
+                      const y = Math.floor(i / FIELD_WIDTH);
+                      const unit = field.find(u => u.position.x === x && u.position.y === y);
+                      const isValidDrop = (selectedHandCard !== null || selectedFieldUnit !== null || activeDragData !== null) && !unit;
+                      const isSelected = unit?.instanceId === selectedFieldUnit;
+                      const isDragOver = dragOverCell?.x === x && dragOverCell?.y === y;
 
-              {/* Hand */}
-              <div className="bg-gray-800/50 rounded-xl p-4 mb-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-medium text-gray-300">{labels.hand}</h3>
-                  <span className="text-yellow-400 font-bold">{gold} 🪙</span>
-                </div>
-                {hand.length === 0 ? (
-                  <p className="text-gray-500 text-center py-4">Рука пуста</p>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {hand.map(card => {
-                      const cost = getUnitCost(card.unitId);
-                      const canAfford = gold >= cost;
                       return (
-                        <HandCard
-                          key={card.instanceId}
-                          card={card}
-                          unitName={getUnitName(card.unitId)}
-                          cost={cost}
-                          isSelected={selectedHandCard === card.instanceId}
-                          canAfford={canAfford}
-                          onClick={() => handleHandCardClick(card.instanceId)}
+                        <FieldCell
+                          key={`${x}-${y}`}
+                          x={x}
+                          y={y}
+                          unit={unit || null}
+                          unitName={unit ? getUnitName(unit.unitId) : null}
+                          isValidDrop={isValidDrop}
+                          isSelected={isSelected}
+                          isDragOver={isDragOver}
+                          onClick={() => handleFieldCellClick(x, y)}
                         />
                       );
                     })}
                   </div>
-                )}
+                  <p className="text-center text-gray-500 text-xs mt-2">
+                    {activeDragData
+                      ? 'Перетащите на пустую клетку'
+                      : selectedFieldUnit 
+                        ? 'Нажмите на пустую клетку для перемещения или кнопку ниже для возврата в руку'
+                        : selectedHandCard 
+                          ? labels.clickToPlace 
+                          : 'Перетащите или нажмите на юнита для выбора'}
+                  </p>
+                  {/* Remove from field button */}
+                  {selectedFieldUnit && (
+                    <div className="text-center mt-2">
+                      <button
+                        onClick={async () => {
+                          const success = await removeFromField(selectedFieldUnit);
+                          if (success) {
+                            setSelectedFieldUnit(null);
+                          }
+                        }}
+                        className="px-4 py-2 bg-red-600 text-white text-sm rounded hover:bg-red-500 transition-colors"
+                      >
+                        Вернуть в руку
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Hand - wrapped in droppable zone for returning units */}
+                <HandAreaDropZone isActive={activeDragData?.type === 'field-unit'}>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-medium text-gray-300">{labels.hand}</h3>
+                    <span className="text-yellow-400 font-bold">{gold} 🪙</span>
+                  </div>
+                  {hand.length === 0 ? (
+                    <p className="text-gray-500 text-center py-4">Рука пуста</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {hand.map(card => {
+                        const cost = getUnitCost(card.unitId);
+                        const canAfford = gold >= cost;
+                        return (
+                          <HandCard
+                            key={card.instanceId}
+                            card={card}
+                            unitName={getUnitName(card.unitId)}
+                            cost={cost}
+                            isSelected={selectedHandCard === card.instanceId}
+                            canAfford={canAfford}
+                            onClick={() => handleHandCardClick(card.instanceId)}
+                          />
+                        );
+                      })}
+                    </div>
+                  )}
+                </HandAreaDropZone>
+
+                {/* Action buttons */}
+                <div className="text-center">
+                  {!canProceedToSpells && (
+                    <p className="text-red-400 text-sm mb-2">{labels.emptyField}</p>
+                  )}
+                  <button
+                    onClick={() => setStep('spells')}
+                    disabled={!canProceedToSpells}
+                    className={`px-6 py-3 font-bold rounded-lg transition-colors ${
+                      !canProceedToSpells
+                        ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                        : 'bg-yellow-500 text-black hover:bg-yellow-400'
+                    }`}
+                  >
+                    Далее →
+                  </button>
+                </div>
               </div>
 
-              {/* Action buttons */}
-              <div className="text-center">
-                {!canProceedToSpells && (
-                  <p className="text-red-400 text-sm mb-2">{labels.emptyField}</p>
+              {/* Drag Overlay */}
+              <DragOverlay>
+                {activeDragData && (
+                  <DragOverlayContent dragData={activeDragData} getUnitName={getUnitName} />
                 )}
-                <button
-                  onClick={() => setStep('spells')}
-                  disabled={!canProceedToSpells}
-                  className={`px-6 py-3 font-bold rounded-lg transition-colors ${
-                    !canProceedToSpells
-                      ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                      : 'bg-yellow-500 text-black hover:bg-yellow-400'
-                  }`}
-                >
-                  Далее →
-                </button>
-              </div>
-            </div>
+              </DragOverlay>
+            </DndContext>
           )}
 
           {/* Step: Spell Timings */}

@@ -120,8 +120,10 @@ interface RunState {
   currentRun: Run | null;
   /** Run history for the player */
   runHistory: Run[];
-  /** Loading state for run operations */
+  /** Loading state for run operations (full page loader) */
   loading: boolean;
+  /** Loading state for placement operations (no full page loader) */
+  placementLoading: boolean;
   /** Error message for run operations */
   error: string | null;
   /** Whether run data has been loaded */
@@ -135,7 +137,7 @@ interface RunActions {
   /** Create a new roguelike run */
   createRun: (faction: string, leaderId: string) => Promise<Run | null>;
   /** Load run by ID */
-  loadRun: (runId: string) => Promise<void>;
+  loadRun: (runId: string, forceReload?: boolean) => Promise<void>;
   /** Load active run for current player */
   loadActiveRun: () => Promise<void>;
   /** Abandon current run */
@@ -190,6 +192,7 @@ export const useRunStore = create<RunStore>((set, get) => ({
   currentRun: null,
   runHistory: [],
   loading: false,
+  placementLoading: false,
   error: null,
   runLoaded: false,
 
@@ -231,14 +234,24 @@ export const useRunStore = create<RunStore>((set, get) => ({
 
   /**
    * Load run by ID.
+   * If the run is already loaded with the same ID, skips loading.
    * 
    * @param runId - Run identifier
+   * @param forceReload - Force reload even if run is already loaded
    * @throws ApiError if run cannot be loaded
    * @example
    * await loadRun('run-123');
    */
-  loadRun: async (runId: string) => {
-    set({ loading: true, error: null });
+  loadRun: async (runId: string, forceReload: boolean = false) => {
+    const { currentRun, runLoaded } = get();
+    
+    // Skip loading if run is already loaded with the same ID (unless forced)
+    if (!forceReload && runLoaded && currentRun && currentRun.id === runId) {
+      return;
+    }
+    
+    // Reset runLoaded to show loading state while fetching fresh data
+    set({ loading: true, error: null, runLoaded: false });
     
     try {
       const run = await api.getRoguelikeRun(runId);
@@ -253,7 +266,7 @@ export const useRunStore = create<RunStore>((set, get) => ({
         ? error.message 
         : 'Не удалось загрузить забег';
       
-      set({ error: errorMessage, loading: false });
+      set({ error: errorMessage, loading: false, runLoaded: true });
     }
   },
 
@@ -266,7 +279,8 @@ export const useRunStore = create<RunStore>((set, get) => ({
    * await loadActiveRun();
    */
   loadActiveRun: async () => {
-    set({ loading: true, error: null });
+    // Reset runLoaded to show loading state while fetching fresh data
+    set({ loading: true, error: null, runLoaded: false });
     
     try {
       const run = await api.getActiveRoguelikeRun();
@@ -305,7 +319,7 @@ export const useRunStore = create<RunStore>((set, get) => ({
         ? error.message 
         : 'Не удалось загрузить активный забег';
       
-      set({ error: errorMessage, loading: false });
+      set({ error: errorMessage, loading: false, runLoaded: true });
     }
   },
 
@@ -429,6 +443,7 @@ export const useRunStore = create<RunStore>((set, get) => ({
   /**
    * Place a unit from hand onto the deployment field.
    * Costs gold equal to the unit's cost.
+   * Uses placementLoading to avoid full page loader.
    * 
    * @param instanceId - Card instance ID from hand
    * @param position - Target position on field
@@ -444,7 +459,7 @@ export const useRunStore = create<RunStore>((set, get) => ({
       return false;
     }
 
-    set({ loading: true, error: null });
+    set({ placementLoading: true, error: null });
 
     try {
       const result = await api.placeUnit(currentRun.id, instanceId, position);
@@ -456,7 +471,7 @@ export const useRunStore = create<RunStore>((set, get) => ({
           field: result.field,
           gold: result.gold,
         },
-        loading: false,
+        placementLoading: false,
         error: null,
       });
       
@@ -466,14 +481,14 @@ export const useRunStore = create<RunStore>((set, get) => ({
         ? error.message 
         : 'Не удалось разместить юнита';
       
-      set({ error: errorMessage, loading: false });
+      set({ error: errorMessage, placementLoading: false });
       return false;
     }
   },
 
   /**
    * Reposition a unit on the deployment field.
-   * Free (no gold cost).
+   * Free (no gold cost). Uses optimistic update for smooth UX.
    * 
    * @param instanceId - Unit instance ID on field
    * @param position - New position on field
@@ -489,27 +504,48 @@ export const useRunStore = create<RunStore>((set, get) => ({
       return false;
     }
 
-    set({ loading: true, error: null });
+    // Optimistic update - update UI immediately without loading state
+    const originalField = currentRun.field;
+    const updatedField = currentRun.field.map(unit =>
+      unit.instanceId === instanceId
+        ? { ...unit, position }
+        : unit
+    );
+    
+    set({
+      currentRun: {
+        ...currentRun,
+        field: updatedField,
+      },
+      error: null,
+    });
 
     try {
+      // Sync with server in background
       const result = await api.repositionUnit(currentRun.id, instanceId, position);
       
+      // Update with server response (in case of any discrepancies)
       set({
         currentRun: {
-          ...currentRun,
+          ...get().currentRun!,
           field: result.field,
         },
-        loading: false,
-        error: null,
       });
       
       return true;
     } catch (error) {
+      // Rollback on error
       const errorMessage = error instanceof ApiError 
         ? error.message 
         : 'Не удалось переместить юнита';
       
-      set({ error: errorMessage, loading: false });
+      set({ 
+        currentRun: {
+          ...get().currentRun!,
+          field: originalField,
+        },
+        error: errorMessage,
+      });
       return false;
     }
   },
@@ -517,6 +553,7 @@ export const useRunStore = create<RunStore>((set, get) => ({
   /**
    * Remove a unit from the field back to hand.
    * Refunds the unit's gold cost.
+   * Uses placementLoading to avoid full page loader.
    * 
    * @param instanceId - Unit instance ID on field
    * @returns True if removal succeeded
@@ -531,7 +568,7 @@ export const useRunStore = create<RunStore>((set, get) => ({
       return false;
     }
 
-    set({ loading: true, error: null });
+    set({ placementLoading: true, error: null });
 
     try {
       const result = await api.removeFromField(currentRun.id, instanceId);
@@ -543,7 +580,7 @@ export const useRunStore = create<RunStore>((set, get) => ({
           field: result.field,
           gold: result.gold,
         },
-        loading: false,
+        placementLoading: false,
         error: null,
       });
       
@@ -553,7 +590,7 @@ export const useRunStore = create<RunStore>((set, get) => ({
         ? error.message 
         : 'Не удалось убрать юнита с поля';
       
-      set({ error: errorMessage, loading: false });
+      set({ error: errorMessage, placementLoading: false });
       return false;
     }
   },

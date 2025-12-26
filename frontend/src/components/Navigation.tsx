@@ -526,7 +526,6 @@ export function Navigation({
   const router = useRouter();
   const pathname = usePathname();
   const [tabs, setTabs] = useState<NavigationTab[]>(NAVIGATION_TABS);
-  const [loading, setLoading] = useState(true);
 
   // Generate breadcrumbs from pathname or use custom ones
   const breadcrumbs = customBreadcrumbs || generateBreadcrumbs(pathname);
@@ -577,10 +576,8 @@ export function Navigation({
             : tab
         )
       );
-    } catch (error) {
+    } catch {
       // Silently handle errors - navigation should work without badges
-    } finally {
-      setLoading(false);
     }
   }, []);
 
@@ -597,10 +594,8 @@ export function Navigation({
     loadBadgeData();
   }, [loadBadgeData]);
 
-  // Don't render until badge data is loaded (prevents flash)
-  if (loading) {
-    return null;
-  }
+  // Always render navigation - don't block on badge data loading
+  // Badge will appear when data is loaded
 
   return (
     <div className={className}>

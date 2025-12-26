@@ -10,7 +10,7 @@
 // Force dynamic rendering to prevent static generation issues
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { BattleLog } from '@/types/game';
 import { api, ApiError } from '@/lib/api';
@@ -627,9 +627,15 @@ export default function BattleHistoryPage() {
     totalPages: 0,
   });
   
-  // Computed values
-  const filteredBattles = filterBattles(battles, filter);
-  const sortedBattles = sortBattles(filteredBattles, sortOption);
+  // Computed values - memoized to prevent infinite loops in useEffect
+  const filteredBattles = useMemo(
+    () => filterBattles(battles, filter),
+    [battles, filter]
+  );
+  const sortedBattles = useMemo(
+    () => sortBattles(filteredBattles, sortOption),
+    [filteredBattles, sortOption]
+  );
   const hasMoreBattles = displayedBattles.length < sortedBattles.length;
   
   const battleCounts: Record<BattleFilter, number> = {
@@ -708,18 +714,19 @@ export default function BattleHistoryPage() {
   useEffect(() => {
     const initialBattles = sortedBattles.slice(0, ITEMS_PER_PAGE);
     setDisplayedBattles(initialBattles);
-  }, [filter, sortOption, battles, sortedBattles]); // Re-run when battles, filter, or sort changes
+  }, [sortedBattles]); // sortedBattles is now memoized, safe to use as dependency
   
   // Update pagination when filtered battles change
+  const filteredBattlesLength = filteredBattles.length;
   useEffect(() => {
-    const totalPages = Math.ceil(filteredBattles.length / pagination.itemsPerPage);
+    const totalPages = Math.ceil(filteredBattlesLength / pagination.itemsPerPage);
     setPagination(prev => ({
       ...prev,
-      totalItems: filteredBattles.length,
+      totalItems: filteredBattlesLength,
       totalPages,
       currentPage: Math.min(prev.currentPage, Math.max(0, totalPages - 1)),
     }));
-  }, [filteredBattles.length, pagination.itemsPerPage]);
+  }, [filteredBattlesLength, pagination.itemsPerPage]);
   
   // Load battles on mount
   useEffect(() => {
@@ -729,17 +736,7 @@ export default function BattleHistoryPage() {
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       {/* Navigation */}
-      <div className="p-4 border-b border-gray-700">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <Navigation />
-          <button
-            onClick={() => router.push('/')}
-            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
-          >
-            ← Назад
-          </button>
-        </div>
-      </div>
+      <Navigation />
       
       <NavigationWrapper>
         <div className="max-w-4xl mx-auto p-6">

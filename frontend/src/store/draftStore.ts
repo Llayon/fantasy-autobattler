@@ -424,7 +424,8 @@ export const useDraftStore = create<DraftStore>((set, get) => ({
   },
 
   /**
-   * Clear draft state.
+   * Clear draft state and prepare for new load.
+   * Sets loading to true to show loader while new data loads.
    * 
    * @example
    * clearDraft();
@@ -436,7 +437,7 @@ export const useDraftStore = create<DraftStore>((set, get) => ({
       isInitial: true,
       requiredPicks: INITIAL_DRAFT_PICKS,
       remainingInDeck: 0,
-      loading: false,
+      loading: true, // Keep loading true to show loader until new data loads
       error: null,
       isDraftAvailable: false,
     });
