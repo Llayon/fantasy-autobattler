@@ -267,5 +267,99 @@
     "battleGrid": "Battle grid",
     "teamList": "Team list",
     "unitList": "Unit list"
+  },
+  "roguelike": {
+    "title": "Roguelike Run",
+    "startRun": "Start Run",
+    "continueRun": "Continue Run",
+    "newRun": "New Run",
+    "abandonRun": "Abandon Run",
+    "abandonConfirm": "Are you sure you want to abandon this run? All progress will be lost.",
+    "runActive": "Run Active",
+    "runComplete": "Run Complete",
+    "victory": "Victory!",
+    "defeat": "Defeat",
+    "wins": "{count} Wins",
+    "losses": "{count} Losses",
+    "gold": "{amount} Gold",
+    "progress": "{wins}/9 Wins • {losses}/4 Losses",
+    "factions": {
+      "title": "Select Faction",
+      "humans": "Humans",
+      "humansDesc": "Disciplined warriors with +10% HP bonus. Retreating morale system.",
+      "undead": "Undead",
+      "undeadDesc": "Relentless hordes with +15% ATK bonus. Crumbling morale system."
+    },
+    "leaders": {
+      "title": "Select Leader",
+      "passive": "Passive",
+      "spells": "Spells",
+      "commanderAldric": "Commander Aldric",
+      "commanderAldricDesc": "Formation Master - Adjacent allies share 10% damage",
+      "lichKingMalachar": "Lich King Malachar",
+      "lichKingMalacherDesc": "Life Drain - Heals 15% of damage dealt"
+    },
+    "spells": {
+      "title": "Spells",
+      "holyLight": "Holy Light",
+      "holyLightDesc": "Heal all allies for 20 HP",
+      "rally": "Rally",
+      "rallyDesc": "All allies gain +30 Resolve",
+      "deathCoil": "Death Coil",
+      "deathCoilDesc": "Deal 40 damage to target enemy",
+      "raiseDead": "Raise Dead",
+      "raiseDeadDesc": "Summon a Skeleton Warrior"
+    },
+    "spellTiming": {
+      "title": "Spell Timing",
+      "early": "Early",
+      "earlyDesc": "Triggers at battle start",
+      "mid": "Mid",
+      "midDesc": "Triggers when ally drops below 70% HP",
+      "late": "Late",
+      "lateDesc": "Triggers when ally drops below 40% HP"
+    },
+    "draft": {
+      "title": "Draft",
+      "initialDraft": "Initial Draft",
+      "postBattleDraft": "Post-Battle Draft",
+      "pickCards": "Pick {count} cards",
+      "cardsSelected": "{selected}/{required} selected",
+      "confirmPicks": "Confirm Picks",
+      "skipDraft": "Skip Draft",
+      "remainingDeck": "{count} cards remaining in deck"
+    },
+    "shop": {
+      "title": "Upgrade Shop",
+      "upgrade": "Upgrade",
+      "upgradeTo": "Upgrade to T{tier}",
+      "cost": "Cost: {cost}g",
+      "cannotAfford": "Not enough gold",
+      "maxTier": "Max Tier",
+      "yourHand": "Your Hand",
+      "goldBalance": "Gold: {gold}g"
+    },
+    "tiers": {
+      "t1": "Tier 1",
+      "t2": "Tier 2",
+      "t3": "Tier 3"
+    },
+    "status": {
+      "preparing": "Preparing for Battle",
+      "battling": "In Battle",
+      "drafting": "Drafting",
+      "shopping": "Upgrade Shop",
+      "complete": "Run Complete"
+    },
+    "errors": {
+      "noActiveRun": "No active run",
+      "runNotFound": "Run not found",
+      "invalidFaction": "Invalid faction selected",
+      "invalidLeader": "Invalid leader selected",
+      "insufficientGold": "Not enough gold",
+      "cannotUpgrade": "Cannot upgrade this unit",
+      "draftRequired": "Draft required before battle",
+      "activeRunExists": "You already have an active run"
+    }
   }
 }

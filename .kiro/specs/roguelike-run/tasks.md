@@ -374,15 +374,15 @@ Roguelike-run использует переиспользуемые систем
 ### Task 15: Add i18n & Navigation
 **Estimate**: 30 min | **Requirement**: REQ-13
 
-- [ ] 15.1 Add translations to `frontend/messages/`:
+- [x] 15.1 Add translations to `frontend/messages/`:
   - Add roguelike keys to `en.json` and `ru.json`
   - Faction names, leader names, spell names
   - UI labels: "Start Run", "Draft", "Upgrade", etc.
   - Error messages
   - Using existing next-intl setup
-- [ ] 15.2 Add "Roguelike Run" button to main menu (Navigation.tsx)
-- [ ] 15.3 Add run status indicator to header when run is active
-- [ ] 15.4 **VERIFY**: `npm run build`
+- [x] 15.2 Add "Roguelike Run" button to main menu (Navigation.tsx)
+- [x] 15.3 Add run status indicator to header when run is active
+- [x] 15.4 **VERIFY**: `npm run build`
 
 **CHECKPOINT 3**: Frontend complete.
 

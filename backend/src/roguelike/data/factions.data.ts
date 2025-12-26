@@ -104,8 +104,8 @@ export function getFactionBasic(factionId: Faction): FactionData | undefined {
   const faction = FACTIONS_DATA[factionId];
   if (!faction) return undefined;
 
-  // Return only basic FactionData fields
-  const { brokenBehavior, baseResolveRegen, canSelfRecover, ...basicData } = faction;
+  // Return only basic FactionData fields (destructure to exclude resolve-specific fields)
+  const { brokenBehavior: _brokenBehavior, baseResolveRegen: _baseResolveRegen, canSelfRecover: _canSelfRecover, ...basicData } = faction;
   return basicData;
 }
 

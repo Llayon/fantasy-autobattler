@@ -267,5 +267,99 @@
     "battleGrid": "Поле боя",
     "teamList": "Список команд",
     "unitList": "Список юнитов"
+  },
+  "roguelike": {
+    "title": "Roguelike забег",
+    "startRun": "Начать забег",
+    "continueRun": "Продолжить забег",
+    "newRun": "Новый забег",
+    "abandonRun": "Отменить забег",
+    "abandonConfirm": "Вы уверены, что хотите отменить забег? Весь прогресс будет потерян.",
+    "runActive": "Забег активен",
+    "runComplete": "Забег завершён",
+    "victory": "Победа!",
+    "defeat": "Поражение",
+    "wins": "{count} побед",
+    "losses": "{count} поражений",
+    "gold": "{amount} золота",
+    "progress": "{wins}/9 побед • {losses}/4 поражений",
+    "factions": {
+      "title": "Выберите фракцию",
+      "humans": "Люди",
+      "humansDesc": "Дисциплинированные воины с +10% HP. Система отступления.",
+      "undead": "Нежить",
+      "undeadDesc": "Неумолимые орды с +15% ATK. Система разложения."
+    },
+    "leaders": {
+      "title": "Выберите лидера",
+      "passive": "Пассивка",
+      "spells": "Заклинания",
+      "commanderAldric": "Командир Алдрик",
+      "commanderAldricDesc": "Мастер строя — соседние союзники делят 10% урона",
+      "lichKingMalachar": "Король-лич Малахар",
+      "lichKingMalacherDesc": "Вытягивание жизни — исцеляет 15% от нанесённого урона"
+    },
+    "spells": {
+      "title": "Заклинания",
+      "holyLight": "Святой свет",
+      "holyLightDesc": "Исцеляет всех союзников на 20 HP",
+      "rally": "Воодушевление",
+      "rallyDesc": "Все союзники получают +30 решимости",
+      "deathCoil": "Кольцо смерти",
+      "deathCoilDesc": "Наносит 40 урона выбранному врагу",
+      "raiseDead": "Воскрешение мёртвых",
+      "raiseDeadDesc": "Призывает воина-скелета"
+    },
+    "spellTiming": {
+      "title": "Время заклинания",
+      "early": "Раннее",
+      "earlyDesc": "Срабатывает в начале боя",
+      "mid": "Среднее",
+      "midDesc": "Срабатывает когда союзник падает ниже 70% HP",
+      "late": "Позднее",
+      "lateDesc": "Срабатывает когда союзник падает ниже 40% HP"
+    },
+    "draft": {
+      "title": "Драфт",
+      "initialDraft": "Начальный драфт",
+      "postBattleDraft": "Драфт после боя",
+      "pickCards": "Выберите {count} карт",
+      "cardsSelected": "{selected}/{required} выбрано",
+      "confirmPicks": "Подтвердить выбор",
+      "skipDraft": "Пропустить драфт",
+      "remainingDeck": "{count} карт осталось в колоде"
+    },
+    "shop": {
+      "title": "Магазин улучшений",
+      "upgrade": "Улучшить",
+      "upgradeTo": "Улучшить до T{tier}",
+      "cost": "Цена: {cost}з",
+      "cannotAfford": "Недостаточно золота",
+      "maxTier": "Макс. уровень",
+      "yourHand": "Ваша рука",
+      "goldBalance": "Золото: {gold}з"
+    },
+    "tiers": {
+      "t1": "Уровень 1",
+      "t2": "Уровень 2",
+      "t3": "Уровень 3"
+    },
+    "status": {
+      "preparing": "Подготовка к бою",
+      "battling": "В бою",
+      "drafting": "Драфт",
+      "shopping": "Магазин улучшений",
+      "complete": "Забег завершён"
+    },
+    "errors": {
+      "noActiveRun": "Нет активного забега",
+      "runNotFound": "Забег не найден",
+      "invalidFaction": "Выбрана неверная фракция",
+      "invalidLeader": "Выбран неверный лидер",
+      "insufficientGold": "Недостаточно золота",
+      "cannotUpgrade": "Невозможно улучшить этого юнита",
+      "draftRequired": "Требуется драфт перед боем",
+      "activeRunExists": "У вас уже есть активный забег"
+    }
   }
 }

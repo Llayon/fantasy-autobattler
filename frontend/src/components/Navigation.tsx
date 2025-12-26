@@ -12,6 +12,7 @@ import Link from 'next/link';
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api';
 import { usePlayerStore, selectPlayer } from '@/store/playerStore';
+import { useRunStore, selectCurrentRun, selectHasActiveRun } from '@/store/runStore';
 
 // =============================================================================
 // TYPES
@@ -75,25 +76,32 @@ const NAVIGATION_TABS: NavigationTab[] = [
     shortcut: 1,
   },
   {
+    id: 'roguelike',
+    label: 'Забег',
+    icon: '🎲',
+    href: '/run/new',
+    shortcut: 2,
+  },
+  {
     id: 'battle',
     label: 'Бой',
     icon: '🎮',
     href: '/battle',
-    shortcut: 2,
+    shortcut: 3,
   },
   {
     id: 'history',
     label: 'История',
     icon: '📚',
     href: '/history',
-    shortcut: 3,
+    shortcut: 4,
   },
   {
     id: 'profile',
     label: 'Профиль',
     icon: '👤',
     href: '/profile',
-    shortcut: 4,
+    shortcut: 5,
   },
 ];
 
@@ -120,6 +128,10 @@ const LOGO_CONFIG = {
 function isTabActive(tabHref: string, pathname: string): boolean {
   if (tabHref === '/') {
     return pathname === '/';
+  }
+  // Special handling for roguelike run pages
+  if (tabHref === '/run/new') {
+    return pathname.startsWith('/run');
   }
   return pathname.startsWith(tabHref);
 }
@@ -184,6 +196,25 @@ function generateBreadcrumbs(pathname: string): BreadcrumbItem[] {
     } else {
       // Battle page
       breadcrumbs.push({ label: 'Бой', icon: '🎮' });
+    }
+  } else if (segments[0] === 'run') {
+    breadcrumbs.push({ label: 'Забег', href: '/run/new', icon: '🎲' });
+    
+    if (segments[1] === 'new') {
+      breadcrumbs.push({ label: 'Новый забег', icon: '✨' });
+    } else if (segments.length > 1) {
+      // Run pages: /run/[id]/draft, /run/[id]/battle, etc.
+      const subPage = segments[2];
+      
+      if (subPage === 'draft') {
+        breadcrumbs.push({ label: 'Драфт', icon: '🃏' });
+      } else if (subPage === 'battle') {
+        breadcrumbs.push({ label: 'Бой', icon: '⚔️' });
+      } else if (subPage === 'shop') {
+        breadcrumbs.push({ label: 'Магазин', icon: '🛒' });
+      } else if (subPage === 'result') {
+        breadcrumbs.push({ label: 'Результат', icon: '🏆' });
+      }
     }
   } else {
     // Default to team builder
@@ -362,6 +393,37 @@ function NavigationTabComponent({
 }
 
 /**
+ * Active run status indicator component.
+ * Shows current run progress in the navigation bar.
+ */
+function ActiveRunIndicator() {
+  const currentRun = useRunStore(selectCurrentRun);
+  const hasActiveRun = useRunStore(selectHasActiveRun);
+  
+  if (!hasActiveRun || !currentRun) {
+    return null;
+  }
+  
+  return (
+    <Link
+      href={`/run/${currentRun.id}/battle`}
+      className="flex items-center gap-2 px-3 py-1.5 bg-purple-600/80 hover:bg-purple-500 rounded-lg text-white text-sm transition-colors"
+      title="Перейти к активному забегу"
+      aria-label={`Активный забег: ${currentRun.wins} побед, ${currentRun.losses} поражений`}
+    >
+      <span className="text-base">🎲</span>
+      <span className="hidden sm:inline font-medium">
+        {currentRun.wins}/9 • {currentRun.losses}/4
+      </span>
+      <span className="sm:hidden font-medium">
+        {currentRun.wins}W {currentRun.losses}L
+      </span>
+      <span className="text-yellow-300 font-medium">{currentRun.gold}g</span>
+    </Link>
+  );
+}
+
+/**
  * Desktop top navigation component with logo, tabs, and profile.
  */
 function DesktopNavigation({ 
@@ -394,8 +456,11 @@ function DesktopNavigation({
             ))}
           </nav>
           
-          {/* Profile */}
-          <PlayerProfile />
+          {/* Right side: Active run indicator + Profile */}
+          <div className="flex items-center gap-3">
+            <ActiveRunIndicator />
+            <PlayerProfile />
+          </div>
         </div>
         
         {/* Breadcrumbs */}
@@ -482,9 +547,9 @@ export function Navigation({
       return;
     }
 
-    // Handle number keys 1-4 for tab navigation
+    // Handle number keys 1-5 for tab navigation
     const key = event.key;
-    if (['1', '2', '3', '4'].includes(key)) {
+    if (['1', '2', '3', '4', '5'].includes(key)) {
       event.preventDefault();
       const shortcut = parseInt(key, 10);
       const tab = NAVIGATION_TABS.find(t => t.shortcut === shortcut);
