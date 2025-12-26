@@ -21,6 +21,11 @@ import { getRoleColor, getRoleIcon, getRoleName, getRoleClasses } from '@/lib/ro
 export type UnitCardVariant = 'list' | 'grid' | 'compact';
 
 /**
+ * Unit tier for roguelike mode.
+ */
+export type UnitTier = 1 | 2 | 3;
+
+/**
  * UnitCard component props.
  */
 interface UnitCardProps {
@@ -36,6 +41,8 @@ interface UnitCardProps {
   selected?: boolean;
   /** Whether card is disabled */
   disabled?: boolean;
+  /** Unit tier for roguelike mode (1=bronze, 2=silver, 3=gold) */
+  tier?: UnitTier;
   /** Custom CSS classes */
   className?: string;
 }
@@ -57,6 +64,28 @@ const STAT_ICONS = {
   dodge: '🌪️',
   range: '📏',
 } as const;
+
+/**
+ * Tier styling configuration for roguelike mode.
+ * Bronze (T1), Silver (T2), Gold (T3).
+ */
+const TIER_STYLES: Record<UnitTier, { border: string; glow: string; label: string }> = {
+  1: {
+    border: 'border-amber-700',
+    glow: 'shadow-amber-700/30',
+    label: 'T1',
+  },
+  2: {
+    border: 'border-gray-400',
+    glow: 'shadow-gray-400/30',
+    label: 'T2',
+  },
+  3: {
+    border: 'border-yellow-400',
+    glow: 'shadow-yellow-400/30',
+    label: 'T3',
+  },
+};
 
 // =============================================================================
 // HELPER FUNCTIONS
@@ -259,9 +288,11 @@ const UnitCard = memo(function UnitCard({
   onLongPress,
   selected = false,
   disabled = false,
+  tier,
   className = '',
 }: UnitCardProps) {
   const styles = getCardRoleStyles(unit.role);
+  const tierStyle = tier ? TIER_STYLES[tier] : null;
   
   // Long press detection state
   const [isLongPressing, setIsLongPressing] = useState(false);
@@ -355,14 +386,15 @@ const UnitCard = memo(function UnitCard({
     <button
       type="button"
       disabled={disabled}
-      aria-label={`${unit.name} - ${getRoleName(unit.role)} - Cost: ${unit.cost} - HP: ${unit.stats.hp} - Attack: ${unit.stats.atk}${selected ? ' (Selected)' : ''}`}
+      aria-label={`${unit.name} - ${getRoleName(unit.role)} - Cost: ${unit.cost} - HP: ${unit.stats.hp} - Attack: ${unit.stats.atk}${tier ? ` - Tier ${tier}` : ''}${selected ? ' (Selected)' : ''}`}
       aria-pressed={selected}
       aria-describedby={`unit-${unit.id}-description`}
       className={`
         relative rounded-lg border-2 transition-all duration-200 cursor-pointer
         ${variantStyles.container} ${variantStyles.minHeight}
-        bg-gray-800/50 ${styles.borderClass}
+        bg-gray-800/50 ${tierStyle ? tierStyle.border : styles.borderClass}
         ${selected ? 'ring-2 ring-yellow-400 shadow-lg shadow-yellow-400/30 animate-unit-select' : ''}
+        ${tierStyle && !selected ? `shadow-md ${tierStyle.glow}` : ''}
         ${isLongPressing ? 'scale-95 shadow-lg' : ''}
         ${disabled 
           ? 'opacity-50 cursor-not-allowed grayscale' 
@@ -375,8 +407,19 @@ const UnitCard = memo(function UnitCard({
       onPointerLeave={handlePointerLeave}
       onDoubleClick={handleDoubleClick}
     >
+      {/* Tier badge for roguelike mode */}
+      {tierStyle && (
+        <div
+          className={`absolute top-1 left-1 px-1.5 py-0.5 rounded text-xs font-bold ${tierStyle.border} border bg-gray-900/80 text-white z-10`}
+          aria-label={`Tier ${tier}`}
+        >
+          {tierStyle.label}
+        </div>
+      )}
+
       {/* Hidden description for screen readers */}
       <div id={`unit-${unit.id}-description`} className="sr-only">
+        {tier && `Tier ${tier}. `}
         {unit.abilities.length > 0 && `Abilities: ${unit.abilities.join(', ')}. `}
         Stats: HP {unit.stats.hp}, Attack {unit.stats.atk}, Speed {unit.stats.speed}, Armor {unit.stats.armor}.
       </div>

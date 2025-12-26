@@ -322,26 +322,26 @@ Roguelike-run использует переиспользуемые систем
 ### Task 12: Create Draft & Shop Components
 **Estimate**: 60 min | **Requirement**: REQ-13
 
-- [ ] 12.1 Create `frontend/src/components/roguelike/DraftScreen.tsx`
+- [x] 12.1 Create `frontend/src/components/roguelike/DraftScreen.tsx`
   - Display 3-5 card options
   - Handle multi-select for initial draft (3 picks)
   - Handle single-select for post-battle draft (1 pick)
-- [ ] 12.2 Create `frontend/src/components/roguelike/DraftCard.tsx`
+- [x] 12.2 Create `frontend/src/components/roguelike/DraftCard.tsx`
   - Unit card with selection state
-- [ ] 12.3 Create `frontend/src/components/roguelike/UpgradeShop.tsx`
+- [x] 12.3 Create `frontend/src/components/roguelike/UpgradeShop.tsx`
   - Display hand with upgrade buttons
   - Show upgrade costs and gold balance
-- [ ] 12.4 Create `frontend/src/components/roguelike/UpgradeCard.tsx`
+- [x] 12.4 Create `frontend/src/components/roguelike/UpgradeCard.tsx`
   - Unit card with tier indicator and upgrade button
-- [ ] 12.5 Add tier indicators to UnitCard (border color: bronze/silver/gold)
-- [ ] 12.6 Create `frontend/src/components/roguelike/SpellTimingSelect.tsx`
+- [x] 12.5 Add tier indicators to UnitCard (border color: bronze/silver/gold)
+- [x] 12.6 Create `frontend/src/components/roguelike/SpellTimingSelect.tsx`
   - Props: spell, selectedTiming, onChange
   - 3 radio buttons: Early / Mid / Late
   - Tooltip with timing explanation
   - **a11y**: aria-label, keyboard navigation
-- [ ] 12.7 Create `frontend/src/components/roguelike/SpellTimingPanel.tsx`
+- [x] 12.7 Create `frontend/src/components/roguelike/SpellTimingPanel.tsx`
   - Container for 2 spells with SpellTimingSelect
-- [ ] 12.8 **VERIFY**: `npm run build`
+- [x] 12.8 **VERIFY**: `npm run build`
 
 ### Task 13: Create Status & Result Components
 **Estimate**: 45 min | **Requirement**: REQ-13
