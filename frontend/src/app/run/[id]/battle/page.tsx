@@ -88,6 +88,12 @@ interface BattleResultDisplay {
 const FIELD_WIDTH = 8;
 const FIELD_HEIGHT = 2;
 
+/** Upgrade costs by tier */
+const UPGRADE_COSTS: Record<1 | 2, number> = {
+  1: 3, // T1 → T2
+  2: 5, // T2 → T3
+};
+
 const LABELS = {
   ru: {
     loading: 'Загрузка...',
@@ -382,6 +388,7 @@ export default function BattlePage() {
     placeUnit,
     repositionUnit,
     removeFromField,
+    upgradeUnit,
   } = useRunStore();
   const { initPlayer } = usePlayerStore();
 
@@ -449,6 +456,27 @@ export default function BattlePage() {
     const unit = unitData[unitId];
     return unit?.cost ?? 0;
   }, [unitData]);
+
+  // Get upgrade cost helper
+  const getUpgradeCost = useCallback((tier: 1 | 2 | 3): number | null => {
+    if (tier >= 3) return null; // Max tier
+    return UPGRADE_COSTS[tier as 1 | 2];
+  }, []);
+
+  // Check if can afford upgrade
+  const canAffordUpgrade = useCallback((tier: 1 | 2 | 3): boolean => {
+    const cost = getUpgradeCost(tier);
+    if (cost === null) return false;
+    return gold >= cost;
+  }, [gold, getUpgradeCost]);
+
+  // Handle upgrade unit
+  const handleUpgradeUnit = useCallback(async (instanceId: string) => {
+    const success = await upgradeUnit(instanceId);
+    if (success) {
+      setSelectedFieldUnit(null);
+    }
+  }, [upgradeUnit]);
 
   // Handle hand card click
   const handleHandCardClick = useCallback((instanceId: string) => {
@@ -827,7 +855,31 @@ export default function BattlePage() {
                   </p>
                   {/* Remove from field button */}
                   {selectedFieldUnit && (
-                    <div className="text-center mt-2">
+                    <div className="text-center mt-2 flex gap-2 justify-center flex-wrap">
+                      {/* Upgrade button */}
+                      {(() => {
+                        const selectedUnit = field.find(u => u.instanceId === selectedFieldUnit);
+                        if (!selectedUnit || selectedUnit.tier >= 3) return null;
+                        const upgradeCost = getUpgradeCost(selectedUnit.tier);
+                        const canUpgrade = canAffordUpgrade(selectedUnit.tier);
+                        return (
+                          <button
+                            onClick={() => handleUpgradeUnit(selectedFieldUnit)}
+                            disabled={!canUpgrade}
+                            className={`px-4 py-2 text-sm rounded transition-colors flex items-center gap-1 ${
+                              canUpgrade
+                                ? 'bg-green-600 text-white hover:bg-green-500'
+                                : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                            }`}
+                          >
+                            ⬆️ Улучшить до T{selectedUnit.tier + 1}
+                            <span className={canUpgrade ? 'text-yellow-300' : 'text-gray-500'}>
+                              ({upgradeCost}🪙)
+                            </span>
+                          </button>
+                        );
+                      })()}
+                      {/* Remove button */}
                       <button
                         onClick={async () => {
                           const success = await removeFromField(selectedFieldUnit);

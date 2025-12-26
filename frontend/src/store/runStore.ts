@@ -154,6 +154,8 @@ interface RunActions {
   repositionUnit: (instanceId: string, position: { x: number; y: number }) => Promise<boolean>;
   /** Remove unit from field back to hand */
   removeFromField: (instanceId: string) => Promise<boolean>;
+  /** Upgrade unit on field */
+  upgradeUnit: (instanceId: string) => Promise<boolean>;
   /** Clear current run */
   clearCurrentRun: () => void;
   /** Clear error state */
@@ -664,6 +666,97 @@ export const useRunStore = create<RunStore>((set, get) => ({
         currentRun: {
           ...get().currentRun!,
           hand: originalHand,
+          field: originalField,
+          gold: originalGold,
+        },
+        error: errorMessage,
+      });
+      return false;
+    }
+  },
+
+  /**
+   * Upgrade a unit on the deployment field.
+   * Costs gold based on tier (T1→T2: 3g, T2→T3: 5g).
+   * Uses optimistic update for smooth UX.
+   * 
+   * @param instanceId - Unit instance ID on field
+   * @returns True if upgrade succeeded
+   * @example
+   * const success = await upgradeUnit('card-1');
+   */
+  upgradeUnit: async (instanceId: string) => {
+    const { currentRun } = get();
+    
+    if (!currentRun) {
+      set({ error: 'Нет активного забега' });
+      return false;
+    }
+
+    // Find the unit on field
+    const unitToUpgrade = currentRun.field.find(u => u.instanceId === instanceId);
+    if (!unitToUpgrade) {
+      set({ error: 'Юнит не найден на поле' });
+      return false;
+    }
+
+    // Check if can upgrade
+    if (unitToUpgrade.tier >= 3) {
+      set({ error: 'Юнит уже максимального уровня' });
+      return false;
+    }
+
+    // Calculate upgrade cost (T1→T2: 3g, T2→T3: 5g)
+    const upgradeCost = unitToUpgrade.tier === 1 ? 3 : 5;
+    
+    if (currentRun.gold < upgradeCost) {
+      set({ error: 'Недостаточно золота' });
+      return false;
+    }
+
+    // Optimistic update
+    const originalField = currentRun.field;
+    const originalGold = currentRun.gold;
+
+    const newTier = (unitToUpgrade.tier + 1) as 1 | 2 | 3;
+    const updatedField = currentRun.field.map(unit =>
+      unit.instanceId === instanceId
+        ? { ...unit, tier: newTier }
+        : unit
+    );
+
+    set({
+      currentRun: {
+        ...currentRun,
+        field: updatedField,
+        gold: currentRun.gold - upgradeCost,
+      },
+      error: null,
+    });
+
+    try {
+      // Sync with server
+      const result = await api.upgradeRoguelikeUnit(currentRun.id, instanceId);
+      
+      // Update with server response (authoritative)
+      set({
+        currentRun: {
+          ...get().currentRun!,
+          field: result.field,
+          gold: result.gold,
+        },
+      });
+      
+      return true;
+    } catch (error) {
+      // Rollback on error
+      const errorMessage = error instanceof ApiError 
+        ? error.message 
+        : 'Не удалось улучшить юнита';
+      
+      set({ 
+        currentRun: {
+          ...get().currentRun!,
           field: originalField,
           gold: originalGold,
         },
