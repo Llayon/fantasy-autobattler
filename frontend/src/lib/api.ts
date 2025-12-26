@@ -768,6 +768,18 @@ export const api = {
     return fetchApi<RoguelikeLeader[]>(`/roguelike/factions/${faction}/leaders`);
   },
 
+  /**
+   * Get all roguelike units with their stats and costs.
+   * 
+   * @returns Array of unit data including costs
+   * @example
+   * const units = await api.getRoguelikeUnits();
+   * const unitCosts = Object.fromEntries(units.map(u => [u.id, u.cost]));
+   */
+  async getRoguelikeUnits(): Promise<RoguelikeUnitData[]> {
+    return fetchApi<RoguelikeUnitData[]>('/roguelike/units');
+  },
+
   // ===========================================================================
   // ROGUELIKE PLACEMENT
   // ===========================================================================
@@ -1089,4 +1101,30 @@ export interface RoguelikeLeader {
     description: string;
   }[];
   portrait: string;
+}
+
+/**
+ * Unit data from roguelike API.
+ * Contains all unit stats and costs for display and validation.
+ */
+export interface RoguelikeUnitData {
+  id: string;
+  name: string;
+  nameRu: string;
+  faction: string;
+  role: string;
+  tier: 1 | 2 | 3;
+  cost: number;
+  hp: number;
+  atk: number;
+  armor: number;
+  speed: number;
+  initiative: number;
+  range: number;
+  attackCount: number;
+  dodge: number;
+  description: string;
+  descriptionRu: string;
+  abilityId?: string;
+  upgradeCost?: number;
 }

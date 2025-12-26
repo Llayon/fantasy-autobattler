@@ -16,7 +16,7 @@ import { RunStatusBar, SpellTimingPanel } from '@/components/roguelike';
 import type { SpellTimingConfig, SpellTiming, SpellTimingInfo } from '@/components/roguelike';
 import { useRunStore, FieldUnit, DeckCard } from '@/store/runStore';
 import { usePlayerStore } from '@/store/playerStore';
-import { api, RoguelikePlacedUnit, RoguelikeSpellTiming } from '@/lib/api';
+import { api, RoguelikePlacedUnit, RoguelikeSpellTiming, RoguelikeUnitData } from '@/lib/api';
 
 // =============================================================================
 // TYPES
@@ -196,37 +196,8 @@ export default function BattlePage() {
   const [battleLoading, setBattleLoading] = useState(false);
   const [battleError, setBattleError] = useState<string | null>(null);
 
-  // Unit name cache (would come from API in real implementation)
-  const [unitNames] = useState<Record<string, string>>({
-    footman: 'Пехотинец',
-    archer: 'Лучник',
-    priest: 'Жрец',
-    knight: 'Рыцарь',
-    mage: 'Маг',
-    paladin: 'Паладин',
-    skeleton: 'Скелет',
-    zombie: 'Зомби',
-    necromancer: 'Некромант',
-    vampire: 'Вампир',
-    ghost: 'Призрак',
-    lich: 'Лич',
-  });
-
-  // Unit costs (would come from API in real implementation)
-  const [unitCosts] = useState<Record<string, number>>({
-    footman: 3,
-    archer: 3,
-    priest: 4,
-    knight: 5,
-    mage: 4,
-    paladin: 6,
-    skeleton: 2,
-    zombie: 3,
-    necromancer: 5,
-    vampire: 5,
-    ghost: 4,
-    lich: 7,
-  });
+  // Unit data from API (names and costs)
+  const [unitData, setUnitData] = useState<Record<string, RoguelikeUnitData>>({});
 
   // Store state
   const { 
@@ -246,6 +217,17 @@ export default function BattlePage() {
       await initPlayer();
       if (runId) {
         await loadRun(runId);
+      }
+      // Load unit data from API
+      try {
+        const units = await api.getRoguelikeUnits();
+        const unitMap: Record<string, RoguelikeUnitData> = {};
+        for (const unit of units) {
+          unitMap[unit.id] = unit;
+        }
+        setUnitData(unitMap);
+      } catch {
+        // Fallback: unit data will be empty, costs will default to 0
       }
     };
     init();
@@ -280,13 +262,15 @@ export default function BattlePage() {
 
   // Get unit name helper
   const getUnitName = useCallback((unitId: string) => {
-    return unitNames[unitId] || unitId;
-  }, [unitNames]);
+    const unit = unitData[unitId];
+    return unit?.nameRu || unit?.name || unitId;
+  }, [unitData]);
 
   // Get unit cost helper
   const getUnitCost = useCallback((unitId: string) => {
-    return unitCosts[unitId] || 3;
-  }, [unitCosts]);
+    const unit = unitData[unitId];
+    return unit?.cost ?? 0;
+  }, [unitData]);
 
   // Handle hand card click
   const handleHandCardClick = useCallback((instanceId: string) => {

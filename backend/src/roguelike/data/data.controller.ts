@@ -18,6 +18,7 @@ import {
   getLeadersByFaction,
   getLeaderWithSpells,
 } from './leaders.data';
+import { ALL_UPGRADE_LINES, getRoguelikeUnit } from './units.helpers';
 
 /**
  * Controller for roguelike static data endpoints.
@@ -156,5 +157,85 @@ export class DataController {
         portrait: leader.portrait,
       };
     });
+  }
+
+  /**
+   * Get all units (all tiers).
+   *
+   * @returns Array of all unit data with costs
+   */
+  @Get('units')
+  @ApiOperation({ summary: 'Get all units' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of all units with their stats and costs',
+  })
+  getAllUnits() {
+    return ALL_UPGRADE_LINES.flatMap((line) => [line.t1, line.t2, line.t3]).map((unit) => ({
+      id: unit.id,
+      name: unit.name,
+      nameRu: unit.nameRu,
+      faction: unit.faction,
+      role: unit.role,
+      tier: unit.tier,
+      cost: unit.cost,
+      hp: unit.hp,
+      atk: unit.atk,
+      armor: unit.armor,
+      speed: unit.speed,
+      initiative: unit.initiative,
+      range: unit.range,
+      attackCount: unit.attackCount,
+      dodge: unit.dodge,
+      description: unit.description,
+      descriptionRu: unit.descriptionRu,
+      abilityId: unit.abilityId,
+      upgradeCost: unit.upgradeCost,
+    }));
+  }
+
+  /**
+   * Get unit by ID.
+   *
+   * @param unitId - Unit identifier
+   * @returns Unit data
+   */
+  @Get('units/:unitId')
+  @ApiOperation({ summary: 'Get unit by ID' })
+  @ApiParam({ name: 'unitId', description: 'Unit identifier' })
+  @ApiResponse({
+    status: 200,
+    description: 'Unit data',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Unit not found',
+  })
+  getUnitById(@Param('unitId') unitId: string) {
+    const unit = getRoguelikeUnit(unitId);
+    if (!unit) {
+      throw new NotFoundException(`Unit ${unitId} not found`);
+    }
+    return {
+      id: unit.id,
+      name: unit.name,
+      nameRu: unit.nameRu,
+      faction: unit.faction,
+      role: unit.role,
+      tier: unit.tier,
+      cost: unit.cost,
+      hp: unit.hp,
+      atk: unit.atk,
+      armor: unit.armor,
+      speed: unit.speed,
+      initiative: unit.initiative,
+      range: unit.range,
+      attackCount: unit.attackCount,
+      dodge: unit.dodge,
+      description: unit.description,
+      descriptionRu: unit.descriptionRu,
+      abilityId: unit.abilityId,
+      upgradeCost: unit.upgradeCost,
+    };
   }
 }
