@@ -643,26 +643,47 @@ export default function BattlePage() {
 
       const result = await api.submitRoguelikeBattle(runId, team, timings);
 
-      setBattleResult({
-        battleId: result.battleId,
-        result: result.result,
-        replayAvailable: result.replayAvailable,
-        goldEarned: result.goldEarned,
-        newGold: result.newGold,
-        wins: result.wins,
-        losses: result.losses,
-        ratingChange: result.ratingChange,
-        newRating: result.newRating,
-        runComplete: result.runComplete,
-        runStatus: result.runStatus,
-      });
-      setStep('result');
+      // If replay is available, navigate directly to replay page
+      // The result screen will be shown after replay ends
+      if (result.replayAvailable) {
+        // Encode battle result in URL params for showing after replay
+        const params = new URLSearchParams({
+          from: 'roguelike',
+          runId,
+          result: result.result,
+          goldEarned: String(result.goldEarned),
+          newGold: String(result.newGold),
+          wins: String(result.wins),
+          losses: String(result.losses),
+          ratingChange: String(result.ratingChange),
+          newRating: String(result.newRating),
+          runComplete: String(result.runComplete),
+          runStatus: result.runStatus,
+        });
+        router.push(`/battle/${result.battleId}?${params.toString()}`);
+      } else {
+        // No replay available, show result screen directly
+        setBattleResult({
+          battleId: result.battleId,
+          result: result.result,
+          replayAvailable: result.replayAvailable,
+          goldEarned: result.goldEarned,
+          newGold: result.newGold,
+          wins: result.wins,
+          losses: result.losses,
+          ratingChange: result.ratingChange,
+          newRating: result.newRating,
+          runComplete: result.runComplete,
+          runStatus: result.runStatus,
+        });
+        setStep('result');
+      }
     } catch {
       setBattleError('Не удалось провести бой');
     } finally {
       setBattleLoading(false);
     }
-  }, [runId, opponent, field, spellTimings]);
+  }, [runId, opponent, field, spellTimings, router]);
 
   // Navigation handlers
   const handleBack = useCallback(() => {
@@ -1096,16 +1117,6 @@ export default function BattlePage() {
                   ? 'Посмотреть результаты' 
                   : 'Продолжить →'}
               </button>
-
-              {/* Watch Replay button */}
-              {battleResult.replayAvailable && (
-                <button
-                  onClick={() => router.push(`/battle/${battleResult.battleId}?from=roguelike&runId=${runId}`)}
-                  className="mt-4 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors"
-                >
-                  🎬 Смотреть реплей
-                </button>
-              )}
             </div>
           )}
         </div>
