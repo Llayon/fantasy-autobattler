@@ -84,6 +84,8 @@ interface BattleReplayProps {
   battle: BattleLog;
   /** Current player ID for statistics calculation */
   playerId?: string;
+  /** Optional callback when user wants to go back/continue */
+  onBack?: () => void;
 }
 
 // =============================================================================
@@ -1324,7 +1326,7 @@ function EventLog({
  * @example
  * <BattleReplay battle={battleLog} />
  */
-export function BattleReplay({ battle, playerId }: BattleReplayProps) {
+export function BattleReplay({ battle, playerId, onBack }: BattleReplayProps) {
   // Safety check for required battle data - moved to top to avoid conditional hooks
   const isValidBattle = battle && battle.id;
 
@@ -1697,15 +1699,23 @@ export function BattleReplay({ battle, playerId }: BattleReplayProps) {
 
   const handleNewBattle = useCallback(() => {
     setShowBattleResult(false);
-    // In real app: navigate to matchmaking
-    window.history.back();
-  }, []);
+    // Use provided callback or fallback to history.back()
+    if (onBack) {
+      onBack();
+    } else {
+      window.history.back();
+    }
+  }, [onBack]);
 
   const handleEditTeam = useCallback(() => {
     setShowBattleResult(false);
-    // In real app: navigate to team builder
-    window.history.back();
-  }, []);
+    // Use provided callback or fallback to history.back()
+    if (onBack) {
+      onBack();
+    } else {
+      window.history.back();
+    }
+  }, [onBack]);
 
   /**
    * Step to previous event.

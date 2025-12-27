@@ -1100,7 +1100,7 @@ export default function BattlePage() {
               {/* Watch Replay button */}
               {battleResult.replayAvailable && (
                 <button
-                  onClick={() => router.push(`/battle/${battleResult.battleId}`)}
+                  onClick={() => router.push(`/battle/${battleResult.battleId}?from=roguelike&runId=${runId}`)}
                   className="mt-4 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors"
                 >
                   🎬 Смотреть реплей

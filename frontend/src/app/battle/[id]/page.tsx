@@ -8,7 +8,7 @@
 'use client';
 
 import { useEffect, useCallback, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Navigation, NavigationWrapper } from '@/components/Navigation';
 import { FullPageLoader } from '@/components/LoadingStates';
 import { ErrorMessage, NetworkError } from '@/components/ErrorStates';
@@ -47,7 +47,13 @@ interface BattlePageProps {
 export default function BattlePage({ params }: BattlePageProps) {
   const router = useRouter();
   const urlParams = useParams();
+  const searchParams = useSearchParams();
   const battleId = params?.id || urlParams?.id as string;
+  
+  // Check if this replay was accessed from roguelike mode
+  // URL format: /battle/{id}?from=roguelike&runId={runId}
+  const fromRoguelike = searchParams?.get('from') === 'roguelike';
+  const runId = searchParams?.get('runId');
   
   // Refs to prevent infinite loops
   const loadedBattleIdRef = useRef<string | null>(null);
@@ -69,6 +75,21 @@ export default function BattlePage({ params }: BattlePageProps) {
   
   // Derive error state from store
   const error = storeError && loadedBattleIdRef.current === battleId ? storeError : null;
+
+  /**
+   * Handle navigation back from replay.
+   * For roguelike mode: navigate to draft page.
+   * For regular mode: navigate to battle history.
+   */
+  const handleBack = useCallback(() => {
+    if (fromRoguelike && runId) {
+      // Navigate to draft page for roguelike mode
+      router.push(`/run/${runId}/draft`);
+    } else {
+      // Navigate to battle history for regular mode
+      router.push('/history');
+    }
+  }, [fromRoguelike, runId, router]);
 
   /**
    * Load battle data from API - only once per battleId.
@@ -234,7 +255,7 @@ export default function BattlePage({ params }: BattlePageProps) {
       
       <NavigationWrapper>
         {/* Battle Replay Component - no wrapper, full width */}
-        <BattleReplay battle={battle} playerId={player?.id} />
+        <BattleReplay battle={battle} playerId={player?.id} onBack={handleBack} />
       </NavigationWrapper>
     </div>
   );
