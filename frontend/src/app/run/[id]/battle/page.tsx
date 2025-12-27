@@ -28,7 +28,7 @@ import { FullPageLoader } from '@/components/LoadingStates';
 import { ErrorMessage } from '@/components/ErrorStates';
 import { RunStatusBar, SpellTimingPanel } from '@/components/roguelike';
 import type { SpellTimingConfig, SpellTiming, SpellTimingInfo } from '@/components/roguelike';
-import { useRunStore, FieldUnit, DeckCard } from '@/store/runStore';
+import { useRunStore, FieldUnit, DeckCard, BattleResultData } from '@/store/runStore';
 import { usePlayerStore } from '@/store/playerStore';
 import { api, RoguelikePlacedUnit, RoguelikeSpellTiming, RoguelikeUnitData } from '@/lib/api';
 
@@ -391,6 +391,7 @@ export default function BattlePage() {
     repositionUnit,
     removeFromField,
     upgradeUnit,
+    setLastBattleResult,
   } = useRunStore();
   const { initPlayer } = usePlayerStore();
 
@@ -644,23 +645,26 @@ export default function BattlePage() {
       const result = await api.submitRoguelikeBattle(runId, team, timings);
 
       // If replay is available, navigate directly to replay page
-      // The result screen will be shown after replay ends
+      // Store battle result in Zustand store (secure, not URL params)
       if (result.replayAvailable) {
-        // Encode battle result in URL params for showing after replay
-        const params = new URLSearchParams({
-          from: 'roguelike',
+        // Save battle result to store for showing after replay ends
+        const battleResultData: BattleResultData = {
+          battleId: result.battleId,
           runId,
           result: result.result,
-          goldEarned: String(result.goldEarned),
-          newGold: String(result.newGold),
-          wins: String(result.wins),
-          losses: String(result.losses),
-          ratingChange: String(result.ratingChange),
-          newRating: String(result.newRating),
-          runComplete: String(result.runComplete),
+          goldEarned: result.goldEarned,
+          newGold: result.newGold,
+          wins: result.wins,
+          losses: result.losses,
+          ratingChange: result.ratingChange,
+          newRating: result.newRating,
+          runComplete: result.runComplete,
           runStatus: result.runStatus,
-        });
-        router.push(`/battle/${result.battleId}?${params.toString()}`);
+        };
+        setLastBattleResult(battleResultData);
+        
+        // Navigate to replay page with minimal params (just source identifier)
+        router.push(`/battle/${result.battleId}?from=roguelike&runId=${runId}`);
       } else {
         // No replay available, show result screen directly
         setBattleResult({
@@ -683,7 +687,7 @@ export default function BattlePage() {
     } finally {
       setBattleLoading(false);
     }
-  }, [runId, opponent, field, spellTimings, router]);
+  }, [runId, opponent, field, spellTimings, router, setLastBattleResult]);
 
   // Navigation handlers
   const handleBack = useCallback(() => {

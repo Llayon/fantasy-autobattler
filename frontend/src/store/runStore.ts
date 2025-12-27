@@ -113,6 +113,35 @@ export interface FieldUnit {
 }
 
 /**
+ * Battle result data stored securely in Zustand store.
+ * Used to pass battle results from battle page to replay page.
+ */
+export interface BattleResultData {
+  /** Battle ID for replay */
+  battleId: string;
+  /** Run ID */
+  runId: string;
+  /** Battle result */
+  result: 'win' | 'lose';
+  /** Gold earned from battle */
+  goldEarned: number;
+  /** Total gold after battle */
+  newGold: number;
+  /** Total wins after battle */
+  wins: number;
+  /** Total losses after battle */
+  losses: number;
+  /** Rating change from battle */
+  ratingChange: number;
+  /** New rating after battle */
+  newRating: number;
+  /** Whether run is complete */
+  runComplete: boolean;
+  /** Run status after battle */
+  runStatus: 'active' | 'won' | 'lost';
+}
+
+/**
  * Run store state interface.
  */
 interface RunState {
@@ -128,6 +157,8 @@ interface RunState {
   error: string | null;
   /** Whether run data has been loaded */
   runLoaded: boolean;
+  /** Last battle result (for passing to replay page securely) */
+  lastBattleResult: BattleResultData | null;
 }
 
 /**
@@ -162,6 +193,10 @@ interface RunActions {
   clearError: () => void;
   /** Set loading state */
   setLoading: (loading: boolean) => void;
+  /** Set last battle result (for passing to replay page) */
+  setLastBattleResult: (result: BattleResultData | null) => void;
+  /** Clear last battle result */
+  clearLastBattleResult: () => void;
 }
 
 /**
@@ -197,6 +232,7 @@ export const useRunStore = create<RunStore>((set, get) => ({
   placementLoading: false,
   error: null,
   runLoaded: false,
+  lastBattleResult: null,
 
   // ===========================================================================
   // ACTIONS
@@ -800,6 +836,29 @@ export const useRunStore = create<RunStore>((set, get) => ({
   setLoading: (loading: boolean) => {
     set({ loading });
   },
+
+  /**
+   * Set last battle result for passing to replay page.
+   * This is used instead of URL params for security.
+   * 
+   * @param result - Battle result data or null
+   * @example
+   * setLastBattleResult({ battleId: '123', result: 'win', ... });
+   */
+  setLastBattleResult: (result: BattleResultData | null) => {
+    set({ lastBattleResult: result });
+  },
+
+  /**
+   * Clear last battle result.
+   * Should be called after result has been consumed.
+   * 
+   * @example
+   * clearLastBattleResult();
+   */
+  clearLastBattleResult: () => {
+    set({ lastBattleResult: null });
+  },
 }));
 
 // =============================================================================
@@ -891,3 +950,13 @@ export const selectRunField = (state: RunStore) =>
  */
 export const selectRunSpells = (state: RunStore) => 
   state.currentRun?.spells ?? [];
+
+/**
+ * Selector for last battle result.
+ * 
+ * @returns Last battle result or null
+ * @example
+ * const result = useRunStore(selectLastBattleResult);
+ */
+export const selectLastBattleResult = (state: RunStore) => 
+  state.lastBattleResult;

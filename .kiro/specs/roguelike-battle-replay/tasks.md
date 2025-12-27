@@ -129,9 +129,12 @@
   - Navigate to `/battle/${battleId}` on click
   - _Requirements: 3.1, 3.2_
 
-- [ ] 9.2 Update runStore to store battleId from API response
-  - Add `lastBattleId` field to store
-  - Update after battle submission
+- [x] 9.2 Update runStore to store battle result securely
+  - Add `lastBattleResult` field to store (BattleResultData interface)
+  - Add `setLastBattleResult()` and `clearLastBattleResult()` actions
+  - Battle result is stored in Zustand store instead of URL params (security fix)
+  - Replay page reads result from store, validates battleId matches
+  - Result is cleared after navigation to shop/result page
   - _Requirements: 4.1_
 
 ## 10. Frontend: Battle History Display

@@ -15,6 +15,7 @@ import { ErrorMessage, NetworkError } from '@/components/ErrorStates';
 import { useBattleStore } from '@/store/battleStore';
 import { useMatchmakingStore } from '@/store/matchmakingStore';
 import { usePlayerStore } from '@/store/playerStore';
+import { useRunStore, BattleResultData } from '@/store/runStore';
 
 // Lazy import BattleReplay to avoid build issues
 import dynamic from 'next/dynamic';
@@ -35,21 +36,6 @@ interface BattlePageProps {
 }
 
 /**
- * Roguelike battle result data from URL params.
- */
-interface RoguelikeBattleResult {
-  result: 'win' | 'lose';
-  goldEarned: number;
-  newGold: number;
-  wins: number;
-  losses: number;
-  ratingChange: number;
-  newRating: number;
-  runComplete: boolean;
-  runStatus: 'active' | 'won' | 'lost';
-}
-
-/**
  * Dynamic Battle page component for specific battle ID.
  * Loads battle data and displays full replay with BattleReplay component.
  * For roguelike mode, shows result screen after replay ends.
@@ -67,22 +53,19 @@ export default function BattlePage({ params }: BattlePageProps) {
   const battleId = params?.id || urlParams?.id as string;
   
   // Check if this replay was accessed from roguelike mode
-  // URL format: /battle/{id}?from=roguelike&runId={runId}&result=win|lose&...
+  // URL format: /battle/{id}?from=roguelike&runId={runId}
   const fromRoguelike = searchParams?.get('from') === 'roguelike';
   const runId = searchParams?.get('runId');
   
-  // Parse roguelike battle result from URL params
-  const roguelikeResult: RoguelikeBattleResult | null = fromRoguelike ? {
-    result: (searchParams?.get('result') as 'win' | 'lose') || 'lose',
-    goldEarned: parseInt(searchParams?.get('goldEarned') || '0', 10),
-    newGold: parseInt(searchParams?.get('newGold') || '0', 10),
-    wins: parseInt(searchParams?.get('wins') || '0', 10),
-    losses: parseInt(searchParams?.get('losses') || '0', 10),
-    ratingChange: parseInt(searchParams?.get('ratingChange') || '0', 10),
-    newRating: parseInt(searchParams?.get('newRating') || '1000', 10),
-    runComplete: searchParams?.get('runComplete') === 'true',
-    runStatus: (searchParams?.get('runStatus') as 'active' | 'won' | 'lost') || 'active',
-  } : null;
+  // Get battle result from Zustand store (secure, not URL params)
+  const lastBattleResult = useRunStore(state => state.lastBattleResult);
+  const clearLastBattleResult = useRunStore(state => state.clearLastBattleResult);
+  
+  // Validate that the stored result matches this battle
+  const roguelikeResult: BattleResultData | null = 
+    fromRoguelike && lastBattleResult && lastBattleResult.battleId === battleId
+      ? lastBattleResult
+      : null;
   
   // State for showing result screen after replay ends
   const [showResultScreen, setShowResultScreen] = useState(false);
@@ -126,16 +109,20 @@ export default function BattlePage({ params }: BattlePageProps) {
   /**
    * Handle continue after viewing result screen.
    * Navigates to shop (if run active) or result page (if run complete).
+   * Clears the stored battle result after navigation.
    */
   const handleContinue = useCallback(() => {
     if (!runId || !roguelikeResult) return;
+    
+    // Clear the stored result before navigating
+    clearLastBattleResult();
     
     if (roguelikeResult.runStatus === 'active') {
       router.push(`/run/${runId}/shop`);
     } else {
       router.push(`/run/${runId}/result`);
     }
-  }, [runId, roguelikeResult, router]);
+  }, [runId, roguelikeResult, router, clearLastBattleResult]);
 
   /**
    * Load battle data from API - only once per battleId.
