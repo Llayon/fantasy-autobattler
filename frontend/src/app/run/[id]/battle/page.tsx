@@ -69,7 +69,9 @@ interface OpponentDisplay {
 }
 
 interface BattleResultDisplay {
+  battleId: string;
   result: 'win' | 'lose';
+  replayAvailable: boolean;
   goldEarned: number;
   newGold: number;
   wins: number;
@@ -642,7 +644,9 @@ export default function BattlePage() {
       const result = await api.submitRoguelikeBattle(runId, team, timings);
 
       setBattleResult({
+        battleId: result.battleId,
         result: result.result,
+        replayAvailable: result.replayAvailable,
         goldEarned: result.goldEarned,
         newGold: result.newGold,
         wins: result.wins,
@@ -1092,6 +1096,16 @@ export default function BattlePage() {
                   ? 'Посмотреть результаты' 
                   : 'Продолжить →'}
               </button>
+
+              {/* Watch Replay button */}
+              {battleResult.replayAvailable && (
+                <button
+                  onClick={() => router.push(`/battle/${battleResult.battleId}`)}
+                  className="mt-4 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors"
+                >
+                  🎬 Смотреть реплей
+                </button>
+              )}
             </div>
           )}
         </div>

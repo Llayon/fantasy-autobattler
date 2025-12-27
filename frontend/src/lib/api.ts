@@ -1059,6 +1059,7 @@ export interface RoguelikeSpellTiming {
 export interface RoguelikeBattleResult {
   battleId: string;
   result: 'win' | 'lose';
+  replayAvailable: boolean;
   goldEarned: number;
   newGold: number;
   wins: number;

@@ -351,9 +351,12 @@ export class RunService {
     const newStatus = newWins >= RUN_CONSTANTS.MAX_WINS ? 'won' : 'active';
 
     // Create battle history entry with full information
+    // Round is 1-based: wins + losses + 1 (before incrementing wins)
+    const round = run.wins + run.losses + 1;
     const battleEntry = {
       battleId,
       result: 'win' as const,
+      round,
       goldEarned,
       opponent,
       timestamp: new Date().toISOString(),
@@ -422,9 +425,12 @@ export class RunService {
     const newStatus = newLosses >= RUN_CONSTANTS.MAX_LOSSES ? 'lost' : 'active';
 
     // Create battle history entry with full information
+    // Round is 1-based: wins + losses + 1 (before incrementing losses)
+    const round = run.wins + run.losses + 1;
     const battleEntry = {
       battleId,
       result: 'loss' as const,
+      round,
       goldEarned,
       opponent,
       timestamp: new Date().toISOString(),

@@ -1,0 +1,32 @@
+# Analysis of Roguelike Battle Replay Design
+
+## Overview
+The design document (`design.md`) builds directly upon the requirements, providing concrete implementation details for the `RoguelikeBattleService`. It wisely separates the "Roguelike Logic" (mapping, tiers, run history) from the core "Battle Simulator", maintaining clean architecture.
+
+## Evaluation
+
+### Strengths
+1.  **Architecture:** The sequence diagram clearly shows the flow. Introducing `RoguelikeBattleService` as a facade between the Controller and the Simulator is the correct pattern. It prevents the Core Simulator from pollution with Roguelike-specific logic.
+2.  **Property-Based Testing:** The explicit plan to use `fast-check` is excellent. Given the complexity of the multipliers and mapping, invariant testing will catch regressions that unit tests often miss. 
+3.  **Error Handling Strategy:** The "Auto-Win/Loss" logic (Section 7) is a practical, crash-proof way to handle empty teams. The Retry mechanim for saving logs is also a good production-readiness touch.
+4.  **T3 Abilities:** Explicitly mapping T3 units to existing abilities (`shield_wall`, `taunt`) and defining new ones (`divine_shield`) ensures the "Tier 3" power fantasy is supported by code.
+
+### Critical Considerations & Recommendations
+
+#### 1. Unit Mapping & Legacy Roles
+*   **Observation:** The mapping function (Section 2) uses `mapRoleToLegacy(unit.role)`.
+*   **Risk:** If the Roguelike mode introduces new roles (e.g., "Skirmisher") that don't map cleanly to "Classic" roles (Tank/DPS), the AI behavior in `battle.simulator.ts` might be suboptimal because it relies on those roles for targeting logic.
+*   **Recommendation:** Verify `battle.simulator.ts` AI logic to ensure it defaults gracefully for unknown roles, or ensure the mapping is exhaustive.
+
+#### 2. Seed Generation Collision
+*   **Observation:** The seed generation uses a simple string hash: `${runId}-${battleNumber}`.
+*   **Risk:** While sufficient for replays, this is predictable. If a player figures out the seed algorithm, they might be able to predict RNG outcomes (crit chance, dodge) if they know the run ID.
+*   **Mitigation:** For a single-player PvE mode, this is **low risk** and acceptable. The primary goal is replayability, not cryptographic security.
+
+#### 3. Frontend Button Availability
+*   **Observation:** The design adds a `replayAvailable` flag to the DTO.
+*   **Recommendation:** Ensure the Frontend handles the case where `replayAvailable` is false (e.g., save failed after retries) by showing a disabled button with a tooltip ("Replay unavailable due to server error").
+
+## Conclusion
+The design is **robust and approved for implementation**.
+**Key Highlight:** The use of Property-Based Testing (`fast-check`) is a maturity signal that should be encouraged across the codebase.

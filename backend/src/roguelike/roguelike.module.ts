@@ -17,6 +17,7 @@ import { AuthModule } from '../auth/auth.module';
 // Entities
 import { RoguelikeRunEntity } from './entities/run.entity';
 import { RoguelikeSnapshotEntity } from './entities/snapshot.entity';
+import { BattleLog } from '../entities/battle-log.entity';
 
 // Services
 import { RunService } from './run/run.service';
@@ -25,6 +26,7 @@ import { UpgradeService } from './upgrade/upgrade.service';
 import { EconomyService } from './economy/economy.service';
 import { MatchmakingService } from './matchmaking/matchmaking.service';
 import { PlacementService } from './placement/placement.service';
+import { RoguelikeBattleService } from './battle/battle.service';
 
 // Controllers
 import { RunController } from './run/run.controller';
@@ -56,7 +58,7 @@ import { PlacementController } from './placement/placement.controller';
  */
 @Module({
   imports: [
-    TypeOrmModule.forFeature([RoguelikeRunEntity, RoguelikeSnapshotEntity]),
+    TypeOrmModule.forFeature([RoguelikeRunEntity, RoguelikeSnapshotEntity, BattleLog]),
     AuthModule,
   ],
   controllers: [
@@ -74,6 +76,7 @@ import { PlacementController } from './placement/placement.controller';
     EconomyService,
     MatchmakingService,
     PlacementService,
+    RoguelikeBattleService,
   ],
   exports: [
     RunService,
@@ -82,6 +85,7 @@ import { PlacementController } from './placement/placement.controller';
     EconomyService,
     MatchmakingService,
     PlacementService,
+    RoguelikeBattleService,
   ],
 })
 export class RoguelikeModule {}

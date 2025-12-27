@@ -36,7 +36,9 @@ import {
 import { ErrorResponseDto } from '../../common/dto/api-response.dto';
 import { RunService } from '../run/run.service';
 import { MatchmakingService, BotOpponent } from '../matchmaking/matchmaking.service';
+import { RoguelikeBattleService } from './battle.service';
 import { RoguelikeSnapshotEntity, PlacedUnit, SpellTimingConfig } from '../entities/snapshot.entity';
+import { FieldUnit } from '../entities/run.entity';
 
 /**
  * Authenticated request interface with player information.
@@ -71,6 +73,7 @@ export class BattleController {
   constructor(
     private readonly runService: RunService,
     private readonly matchmakingService: MatchmakingService,
+    private readonly roguelikeBattleService: RoguelikeBattleService,
   ) {}
 
   /**
@@ -244,29 +247,46 @@ export class BattleController {
       }
     }
 
-    // TODO: Implement actual battle simulation
-    // For now, return a mock result
-    const isWin = Math.random() > 0.4; // 60% win rate for testing
+    // Find opponent for battle
+    const matchResult = await this.matchmakingService.findOpponent(run);
+    const opponent = matchResult.opponent;
+
+    // Convert player field to FieldUnit format for battle service
+    const playerField: FieldUnit[] = team.map((unit, index) => ({
+      instanceId: `player_${unit.unitId}_${index}`,
+      unitId: unit.unitId,
+      tier: unit.tier,
+      position: unit.position,
+      hasBattled: true,
+    }));
+
+    // Run actual battle simulation
+    const battleResult = await this.roguelikeBattleService.simulateAndSaveBattle(
+      run,
+      playerField,
+      opponent,
+    );
+
+    const isWin = battleResult.result === 'win';
     const goldEarned = isWin ? 5 + run.consecutiveWins : 2;
-    const battleId = `battle-${Date.now()}`;
     const ratingChange = isWin ? 15 : -10;
 
     // Create opponent info for battle history
-    // TODO: Get actual opponent from findOpponent call
     const opponentInfo = {
-      name: 'Bot',
-      faction: run.faction === 'humans' ? 'undead' : 'humans',
-      rating: 1000,
+      name: this.isBot(opponent) ? opponent.name : 'Player',
+      faction: opponent.faction,
+      rating: this.isBot(opponent) ? 1000 : opponent.rating,
     };
 
-    // Update run state with opponent info
+    // Update run state with battle result
     const updatedRun = isWin
-      ? await this.runService.recordWin(runId, req.player.id, goldEarned, battleId, ratingChange, opponentInfo)
-      : await this.runService.recordLoss(runId, req.player.id, 2, battleId, ratingChange, opponentInfo);
+      ? await this.runService.recordWin(runId, req.player.id, goldEarned, battleResult.battleId, ratingChange, opponentInfo)
+      : await this.runService.recordLoss(runId, req.player.id, 2, battleResult.battleId, ratingChange, opponentInfo);
 
     return {
-      battleId,
+      battleId: battleResult.battleId,
       result: isWin ? 'win' : 'lose',
+      replayAvailable: battleResult.replayAvailable,
       goldEarned: isWin ? goldEarned : 2,
       newGold: updatedRun.gold,
       wins: updatedRun.wins,
@@ -276,6 +296,19 @@ export class BattleController {
       runComplete: updatedRun.status !== 'active',
       runStatus: updatedRun.status,
     };
+  }
+
+  /**
+   * Type guard to check if opponent is a bot.
+   *
+   * @param opponent - Opponent data
+   * @returns True if opponent is a bot
+   * @private
+   */
+  private isBot(
+    opponent: RoguelikeSnapshotEntity | BotOpponent,
+  ): opponent is BotOpponent {
+    return 'isBot' in opponent && opponent.isBot === true;
   }
 
   /**

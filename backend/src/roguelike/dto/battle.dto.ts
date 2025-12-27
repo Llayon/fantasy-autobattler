@@ -234,6 +234,12 @@ export class BattleResultDto {
   result!: 'win' | 'lose';
 
   @ApiProperty({
+    description: 'Whether battle replay is available',
+    example: true,
+  })
+  replayAvailable!: boolean;
+
+  @ApiProperty({
     description: 'Gold earned from battle',
     example: 7,
   })

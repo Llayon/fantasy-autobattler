@@ -39,6 +39,7 @@ describe('DraftService', () => {
       deck: createMockDeckCards(12),
       remainingDeck: createMockDeckCards(12),
       hand: [],
+      field: [],
       spells: [{ spellId: 'holy_light' }, { spellId: 'rally' }],
       wins: 0,
       losses: 0,
@@ -121,9 +122,12 @@ describe('DraftService', () => {
 
   describe('getPostBattleDraft', () => {
     test('should return 3 options for post-battle draft', async () => {
+      // Simulate: initial draft done (3 cards), 1 battle completed
       const mockRun = createMockRun({
         hand: createMockDeckCards(3),
         remainingDeck: createMockDeckCards(9),
+        wins: 1,
+        losses: 0,
       });
       repository.findOne.mockResolvedValue(mockRun);
 
@@ -138,6 +142,7 @@ describe('DraftService', () => {
       const mockRun = createMockRun({
         hand: createMockDeckCards(12),
         remainingDeck: [],
+        wins: 1,
       });
       repository.findOne.mockResolvedValue(mockRun);
 
@@ -147,9 +152,12 @@ describe('DraftService', () => {
     });
 
     test('should return fewer options if deck has less than 3 cards', async () => {
+      // Simulate: 10 cards received (3 initial + 7 post-battle), 7 battles done
       const mockRun = createMockRun({
         hand: createMockDeckCards(10),
         remainingDeck: createMockDeckCards(2),
+        wins: 8, // 8 battles = 3 initial + 8 post-battle = 11 expected, but only 10 received
+        losses: 0,
       });
       repository.findOne.mockResolvedValue(mockRun);
 
@@ -292,16 +300,37 @@ describe('DraftService', () => {
       expect(result.isInitial).toBe(true);
     });
 
-    test('should return available=true and isInitial=false after initial draft', async () => {
+    test('should return available=true and isInitial=false after battle (post-battle draft)', async () => {
+      // After initial draft (3 cards) and 1 battle, player should have post-battle draft available
+      // totalBattles = 1, totalCardsReceived = 3, expectedCards = 3 + 1 = 4
+      // 3 < 4 = true, so draft is available
       const mockRun = createMockRun({
         hand: createMockDeckCards(3),
         remainingDeck: createMockDeckCards(9),
+        wins: 1,
+        losses: 0,
       });
       repository.findOne.mockResolvedValue(mockRun);
 
       const result = await service.isDraftAvailable(mockRunId, mockPlayerId);
 
       expect(result.available).toBe(true);
+      expect(result.isInitial).toBe(false);
+    });
+
+    test('should return available=false after initial draft without battle', async () => {
+      // After initial draft (3 cards) but no battle yet, draft should NOT be available
+      const mockRun = createMockRun({
+        hand: createMockDeckCards(3),
+        remainingDeck: createMockDeckCards(9),
+        wins: 0,
+        losses: 0,
+      });
+      repository.findOne.mockResolvedValue(mockRun);
+
+      const result = await service.isDraftAvailable(mockRunId, mockPlayerId);
+
+      expect(result.available).toBe(false);
       expect(result.isInitial).toBe(false);
     });
 

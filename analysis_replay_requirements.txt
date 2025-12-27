@@ -1,0 +1,31 @@
+# Analysis of Roguelike Battle Replay Requirements
+
+## Overview
+The document `requirements.md` specifications for integrating real battle simulation into the Roguelike mode are well-structured and highly feasible. The approach relies heavily on reusing the existing `battle.simulator.ts` backend and `BattleReplay.tsx` frontend, which minimizes technical debt and development time.
+
+## Evaluation
+
+### Strengths
+1.  **High Code Reuse:** Explicitly mandates using the established Simulator and Replay components. This ensures consistency between "Classic" and "Roguelike" modes.
+2.  **Clear Data Flow:** The flow from Simulation -> Save Log -> API Response -> Frontend Replay is logically sound.
+3.  **Defined Modifiers:** The Tier multipliers (x1.0, x1.5, x2.0) are clearly instantiated, removing ambiguity for the implementation phase.
+4.  **Error Handling:** Requirement 7 covers critical edge cases (0 units), preventing common crash scenarios.
+
+### Critical Considerations & Recommendations
+
+#### 1. Unit Mapping Complexity (Req 5)
+*   **Challenge:** Converting a simplified `RoguelikeUnit` (stored in the Run) to a full `UnitTemplate` (needed for Simulation) is the most complex logical step.
+*   **Risk:** If the `RoguelikeUnit` lacks data (e.g., specific stats modified by new "Phase 2" mechanics like Armor Shred), the translation might be lossy.
+*   **Mitigation:** Ensure the `UnitTemplate` mapper is extensible. It currently handles Tiers, but should eventually handle Items/Buffs if they are added later.
+
+#### 2. Determinism (Req 1.3)
+*   **Challenge:** The requirement specifies using a "deterministic seed".
+*   **Check:** Verify that `battle.simulator.ts` currently accepts a seed for its RNG. If it uses `Math.random()`, it will need refactoring to accept a `seed` argument (e.g., using a seeded PRNG library like `seedrandom`). **This is a prerequisite for replay consistency.**
+
+#### 3. Frontend Integration (Req 3)
+*   **Challenge:** The `BattleReplay` component might expect standard Matchmaking data structures.
+*   **Mitigation:** Ensure the API returns the `BattleLog` in the *exact* same shape as the standard mode, or update `BattleReplay` to handle "Roguelike Context" (e.g., hiding player Elo, showing Gold gained instead).
+
+## Conclusion
+The requirements are **approved for implementation**.
+**Priority Action:** Verify `battle.simulator.ts` PRNG seeding capability immediately, as Requirement 1.3 depends on it.

@@ -19,6 +19,7 @@ describe('RoguelikeRunEntity', () => {
     run.deck = createDeck();
     run.remainingDeck = createDeck().slice(3);
     run.hand = createDeck().slice(0, 3);
+    run.field = [];
     run.spells = [{ spellId: 'holy_light' }, { spellId: 'rally' }];
     run.wins = 0;
     run.losses = 0;

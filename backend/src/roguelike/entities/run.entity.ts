@@ -54,6 +54,8 @@ export interface BattleHistoryEntry {
   battleId: string;
   /** Battle result */
   result: 'win' | 'loss';
+  /** Battle round number (1-based, equals wins + losses at time of battle) */
+  round: number;
   /** Gold earned from this battle */
   goldEarned: number;
   /** Opponent information */
