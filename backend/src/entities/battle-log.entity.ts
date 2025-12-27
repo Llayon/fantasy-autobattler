@@ -79,21 +79,14 @@ export class BattleLog {
 
   /**
    * ID of the second player in the battle.
+   * Can be a real player UUID or a generated UUID for bot opponents.
    */
   @Column({ 
     type: 'uuid', 
     nullable: false,
-    comment: 'Second player participating in the battle'
+    comment: 'Second player participating in the battle (or bot UUID)'
   })
   player2Id!: string;
-
-  /**
-   * Second player entity relationship.
-   * Nullable to support bot opponents.
-   */
-  @ManyToOne(() => Player, { nullable: true, onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'player2Id' })
-  player2?: Player;
 
   /**
    * Snapshot of player1's team at the time of battle.

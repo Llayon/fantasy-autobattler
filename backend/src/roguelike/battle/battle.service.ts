@@ -257,19 +257,25 @@ export class RoguelikeBattleService {
 
         return { saved: true, id: saved.id };
       } catch (error) {
+        // Log full error details for debugging
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorStack = error instanceof Error ? error.stack : undefined;
+        
         this.logger.warn(`BattleLog save attempt ${attempt + 1} failed`, {
           runId: run.id,
           playerId: run.playerId,
           attempt: attempt + 1,
           maxRetries,
-          error: error instanceof Error ? error.message : String(error),
+          error: errorMessage,
+          stack: errorStack,
         });
 
         if (attempt === maxRetries) {
           this.logger.error('BattleLog save failed after all retries', {
             runId: run.id,
             playerId: run.playerId,
-            error: error instanceof Error ? error.message : String(error),
+            error: errorMessage,
+            stack: errorStack,
           });
           return { saved: false };
         }

@@ -41,9 +41,6 @@ export class Player {
   @OneToMany(() => BattleLog, (battle) => battle.player1)
   battlesAsPlayer1!: BattleLog[];
 
-  @OneToMany(() => BattleLog, (battle) => battle.player2)
-  battlesAsPlayer2!: BattleLog[];
-
   @OneToMany(() => Team, (team) => team.player)
   teams!: Team[];
 }
