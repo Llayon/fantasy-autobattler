@@ -71,10 +71,11 @@ export class BattleLog {
 
   /**
    * First player entity relationship.
+   * Nullable to support bot opponents.
    */
-  @ManyToOne(() => Player, { nullable: false, onDelete: 'CASCADE' })
+  @ManyToOne(() => Player, { nullable: true, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'player1Id' })
-  player1!: Player;
+  player1?: Player;
 
   /**
    * ID of the second player in the battle.
@@ -88,10 +89,11 @@ export class BattleLog {
 
   /**
    * Second player entity relationship.
+   * Nullable to support bot opponents.
    */
-  @ManyToOne(() => Player, { nullable: false, onDelete: 'CASCADE' })
+  @ManyToOne(() => Player, { nullable: true, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'player2Id' })
-  player2!: Player;
+  player2?: Player;
 
   /**
    * Snapshot of player1's team at the time of battle.
