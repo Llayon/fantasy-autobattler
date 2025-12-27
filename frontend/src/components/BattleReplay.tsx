@@ -86,6 +86,8 @@ interface BattleReplayProps {
   playerId?: string;
   /** Optional callback when user wants to go back/continue */
   onBack?: () => void;
+  /** Hide built-in result screen and call onBack instead (for roguelike mode) */
+  hideResultScreen?: boolean;
 }
 
 // =============================================================================
@@ -1326,7 +1328,7 @@ function EventLog({
  * @example
  * <BattleReplay battle={battleLog} />
  */
-export function BattleReplay({ battle, playerId, onBack }: BattleReplayProps) {
+export function BattleReplay({ battle, playerId, onBack, hideResultScreen = false }: BattleReplayProps) {
   // Safety check for required battle data - moved to top to avoid conditional hooks
   const isValidBattle = battle && battle.id;
 
@@ -1684,9 +1686,14 @@ export function BattleReplay({ battle, playerId, onBack }: BattleReplayProps) {
     setReplayState(prev => ({ ...prev, currentEventIndex: lastIndex, currentRound, isPlaying: false }));
     // Show battle result immediately when skipping to end
     setTimeout(() => {
-      setShowBattleResult(true);
+      // For roguelike mode, call onBack instead of showing built-in result screen
+      if (hideResultScreen && onBack) {
+        onBack();
+      } else {
+        setShowBattleResult(true);
+      }
     }, 500);
-  }, [events.length, applyEventsUpTo]);
+  }, [events.length, applyEventsUpTo, hideResultScreen, onBack]);
 
   /**
    * Handle battle result actions.
@@ -1758,7 +1765,12 @@ export function BattleReplay({ battle, playerId, onBack }: BattleReplayProps) {
         setReplayState(prev => ({ ...prev, isPlaying: false }));
         // Show battle result after a short delay
         setTimeout(() => {
-          setShowBattleResult(true);
+          // For roguelike mode, call onBack instead of showing built-in result screen
+          if (hideResultScreen && onBack) {
+            onBack();
+          } else {
+            setShowBattleResult(true);
+          }
         }, 1500);
         return;
       }
@@ -1767,7 +1779,7 @@ export function BattleReplay({ battle, playerId, onBack }: BattleReplayProps) {
     }, BASE_ANIMATION_DURATION / replayState.speed);
 
     return () => clearInterval(interval);
-  }, [replayState.isPlaying, replayState.speed, replayState.currentEventIndex, events.length, stepForward]);
+  }, [replayState.isPlaying, replayState.speed, replayState.currentEventIndex, events.length, stepForward, hideResultScreen, onBack]);
 
   // Keyboard shortcuts effect
   useEffect(() => {

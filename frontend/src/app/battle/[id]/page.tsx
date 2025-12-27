@@ -544,7 +544,13 @@ export default function BattlePage({ params }: BattlePageProps) {
       
       <NavigationWrapper>
         {/* Battle Replay Component - no wrapper, full width */}
-        <BattleReplay battle={battle} playerId={player?.id} onBack={handleBack} />
+        {/* For roguelike mode, hide built-in result screen and use our custom one */}
+        <BattleReplay 
+          battle={battle} 
+          playerId={player?.id} 
+          onBack={handleBack}
+          hideResultScreen={fromRoguelike && !!roguelikeResult}
+        />
       </NavigationWrapper>
     </div>
   );
