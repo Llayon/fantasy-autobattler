@@ -36,7 +36,7 @@ import { api, RoguelikePlacedUnit, RoguelikeSpellTiming, RoguelikeUnitData } fro
 // TYPES
 // =============================================================================
 
-type BattleStep = 'placement' | 'spells' | 'finding' | 'battle' | 'result';
+type BattleStep = 'placement' | 'spells' | 'finding' | 'battle';
 
 /** Drag data for hand cards */
 interface HandCardDragData {
@@ -66,20 +66,6 @@ interface OpponentDisplay {
   wins: number;
   rating: number;
   isBot: boolean;
-}
-
-interface BattleResultDisplay {
-  battleId: string;
-  result: 'win' | 'lose';
-  replayAvailable: boolean;
-  goldEarned: number;
-  newGold: number;
-  wins: number;
-  losses: number;
-  ratingChange: number;
-  newRating: number;
-  runComplete: boolean;
-  runStatus: 'active' | 'won' | 'lost';
 }
 
 // =============================================================================
@@ -349,7 +335,6 @@ export default function BattlePage() {
   const [spellInfos, setSpellInfos] = useState<SpellTimingInfo[]>([]);
   const [spellTimings, setSpellTimings] = useState<SpellTimingConfig[]>([]);
   const [opponent, setOpponent] = useState<OpponentDisplay | null>(null);
-  const [battleResult, setBattleResult] = useState<BattleResultDisplay | null>(null);
   const [battleLoading, setBattleLoading] = useState(false);
   const [battleError, setBattleError] = useState<string | null>(null);
 
@@ -644,44 +629,25 @@ export default function BattlePage() {
 
       const result = await api.submitRoguelikeBattle(runId, team, timings);
 
-      // If replay is available, navigate directly to replay page
-      // Store battle result in Zustand store (secure, not URL params)
-      if (result.replayAvailable) {
-        // Save battle result to store for showing after replay ends
-        const battleResultData: BattleResultData = {
-          battleId: result.battleId,
-          runId,
-          result: result.result,
-          goldEarned: result.goldEarned,
-          newGold: result.newGold,
-          wins: result.wins,
-          losses: result.losses,
-          ratingChange: result.ratingChange,
-          newRating: result.newRating,
-          runComplete: result.runComplete,
-          runStatus: result.runStatus,
-        };
-        setLastBattleResult(battleResultData);
-        
-        // Navigate to replay page with minimal params (just source identifier)
-        router.push(`/battle/${result.battleId}?from=roguelike&runId=${runId}`);
-      } else {
-        // No replay available, show result screen directly
-        setBattleResult({
-          battleId: result.battleId,
-          result: result.result,
-          replayAvailable: result.replayAvailable,
-          goldEarned: result.goldEarned,
-          newGold: result.newGold,
-          wins: result.wins,
-          losses: result.losses,
-          ratingChange: result.ratingChange,
-          newRating: result.newRating,
-          runComplete: result.runComplete,
-          runStatus: result.runStatus,
-        });
-        setStep('result');
-      }
+      // Save battle result to store for showing after replay ends
+      const battleResultData: BattleResultData = {
+        battleId: result.battleId,
+        runId,
+        result: result.result,
+        goldEarned: result.goldEarned,
+        newGold: result.newGold,
+        wins: result.wins,
+        losses: result.losses,
+        ratingChange: result.ratingChange,
+        newRating: result.newRating,
+        runComplete: result.runComplete,
+        runStatus: result.runStatus,
+      };
+      setLastBattleResult(battleResultData);
+
+      // Always navigate to replay page immediately after battle
+      // Result screen will be shown after replay ends (or if replay fails to load)
+      router.push(`/battle/${result.battleId}?from=roguelike&runId=${runId}`);
     } catch {
       setBattleError('Не удалось провести бой');
     } finally {
@@ -710,16 +676,6 @@ export default function BattlePage() {
   const handleBackToMenu = useCallback(() => {
     router.push('/');
   }, [router]);
-
-  const handleContinueAfterBattle = useCallback(() => {
-    if (!battleResult) return;
-    
-    if (battleResult.runStatus === 'active') {
-      router.replace(`/run/${runId}/shop`);
-    } else {
-      router.replace(`/run/${runId}/result`);
-    }
-  }, [battleResult, runId, router]);
 
   // Check if can proceed to spells
   const canProceedToSpells = field.length > 0;
@@ -1047,80 +1003,6 @@ export default function BattlePage() {
                   {battleLoading ? 'Бой...' : labels.startBattle}
                 </button>
               </div>
-            </div>
-          )}
-
-          {/* Step: Result */}
-          {step === 'result' && battleResult && (
-            <div className="text-center">
-              <div className="text-8xl mb-4">
-                {battleResult.result === 'win' ? '🏆' : '💀'}
-              </div>
-              <h2 className={`text-3xl font-bold mb-2 ${
-                battleResult.result === 'win' ? 'text-green-400' : 'text-red-400'
-              }`}>
-                {battleResult.result === 'win' ? 'Победа!' : 'Поражение'}
-              </h2>
-
-              <div className="bg-gray-800/50 rounded-xl p-6 mb-6 max-w-md mx-auto">
-                <div className="flex items-center justify-between py-3 border-b border-gray-700">
-                  <span className="text-gray-400">Золото заработано:</span>
-                  <span className="text-2xl font-bold text-yellow-400">
-                    +{battleResult.goldEarned} 🪙
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between py-3 border-b border-gray-700">
-                  <span className="text-gray-400">Всего золота:</span>
-                  <span className="text-xl font-bold text-yellow-300">
-                    {battleResult.newGold} 🪙
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between py-3 border-b border-gray-700">
-                  <span className="text-gray-400">Рейтинг:</span>
-                  <span className={`text-lg font-bold ${
-                    battleResult.ratingChange >= 0 ? 'text-green-400' : 'text-red-400'
-                  }`}>
-                    {battleResult.ratingChange >= 0 ? '+' : ''}{battleResult.ratingChange} ({battleResult.newRating})
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between py-3">
-                  <span className="text-gray-400">Счёт:</span>
-                  <span className="text-lg font-bold">
-                    <span className="text-green-400">{battleResult.wins}</span>
-                    {' / '}
-                    <span className="text-red-400">{battleResult.losses}</span>
-                  </span>
-                </div>
-              </div>
-
-              {battleResult.runComplete && (
-                <div className={`mb-6 p-4 rounded-lg ${
-                  battleResult.runStatus === 'won' 
-                    ? 'bg-green-900/30 border border-green-500' 
-                    : 'bg-red-900/30 border border-red-500'
-                }`}>
-                  <div className="text-2xl mb-2">
-                    {battleResult.runStatus === 'won' ? '🎉' : '😢'}
-                  </div>
-                  <div className="font-bold">
-                    {battleResult.runStatus === 'won' 
-                      ? 'Забег завершён победой!' 
-                      : 'Забег завершён'}
-                  </div>
-                </div>
-              )}
-
-              <button
-                onClick={handleContinueAfterBattle}
-                className="px-8 py-4 bg-yellow-500 text-black font-bold rounded-lg hover:bg-yellow-400 transition-colors text-lg"
-              >
-                {battleResult.runComplete 
-                  ? 'Посмотреть результаты' 
-                  : 'Продолжить →'}
-              </button>
             </div>
           )}
         </div>

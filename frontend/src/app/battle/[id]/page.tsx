@@ -192,8 +192,95 @@ export default function BattlePage({ params }: BattlePageProps) {
     return <FullPageLoader message="Загрузка боя..." icon="⚔️" />;
   }
 
-  // Error state
+  // Error state - for roguelike mode, show result screen instead of error
   if (error) {
+    // If we have roguelike result data, show result screen instead of error
+    if (fromRoguelike && roguelikeResult) {
+      return (
+        <div className="min-h-screen bg-gray-900 text-white">
+          <Navigation />
+          
+          <NavigationWrapper>
+            <div className="max-w-2xl mx-auto p-6 text-center">
+              <div className="text-8xl mb-4">
+                {roguelikeResult.result === 'win' ? '🏆' : '💀'}
+              </div>
+              <h2 className={`text-3xl font-bold mb-2 ${
+                roguelikeResult.result === 'win' ? 'text-green-400' : 'text-red-400'
+              }`}>
+                {roguelikeResult.result === 'win' ? 'Победа!' : 'Поражение'}
+              </h2>
+              
+              <p className="text-gray-500 text-sm mb-4">
+                (Реплей недоступен)
+              </p>
+
+              <div className="bg-gray-800/50 rounded-xl p-6 mb-6 max-w-md mx-auto">
+                <div className="flex items-center justify-between py-3 border-b border-gray-700">
+                  <span className="text-gray-400">Золото заработано:</span>
+                  <span className="text-2xl font-bold text-yellow-400">
+                    +{roguelikeResult.goldEarned} 🪙
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between py-3 border-b border-gray-700">
+                  <span className="text-gray-400">Всего золота:</span>
+                  <span className="text-xl font-bold text-yellow-300">
+                    {roguelikeResult.newGold} 🪙
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between py-3 border-b border-gray-700">
+                  <span className="text-gray-400">Рейтинг:</span>
+                  <span className={`text-lg font-bold ${
+                    roguelikeResult.ratingChange >= 0 ? 'text-green-400' : 'text-red-400'
+                  }`}>
+                    {roguelikeResult.ratingChange >= 0 ? '+' : ''}{roguelikeResult.ratingChange} ({roguelikeResult.newRating})
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between py-3">
+                  <span className="text-gray-400">Счёт:</span>
+                  <span className="text-lg font-bold">
+                    <span className="text-green-400">{roguelikeResult.wins}</span>
+                    {' / '}
+                    <span className="text-red-400">{roguelikeResult.losses}</span>
+                  </span>
+                </div>
+              </div>
+
+              {roguelikeResult.runComplete && (
+                <div className={`mb-6 p-4 rounded-lg ${
+                  roguelikeResult.runStatus === 'won' 
+                    ? 'bg-green-900/30 border border-green-500' 
+                    : 'bg-red-900/30 border border-red-500'
+                }`}>
+                  <div className="text-2xl mb-2">
+                    {roguelikeResult.runStatus === 'won' ? '🎉' : '😢'}
+                  </div>
+                  <div className="font-bold">
+                    {roguelikeResult.runStatus === 'won' 
+                      ? 'Забег завершён победой!' 
+                      : 'Забег завершён'}
+                  </div>
+                </div>
+              )}
+
+              <button
+                onClick={handleContinue}
+                className="px-8 py-4 bg-yellow-500 text-black font-bold rounded-lg hover:bg-yellow-400 transition-colors text-lg"
+              >
+                {roguelikeResult.runComplete 
+                  ? 'Посмотреть результаты' 
+                  : 'Продолжить →'}
+              </button>
+            </div>
+          </NavigationWrapper>
+        </div>
+      );
+    }
+    
+    // Regular error display for non-roguelike mode
     return (
       <div className="min-h-screen bg-gray-900 text-white">
         <Navigation />
@@ -238,8 +325,95 @@ export default function BattlePage({ params }: BattlePageProps) {
     );
   }
 
-  // Battle not found
+  // Battle not found - for roguelike mode, show result screen instead
   if (!battle) {
+    // If we have roguelike result data, show result screen
+    if (fromRoguelike && roguelikeResult) {
+      return (
+        <div className="min-h-screen bg-gray-900 text-white">
+          <Navigation />
+          
+          <NavigationWrapper>
+            <div className="max-w-2xl mx-auto p-6 text-center">
+              <div className="text-8xl mb-4">
+                {roguelikeResult.result === 'win' ? '🏆' : '💀'}
+              </div>
+              <h2 className={`text-3xl font-bold mb-2 ${
+                roguelikeResult.result === 'win' ? 'text-green-400' : 'text-red-400'
+              }`}>
+                {roguelikeResult.result === 'win' ? 'Победа!' : 'Поражение'}
+              </h2>
+              
+              <p className="text-gray-500 text-sm mb-4">
+                (Реплей недоступен)
+              </p>
+
+              <div className="bg-gray-800/50 rounded-xl p-6 mb-6 max-w-md mx-auto">
+                <div className="flex items-center justify-between py-3 border-b border-gray-700">
+                  <span className="text-gray-400">Золото заработано:</span>
+                  <span className="text-2xl font-bold text-yellow-400">
+                    +{roguelikeResult.goldEarned} 🪙
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between py-3 border-b border-gray-700">
+                  <span className="text-gray-400">Всего золота:</span>
+                  <span className="text-xl font-bold text-yellow-300">
+                    {roguelikeResult.newGold} 🪙
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between py-3 border-b border-gray-700">
+                  <span className="text-gray-400">Рейтинг:</span>
+                  <span className={`text-lg font-bold ${
+                    roguelikeResult.ratingChange >= 0 ? 'text-green-400' : 'text-red-400'
+                  }`}>
+                    {roguelikeResult.ratingChange >= 0 ? '+' : ''}{roguelikeResult.ratingChange} ({roguelikeResult.newRating})
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between py-3">
+                  <span className="text-gray-400">Счёт:</span>
+                  <span className="text-lg font-bold">
+                    <span className="text-green-400">{roguelikeResult.wins}</span>
+                    {' / '}
+                    <span className="text-red-400">{roguelikeResult.losses}</span>
+                  </span>
+                </div>
+              </div>
+
+              {roguelikeResult.runComplete && (
+                <div className={`mb-6 p-4 rounded-lg ${
+                  roguelikeResult.runStatus === 'won' 
+                    ? 'bg-green-900/30 border border-green-500' 
+                    : 'bg-red-900/30 border border-red-500'
+                }`}>
+                  <div className="text-2xl mb-2">
+                    {roguelikeResult.runStatus === 'won' ? '🎉' : '😢'}
+                  </div>
+                  <div className="font-bold">
+                    {roguelikeResult.runStatus === 'won' 
+                      ? 'Забег завершён победой!' 
+                      : 'Забег завершён'}
+                  </div>
+                </div>
+              )}
+
+              <button
+                onClick={handleContinue}
+                className="px-8 py-4 bg-yellow-500 text-black font-bold rounded-lg hover:bg-yellow-400 transition-colors text-lg"
+              >
+                {roguelikeResult.runComplete 
+                  ? 'Посмотреть результаты' 
+                  : 'Продолжить →'}
+              </button>
+            </div>
+          </NavigationWrapper>
+        </div>
+      );
+    }
+    
+    // Regular "not found" display for non-roguelike mode
     return (
       <div className="min-h-screen bg-gray-900 text-white">
         <Navigation />
