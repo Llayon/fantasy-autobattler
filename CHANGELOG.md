@@ -29,6 +29,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `docs/archive/` for historical MVP documentation
 - `docs/reports/` for validation and verification reports
 - New `STEP_PROGRESS.md` for post-MVP tracking
+- **Core Mechanics 2.0 Integration Documentation**
+  - `docs/ROGUELIKE_MECHANICS_INTEGRATION.md` — How progression system integrates with battle mechanics
+  - `docs/MECHANICS_QUICK_REFERENCE.md` — Quick reference for 14 mechanics, phases, and usage
+  - Updated `docs/ROGUELIKE_DESIGN.md` with battle mechanics section and strategic implications
+  - Documented all 14 mechanics (Tier 0-4) with configurations and dependencies
 
 ### Changed
 - Moved grid.ts, pathfinding.ts to `core/grid/` (re-exports in original locations)
