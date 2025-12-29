@@ -12,6 +12,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Navigation, NavigationWrapper } from '@/components/Navigation';
 import { FullPageLoader } from '@/components/LoadingStates';
 import { ErrorMessage, NetworkError } from '@/components/ErrorStates';
+import { BattleResult } from '@/components/BattleResult';
 import { useBattleStore } from '@/store/battleStore';
 import { useMatchmakingStore } from '@/store/matchmakingStore';
 import { usePlayerStore } from '@/store/playerStore';
@@ -110,6 +111,7 @@ export default function BattlePage({ params }: BattlePageProps) {
    * Handle continue after viewing result screen.
    * Navigates to shop (if run active) or result page (if run complete).
    * Clears the stored battle result after navigation.
+   * Uses router.replace to prevent showing battle grid when navigating back.
    */
   const handleContinue = useCallback(() => {
     if (!runId || !roguelikeResult) return;
@@ -117,12 +119,21 @@ export default function BattlePage({ params }: BattlePageProps) {
     // Clear the stored result before navigating
     clearLastBattleResult();
     
+    // Use replace instead of push to prevent showing battle grid on back navigation
     if (roguelikeResult.runStatus === 'active') {
-      router.push(`/run/${runId}/shop`);
+      router.replace(`/run/${runId}/shop`);
     } else {
-      router.push(`/run/${runId}/result`);
+      router.replace(`/run/${runId}/result`);
     }
   }, [runId, roguelikeResult, router, clearLastBattleResult]);
+
+  /**
+   * Handle watch replay button from result screen.
+   * Hides the result screen to show the replay.
+   */
+  const handleWatchReplay = useCallback(() => {
+    setShowResultScreen(false);
+  }, []);
 
   /**
    * Load battle data from API - only once per battleId.
@@ -195,86 +206,29 @@ export default function BattlePage({ params }: BattlePageProps) {
   // Error state - for roguelike mode, show result screen instead of error
   if (error) {
     // If we have roguelike result data, show result screen instead of error
-    if (fromRoguelike && roguelikeResult) {
+    if (fromRoguelike && roguelikeResult && battle) {
       return (
         <div className="min-h-screen bg-gray-900 text-white">
           <Navigation />
           
           <NavigationWrapper>
-            <div className="max-w-2xl mx-auto p-6 text-center">
-              <div className="text-8xl mb-4">
-                {roguelikeResult.result === 'win' ? '🏆' : '💀'}
-              </div>
-              <h2 className={`text-3xl font-bold mb-2 ${
-                roguelikeResult.result === 'win' ? 'text-green-400' : 'text-red-400'
-              }`}>
-                {roguelikeResult.result === 'win' ? 'Победа!' : 'Поражение'}
-              </h2>
-              
-              <p className="text-gray-500 text-sm mb-4">
-                (Реплей недоступен)
-              </p>
-
-              <div className="bg-gray-800/50 rounded-xl p-6 mb-6 max-w-md mx-auto">
-                <div className="flex items-center justify-between py-3 border-b border-gray-700">
-                  <span className="text-gray-400">Золото заработано:</span>
-                  <span className="text-2xl font-bold text-yellow-400">
-                    +{roguelikeResult.goldEarned} 🪙
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between py-3 border-b border-gray-700">
-                  <span className="text-gray-400">Всего золота:</span>
-                  <span className="text-xl font-bold text-yellow-300">
-                    {roguelikeResult.newGold} 🪙
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between py-3 border-b border-gray-700">
-                  <span className="text-gray-400">Рейтинг:</span>
-                  <span className={`text-lg font-bold ${
-                    roguelikeResult.ratingChange >= 0 ? 'text-green-400' : 'text-red-400'
-                  }`}>
-                    {roguelikeResult.ratingChange >= 0 ? '+' : ''}{roguelikeResult.ratingChange} ({roguelikeResult.newRating})
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between py-3">
-                  <span className="text-gray-400">Счёт:</span>
-                  <span className="text-lg font-bold">
-                    <span className="text-green-400">{roguelikeResult.wins}</span>
-                    {' / '}
-                    <span className="text-red-400">{roguelikeResult.losses}</span>
-                  </span>
-                </div>
-              </div>
-
-              {roguelikeResult.runComplete && (
-                <div className={`mb-6 p-4 rounded-lg ${
-                  roguelikeResult.runStatus === 'won' 
-                    ? 'bg-green-900/30 border border-green-500' 
-                    : 'bg-red-900/30 border border-red-500'
-                }`}>
-                  <div className="text-2xl mb-2">
-                    {roguelikeResult.runStatus === 'won' ? '🎉' : '😢'}
-                  </div>
-                  <div className="font-bold">
-                    {roguelikeResult.runStatus === 'won' 
-                      ? 'Забег завершён победой!' 
-                      : 'Забег завершён'}
-                  </div>
-                </div>
-              )}
-
-              <button
-                onClick={handleContinue}
-                className="px-8 py-4 bg-yellow-500 text-black font-bold rounded-lg hover:bg-yellow-400 transition-colors text-lg"
-              >
-                {roguelikeResult.runComplete 
-                  ? 'Посмотреть результаты' 
-                  : 'Продолжить →'}
-              </button>
-            </div>
+            <BattleResult
+              battle={battle}
+              playerId={player?.id || ''}
+              roguelikeMode={true}
+              roguelikeData={{
+                goldEarned: roguelikeResult.goldEarned,
+                newGold: roguelikeResult.newGold,
+                wins: roguelikeResult.wins,
+                losses: roguelikeResult.losses,
+                runComplete: roguelikeResult.runComplete,
+                runStatus: roguelikeResult.runStatus,
+              }}
+              onWatchReplay={handleWatchReplay}
+              onContinue={handleContinue}
+              onNewBattle={() => {}}
+              onEditTeam={() => {}}
+            />
           </NavigationWrapper>
         </div>
       );
@@ -325,9 +279,9 @@ export default function BattlePage({ params }: BattlePageProps) {
     );
   }
 
-  // Battle not found - for roguelike mode, show result screen instead
+  // Battle not found - for roguelike mode, show simple result (no battle data for BattleResult)
   if (!battle) {
-    // If we have roguelike result data, show result screen
+    // If we have roguelike result data, show simple result screen (no battle data available)
     if (fromRoguelike && roguelikeResult) {
       return (
         <div className="min-h-screen bg-gray-900 text-white">
@@ -455,89 +409,7 @@ export default function BattlePage({ params }: BattlePageProps) {
     );
   }
 
-  // Roguelike result screen (shown after replay ends)
-  if (showResultScreen && roguelikeResult) {
-    return (
-      <div className="min-h-screen bg-gray-900 text-white">
-        <Navigation />
-        
-        <NavigationWrapper>
-          <div className="max-w-2xl mx-auto p-6 text-center">
-            <div className="text-8xl mb-4">
-              {roguelikeResult.result === 'win' ? '🏆' : '💀'}
-            </div>
-            <h2 className={`text-3xl font-bold mb-2 ${
-              roguelikeResult.result === 'win' ? 'text-green-400' : 'text-red-400'
-            }`}>
-              {roguelikeResult.result === 'win' ? 'Победа!' : 'Поражение'}
-            </h2>
-
-            <div className="bg-gray-800/50 rounded-xl p-6 mb-6 max-w-md mx-auto">
-              <div className="flex items-center justify-between py-3 border-b border-gray-700">
-                <span className="text-gray-400">Золото заработано:</span>
-                <span className="text-2xl font-bold text-yellow-400">
-                  +{roguelikeResult.goldEarned} 🪙
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between py-3 border-b border-gray-700">
-                <span className="text-gray-400">Всего золота:</span>
-                <span className="text-xl font-bold text-yellow-300">
-                  {roguelikeResult.newGold} 🪙
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between py-3 border-b border-gray-700">
-                <span className="text-gray-400">Рейтинг:</span>
-                <span className={`text-lg font-bold ${
-                  roguelikeResult.ratingChange >= 0 ? 'text-green-400' : 'text-red-400'
-                }`}>
-                  {roguelikeResult.ratingChange >= 0 ? '+' : ''}{roguelikeResult.ratingChange} ({roguelikeResult.newRating})
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between py-3">
-                <span className="text-gray-400">Счёт:</span>
-                <span className="text-lg font-bold">
-                  <span className="text-green-400">{roguelikeResult.wins}</span>
-                  {' / '}
-                  <span className="text-red-400">{roguelikeResult.losses}</span>
-                </span>
-              </div>
-            </div>
-
-            {roguelikeResult.runComplete && (
-              <div className={`mb-6 p-4 rounded-lg ${
-                roguelikeResult.runStatus === 'won' 
-                  ? 'bg-green-900/30 border border-green-500' 
-                  : 'bg-red-900/30 border border-red-500'
-              }`}>
-                <div className="text-2xl mb-2">
-                  {roguelikeResult.runStatus === 'won' ? '🎉' : '😢'}
-                </div>
-                <div className="font-bold">
-                  {roguelikeResult.runStatus === 'won' 
-                    ? 'Забег завершён победой!' 
-                    : 'Забег завершён'}
-                </div>
-              </div>
-            )}
-
-            <button
-              onClick={handleContinue}
-              className="px-8 py-4 bg-yellow-500 text-black font-bold rounded-lg hover:bg-yellow-400 transition-colors text-lg"
-            >
-              {roguelikeResult.runComplete 
-                ? 'Посмотреть результаты' 
-                : 'Продолжить →'}
-            </button>
-          </div>
-        </NavigationWrapper>
-      </div>
-    );
-  }
-
-  // Success state - show battle replay
+  // Success state - show battle replay with optional result overlay
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       <Navigation />
@@ -551,6 +423,27 @@ export default function BattlePage({ params }: BattlePageProps) {
           onBack={handleBack}
           hideResultScreen={fromRoguelike && !!roguelikeResult}
         />
+        
+        {/* Roguelike result overlay (shown after replay ends) */}
+        {showResultScreen && roguelikeResult && (
+          <BattleResult
+            battle={battle}
+            playerId={player?.id || ''}
+            roguelikeMode={true}
+            roguelikeData={{
+              goldEarned: roguelikeResult.goldEarned,
+              newGold: roguelikeResult.newGold,
+              wins: roguelikeResult.wins,
+              losses: roguelikeResult.losses,
+              runComplete: roguelikeResult.runComplete,
+              runStatus: roguelikeResult.runStatus,
+            }}
+            onWatchReplay={handleWatchReplay}
+            onContinue={handleContinue}
+            onNewBattle={() => {}}
+            onEditTeam={() => {}}
+          />
+        )}
       </NavigationWrapper>
     </div>
   );

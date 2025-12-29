@@ -32,6 +32,7 @@ describe('MatchmakingService', () => {
     runId: 'run-456',
     playerId: 'player-456',
     wins: 3,
+    round: 5, // wins(3) + losses(1) + 1
     rating: 1100,
     faction: 'undead',
     leaderId: 'lich_king_malachar',
@@ -86,6 +87,7 @@ describe('MatchmakingService', () => {
         ...mockSnapshot,
         runId: mockRun.id,
         playerId: mockRun.playerId,
+        round: 5, // wins(3) + losses(1) + 1
         team,
         spellTimings,
       } as RoguelikeSnapshotEntity);
@@ -93,6 +95,7 @@ describe('MatchmakingService', () => {
         id: 'new-snapshot-id',
         runId: mockRun.id,
         playerId: mockRun.playerId,
+        round: 5,
         team,
         spellTimings,
       } as RoguelikeSnapshotEntity);
@@ -108,6 +111,7 @@ describe('MatchmakingService', () => {
         runId: mockRun.id,
         playerId: mockRun.playerId,
         wins: mockRun.wins,
+        round: 5, // wins(3) + losses(1) + 1
         rating: mockRun.rating,
         team,
         spellTimings,
@@ -173,15 +177,16 @@ describe('MatchmakingService', () => {
       );
     });
 
-    it('should filter by wins range', async () => {
+    it('should filter by exact round match', async () => {
       snapshotRepository.find.mockResolvedValue([]);
 
       await service.findOpponent(mockRun as RoguelikeRunEntity, 12345);
 
+      // round = wins(3) + losses(1) + 1 = 5
       expect(snapshotRepository.find).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            wins: Between(2, 4), // wins ± 1
+            round: 5, // Exact round match
           }),
         }),
       );

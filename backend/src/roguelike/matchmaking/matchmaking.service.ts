@@ -27,6 +27,7 @@ import { getBotDifficulty } from '../../core/progression/snapshot/snapshot';
 import { HUMANS_T1_UNITS } from '../data/humans.units';
 import { UNDEAD_T1_UNITS } from '../data/undead.units';
 import { SeededRandom } from '../../core/utils/random';
+import { getBotTeamForRound, getBudgetForRound } from '../data/bot-teams.data';
 
 /**
  * Bot opponent data structure.
@@ -109,10 +110,14 @@ export class MatchmakingService {
     team: PlacedUnit[],
     spellTimings: SpellTimingConfig[],
   ): Promise<RoguelikeSnapshotEntity> {
+    // Calculate round number (wins + losses + 1 for current battle)
+    const round = run.wins + run.losses + 1;
+
     this.logger.log('Saving snapshot', {
       runId: run.id,
       playerId: run.playerId,
       wins: run.wins,
+      round,
       teamSize: team.length,
     });
 
@@ -124,6 +129,7 @@ export class MatchmakingService {
       runId: run.id,
       playerId: run.playerId,
       wins: run.wins,
+      round,
       rating: run.rating,
       team,
       spellTimings,
@@ -137,6 +143,7 @@ export class MatchmakingService {
       snapshotId: savedSnapshot.id,
       runId: run.id,
       playerId: run.playerId,
+      round,
     });
 
     return savedSnapshot;
@@ -145,7 +152,7 @@ export class MatchmakingService {
   /**
    * Finds an opponent for the current run.
    *
-   * Searches for snapshots within rating and wins range.
+   * Searches for snapshots within rating range and exact round match.
    * Falls back to bot generation if no suitable opponent found.
    *
    * @param run - Current run entity
@@ -162,26 +169,28 @@ export class MatchmakingService {
     run: RoguelikeRunEntity,
     seed?: number,
   ): Promise<MatchmakingResult> {
+    // Calculate round number (wins + losses + 1 for current battle)
+    const currentRound = run.wins + run.losses + 1;
+
     this.logger.log('Finding opponent', {
       runId: run.id,
       playerId: run.playerId,
       wins: run.wins,
+      round: currentRound,
       rating: run.rating,
     });
 
     const config = ROGUELIKE_MATCHMAKING_CONFIG;
 
-    // Calculate rating and wins ranges
+    // Calculate rating range (round must match exactly for fair budget)
     const minRating = run.rating - config.ratingRange;
     const maxRating = run.rating + config.ratingRange;
-    const minWins = Math.max(0, run.wins - config.winsRange);
-    const maxWins = run.wins + config.winsRange;
 
-    // Find matching snapshots (excluding own snapshots)
+    // Find matching snapshots (excluding own snapshots, exact round match)
     const candidates = await this.snapshotRepository.find({
       where: {
         playerId: Not(run.playerId),
-        wins: Between(minWins, maxWins),
+        round: currentRound, // Exact round match for fair budget
         rating: Between(minRating, maxRating),
       },
       order: { createdAt: 'DESC' },
@@ -191,8 +200,7 @@ export class MatchmakingService {
     this.logger.debug('Found snapshot candidates', {
       runId: run.id,
       candidateCount: candidates.length,
-      minWins,
-      maxWins,
+      round: currentRound,
       minRating,
       maxRating,
     });
@@ -210,6 +218,7 @@ export class MatchmakingService {
           runId: run.id,
           opponentId: opponent.playerId,
           opponentWins: opponent.wins,
+          opponentRound: opponent.round,
           opponentRating: opponent.rating,
           difficulty,
         });
@@ -227,6 +236,7 @@ export class MatchmakingService {
       this.logger.log('No human opponent found, generating bot', {
         runId: run.id,
         wins: run.wins,
+        round: currentRound,
       });
 
       const bot = this.generateBot(run, seed ?? Date.now());
@@ -243,6 +253,7 @@ export class MatchmakingService {
     this.logger.warn('No opponent found', {
       runId: run.id,
       wins: run.wins,
+      round: currentRound,
     });
     throw new NoOpponentFoundException(run.id, run.wins);
   }
@@ -251,8 +262,8 @@ export class MatchmakingService {
   /**
    * Generates a bot opponent based on current wins.
    *
+   * Uses predefined team compositions for each round with random variant selection.
    * Bot difficulty scales with player's win count.
-   * Uses faction-appropriate units for team composition.
    *
    * @param run - Current run entity
    * @param seed - Random seed for deterministic generation
@@ -270,8 +281,15 @@ export class MatchmakingService {
     const botFaction: Faction = rng.next() > 0.5 ? 'humans' : 'undead';
     const botLeaderId = botFaction === 'humans' ? 'commander_aldric' : 'lich_king_malachar';
 
-    // Generate team based on difficulty
-    const team = this.generateBotTeam(botFaction, difficulty, rng);
+    // Calculate round number (wins + losses + 1 for current battle)
+    const roundNumber = run.wins + run.losses + 1;
+    
+    // Get predefined team for this round with random variant selection
+    const variantRandom = rng.next();
+    const predefinedTeam = getBotTeamForRound(roundNumber, botFaction, variantRandom);
+    const team = predefinedTeam 
+      ? predefinedTeam.units 
+      : this.generateBotTeamFallback(botFaction, roundNumber, rng);
 
     // Generate spell timings
     const spellTimings = this.generateBotSpellTimings(botFaction, rng);
@@ -282,8 +300,12 @@ export class MatchmakingService {
       runId: run.id,
       botName,
       botFaction,
+      roundNumber,
       difficulty,
       teamSize: team.length,
+      usedPredefined: !!predefinedTeam,
+      variant: predefinedTeam?.variant,
+      budget: getBudgetForRound(roundNumber),
     });
 
     return {
@@ -299,51 +321,44 @@ export class MatchmakingService {
   }
 
   /**
-   * Generates a bot team composition.
+   * Fallback team generation when predefined team not available.
    *
    * @param faction - Bot faction
-   * @param difficulty - Bot difficulty (0.0 - 1.0)
+   * @param roundNumber - Current round number
    * @param rng - Seeded random generator
    * @returns Array of placed units
    * @private
    */
-  private generateBotTeam(
+  private generateBotTeamFallback(
     faction: Faction,
-    difficulty: number,
+    roundNumber: number,
     rng: SeededRandom,
   ): PlacedUnit[] {
     const units = faction === 'humans' ? HUMANS_T1_UNITS : UNDEAD_T1_UNITS;
+    const budget = getBudgetForRound(roundNumber);
     const team: PlacedUnit[] = [];
-
-    // Team size scales with difficulty (4-8 units)
-    const teamSize = Math.floor(4 + difficulty * 4);
+    let remainingBudget = budget;
 
     // Shuffle units for variety
     const shuffled = rng.shuffle([...units]);
 
-    // Place units on deployment grid (8×2)
-    for (let i = 0; i < Math.min(teamSize, shuffled.length); i++) {
-      const unit = shuffled[i];
-      if (!unit) continue;
-
-      // Calculate tier based on difficulty
-      // Higher difficulty = more T2/T3 units
-      let tier: 1 | 2 | 3 = 1;
-      const tierRoll = rng.next();
-      if (tierRoll < difficulty * 0.4) {
-        tier = 3;
-      } else if (tierRoll < difficulty * 0.7) {
-        tier = 2;
-      }
+    // Place units until budget exhausted
+    let posIndex = 0;
+    for (const unit of shuffled) {
+      if (remainingBudget < unit.cost) continue;
+      if (posIndex >= 16) break; // Max 16 positions (8×2)
 
       team.push({
         unitId: unit.id,
-        tier,
+        tier: 1,
         position: {
-          x: i % 8,
-          y: Math.floor(i / 8),
+          x: posIndex % 8,
+          y: Math.floor(posIndex / 8),
         },
       });
+
+      remainingBudget -= unit.cost;
+      posIndex++;
     }
 
     return team;

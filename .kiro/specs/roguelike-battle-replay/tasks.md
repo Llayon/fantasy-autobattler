@@ -176,3 +176,82 @@
   - Battle logs are saved to database with correct data
   - Replay endpoint returns full battle data including events
   - Frontend "Смотреть реплей" button navigates to `/battle/${battleId}`
+
+## 15. Remaining Tasks (Added from Analysis)
+
+### 15.1 Battle History Display (High Priority)
+- [ ] 15.1.1 Create `BattleHistoryList` component
+  - Display list of past battles with: round number, result (win/loss icon), opponent name
+  - Add click handler to navigate to `/battle/${battleId}?from=roguelike&runId=${runId}`
+  - Style with Tailwind: green for wins, red for losses
+  - _Requirements: 6.2, 6.3_
+
+- [ ] 15.1.2 Add battle history section to run details/shop page
+  - Show collapsible "История боёв" section
+  - Display `currentRun.battleHistory` using BattleHistoryList
+  - _Requirements: 6.2_
+
+### 15.2 Property-Based Tests (Medium Priority)
+- [ ]* 15.2.1 Write property test for unit mapping (Property 2)
+  - Test tier modifiers: T1×1.0, T2×1.5, T3×2.0
+  - Use `fast-check` with roguelike unit generator
+  - **Validates: Requirements 1.2, 5.3**
+
+- [ ]* 15.2.2 Write property test for seed determinism (Property 3)
+  - Same seed + same teams = identical battle result
+  - **Validates: Requirements 1.3**
+
+- [ ]* 15.2.3 Write property test for battle result matching (Property 1)
+  - Returned win/loss matches simulator output
+  - **Validates: Requirements 1.1, 1.4**
+
+- [ ]* 15.2.4 Write property test for API response format (Property 6)
+  - Response contains valid UUID battleId and boolean replayAvailable
+  - **Validates: Requirements 4.1, 4.2**
+
+- [ ]* 15.2.5 Write property test for battle history structure (Property 5)
+  - Entry has battleId (UUID), result ('win'|'loss'), round (positive int)
+  - **Validates: Requirements 2.4, 6.1**
+
+- [ ]* 15.2.6 Write property test for team setup generation (Property 7)
+  - TeamSetup has valid UnitTemplates and grid coordinates
+  - **Validates: Requirements 5.1, 5.2, 5.4**
+
+### 15.3 Unit Tests (Medium Priority)
+- [ ]* 15.3.1 Write unit tests for saveBattleLogWithRetry
+  - Test successful save on first attempt
+  - Test retry on transient failure
+  - Test max retries exceeded returns { saved: false }
+  - _Requirements: 4.3_
+
+### 15.4 T3 Abilities (Low Priority - Optional)
+- [ ]* 15.4.1 Add new T3 abilities to ability.data.ts
+  - divine_shield, cleave, whirlwind, zealous_strike, headshot, mass_heal
+  - Follow existing ability structure
+  - _Requirements: 5.4_
+
+- [ ]* 15.4.2 Extend UNIT_ABILITY_MAP with roguelike mappings
+  - Map roguelike T3 unit IDs to ability IDs
+  - _Requirements: 5.4_
+
+## 16. Matchmaking Fairness Improvement
+
+- [x] 16.1 Add `round` field to `RoguelikeSnapshotEntity`
+  - Added `round: number` column (1-12)
+  - Round = wins + losses + 1 (determines budget)
+  - Updated composite index for matchmaking queries
+  - Added validation for round (1-12)
+  - Updated `getSummary()` to include round
+  - _Ensures fair budget matching in PvP_
+
+- [x] 16.2 Update `MatchmakingService` to match by round
+  - Changed `findOpponent()` to use exact round match instead of wins range
+  - Updated `saveSnapshot()` to calculate and store round
+  - Removed `winsRange` from matchmaking config (now uses exact round)
+  - Updated logging to include round information
+  - _Ensures players with same budget are matched_
+
+- [x] 16.3 Update tests for round-based matchmaking
+  - Updated `snapshot.entity.spec.ts` with round validation tests
+  - Updated `matchmaking.service.spec.ts` for round-based matching
+  - All 1274 tests passing

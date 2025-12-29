@@ -20,6 +20,7 @@ describe('RoguelikeSnapshotEntity', () => {
     snapshot.runId = '550e8400-e29b-41d4-a716-446655440001';
     snapshot.playerId = '550e8400-e29b-41d4-a716-446655440000';
     snapshot.wins = 3;
+    snapshot.round = 5; // wins(3) + losses(1) + 1
     snapshot.rating = 1050;
     snapshot.team = createTeam();
     snapshot.spellTimings = createSpellTimings();
@@ -53,7 +54,7 @@ describe('RoguelikeSnapshotEntity', () => {
     it('should have correct values', () => {
       expect(SNAPSHOT_CONSTANTS.MAX_MATCHMAKING_CANDIDATES).toBe(100);
       expect(SNAPSHOT_CONSTANTS.RATING_RANGE).toBe(200);
-      expect(SNAPSHOT_CONSTANTS.WIN_RANGE).toBe(1);
+      expect(SNAPSHOT_CONSTANTS.ROUND_RANGE).toBe(0);
     });
   });
 
@@ -158,6 +159,24 @@ describe('RoguelikeSnapshotEntity', () => {
         expect(() => snapshot.validateSnapshot()).toThrow('Wins must be between 0 and 9');
       });
 
+      it('should accept valid round (1-12)', () => {
+        const snapshot = createValidSnapshot();
+        snapshot.round = 6;
+        expect(() => snapshot.validateSnapshot()).not.toThrow();
+      });
+
+      it('should reject round < 1', () => {
+        const snapshot = createValidSnapshot();
+        snapshot.round = 0;
+        expect(() => snapshot.validateSnapshot()).toThrow('Round must be between 1 and 12');
+      });
+
+      it('should reject round > 12', () => {
+        const snapshot = createValidSnapshot();
+        snapshot.round = 13;
+        expect(() => snapshot.validateSnapshot()).toThrow('Round must be between 1 and 12');
+      });
+
       it('should accept positive rating', () => {
         const snapshot = createValidSnapshot();
         snapshot.rating = 1500;
@@ -211,6 +230,7 @@ describe('RoguelikeSnapshotEntity', () => {
       const snapshot = createValidSnapshot();
       snapshot.id = 'test-snapshot-id';
       snapshot.wins = 5;
+      snapshot.round = 7;
       snapshot.rating = 1200;
       snapshot.faction = 'undead';
       snapshot.team = [
@@ -222,6 +242,7 @@ describe('RoguelikeSnapshotEntity', () => {
 
       expect(summary.id).toBe('test-snapshot-id');
       expect(summary.wins).toBe(5);
+      expect(summary.round).toBe(7);
       expect(summary.rating).toBe(1200);
       expect(summary.faction).toBe('undead');
       expect(summary.teamSize).toBe(2);

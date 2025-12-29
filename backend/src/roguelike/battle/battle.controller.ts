@@ -37,6 +37,7 @@ import { ErrorResponseDto } from '../../common/dto/api-response.dto';
 import { RunService } from '../run/run.service';
 import { MatchmakingService, BotOpponent } from '../matchmaking/matchmaking.service';
 import { RoguelikeBattleService } from './battle.service';
+import { EconomyService } from '../economy/economy.service';
 import { RoguelikeSnapshotEntity, PlacedUnit, SpellTimingConfig } from '../entities/snapshot.entity';
 import { FieldUnit } from '../entities/run.entity';
 
@@ -74,6 +75,7 @@ export class BattleController {
     private readonly runService: RunService,
     private readonly matchmakingService: MatchmakingService,
     private readonly roguelikeBattleService: RoguelikeBattleService,
+    private readonly economyService: EconomyService,
   ) {}
 
   /**
@@ -268,7 +270,14 @@ export class BattleController {
     );
 
     const isWin = battleResult.result === 'win';
-    const goldEarned = isWin ? 5 + run.consecutiveWins : 2;
+    
+    // Calculate gold reward using economy service
+    // For win: use consecutiveWins + 1 (this win counts)
+    // For loss: use consecutiveLosses + 1 (this loss counts)
+    const newStreak = isWin ? run.consecutiveWins + 1 : run.consecutiveLosses + 1;
+    const goldReward = this.economyService.calculateReward(isWin, newStreak);
+    const goldEarned = goldReward.total;
+    
     const ratingChange = isWin ? 15 : -10;
 
     // Create opponent info for battle history
@@ -281,13 +290,13 @@ export class BattleController {
     // Update run state with battle result
     const updatedRun = isWin
       ? await this.runService.recordWin(runId, req.player.id, goldEarned, battleResult.battleId, ratingChange, opponentInfo)
-      : await this.runService.recordLoss(runId, req.player.id, 2, battleResult.battleId, ratingChange, opponentInfo);
+      : await this.runService.recordLoss(runId, req.player.id, goldEarned, battleResult.battleId, ratingChange, opponentInfo);
 
     return {
       battleId: battleResult.battleId,
       result: isWin ? 'win' : 'lose',
       replayAvailable: battleResult.replayAvailable,
-      goldEarned: isWin ? goldEarned : 2,
+      goldEarned,
       newGold: updatedRun.gold,
       wins: updatedRun.wins,
       losses: updatedRun.losses,

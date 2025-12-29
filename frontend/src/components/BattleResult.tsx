@@ -49,6 +49,24 @@ interface RatingChange {
 }
 
 /**
+ * Roguelike mode result data.
+ */
+interface RoguelikeResultData {
+  /** Gold earned from battle */
+  goldEarned: number;
+  /** Total gold after battle */
+  newGold: number;
+  /** Total wins after battle */
+  wins: number;
+  /** Total losses after battle */
+  losses: number;
+  /** Whether run is complete */
+  runComplete: boolean;
+  /** Run status after battle */
+  runStatus: 'active' | 'won' | 'lost';
+}
+
+/**
  * BattleResult component props.
  */
 interface BattleResultProps {
@@ -66,6 +84,12 @@ interface BattleResultProps {
   onEditTeam: () => void;
   /** Whether to show the result (for animation) */
   show?: boolean;
+  /** Roguelike mode - shows different buttons and gold info */
+  roguelikeMode?: boolean;
+  /** Roguelike result data (required if roguelikeMode is true) */
+  roguelikeData?: RoguelikeResultData;
+  /** Callback for roguelike continue button */
+  onContinue?: () => void;
 }
 
 // =============================================================================
@@ -532,6 +556,93 @@ function ActionButtons({
   );
 }
 
+/**
+ * Roguelike action buttons component.
+ * Shows only "Continue" button for roguelike mode.
+ */
+function RoguelikeActionButtons({ 
+  onWatchReplay,
+  onContinue,
+  runComplete,
+  runStatus,
+}: {
+  onWatchReplay: () => void;
+  onContinue: () => void;
+  runComplete: boolean;
+  runStatus: 'active' | 'won' | 'lost';
+}) {
+  return (
+    <div className="flex flex-col sm:flex-row gap-4 justify-center">
+      <button
+        onClick={onWatchReplay}
+        className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg transition-colors flex items-center gap-2 justify-center"
+      >
+        🎬 Посмотреть повтор
+      </button>
+      
+      <button
+        onClick={onContinue}
+        className="px-8 py-4 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-lg transition-colors flex items-center gap-2 justify-center text-lg"
+      >
+        {runComplete 
+          ? (runStatus === 'won' ? '🏆 Посмотреть результаты' : '📊 Посмотреть результаты')
+          : '➡️ Продолжить'}
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Roguelike gold and progress panel.
+ */
+function RoguelikeProgressPanel({ data }: { data: RoguelikeResultData }) {
+  return (
+    <div className="bg-gray-800 rounded-lg p-6 border border-gray-600">
+      <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+        🪙 Награда
+      </h3>
+      
+      <div className="space-y-4">
+        <div className="flex justify-between items-center py-2 border-b border-gray-700">
+          <span className="text-gray-300">Золото заработано:</span>
+          <span className="text-2xl font-bold text-yellow-400">+{data.goldEarned} 🪙</span>
+        </div>
+        
+        <div className="flex justify-between items-center py-2 border-b border-gray-700">
+          <span className="text-gray-300">Всего золота:</span>
+          <span className="text-xl font-bold text-yellow-300">{data.newGold} 🪙</span>
+        </div>
+        
+        <div className="flex justify-between items-center py-2">
+          <span className="text-gray-300">Счёт:</span>
+          <span className="text-lg font-bold">
+            <span className="text-green-400">{data.wins}</span>
+            {' / '}
+            <span className="text-red-400">{data.losses}</span>
+          </span>
+        </div>
+      </div>
+      
+      {data.runComplete && (
+        <div className={`mt-4 p-4 rounded-lg text-center ${
+          data.runStatus === 'won' 
+            ? 'bg-green-900/30 border border-green-500' 
+            : 'bg-red-900/30 border border-red-500'
+        }`}>
+          <div className="text-2xl mb-2">
+            {data.runStatus === 'won' ? '🎉' : '😢'}
+          </div>
+          <div className="font-bold">
+            {data.runStatus === 'won' 
+              ? 'Забег завершён победой!' 
+              : 'Забег завершён'}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // =============================================================================
 // MAIN COMPONENT
 // =============================================================================
@@ -539,10 +650,12 @@ function ActionButtons({
 /**
  * BattleResult component for displaying battle outcome and statistics.
  * Shows victory/defeat status, detailed statistics, rating changes, and action buttons.
+ * Supports both classic MVP mode and roguelike mode with different UI.
  * 
  * @param props - Component props
  * @returns Battle result component
  * @example
+ * // Classic mode
  * <BattleResult 
  *   battle={battleLog} 
  *   playerId="player-123"
@@ -550,6 +663,16 @@ function ActionButtons({
  *   onWatchReplay={() => router.push(`/battle/${battleId}`)}
  *   onNewBattle={() => router.push('/matchmaking')}
  *   onEditTeam={() => router.push('/')}
+ * />
+ * 
+ * // Roguelike mode
+ * <BattleResult 
+ *   battle={battleLog} 
+ *   playerId="player-123"
+ *   roguelikeMode={true}
+ *   roguelikeData={{ goldEarned: 5, newGold: 15, wins: 2, losses: 1, runComplete: false, runStatus: 'active' }}
+ *   onWatchReplay={() => setShowResult(false)}
+ *   onContinue={() => router.replace('/run/123/shop')}
  * />
  */
 export function BattleResult({
@@ -560,6 +683,9 @@ export function BattleResult({
   onNewBattle,
   onEditTeam,
   show = true,
+  roguelikeMode = false,
+  roguelikeData,
+  onContinue,
 }: BattleResultProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [animationPhase, setAnimationPhase] = useState<'hidden' | 'entering' | 'visible'>('hidden');
@@ -622,22 +748,35 @@ export function BattleResult({
           </p>
         </div>
         
-        {/* Statistics and Rating */}
+        {/* Statistics and Rating/Gold */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <div className="lg:col-span-2">
             <StatisticsPanel stats={statistics} />
           </div>
           <div>
-            <RatingPanel ratingChange={ratingChange} />
+            {roguelikeMode && roguelikeData ? (
+              <RoguelikeProgressPanel data={roguelikeData} />
+            ) : (
+              <RatingPanel ratingChange={ratingChange} />
+            )}
           </div>
         </div>
         
         {/* Action Buttons */}
-        <ActionButtons 
-          onWatchReplay={onWatchReplay}
-          onNewBattle={onNewBattle}
-          onEditTeam={onEditTeam}
-        />
+        {roguelikeMode && roguelikeData && onContinue ? (
+          <RoguelikeActionButtons 
+            onWatchReplay={onWatchReplay}
+            onContinue={onContinue}
+            runComplete={roguelikeData.runComplete}
+            runStatus={roguelikeData.runStatus}
+          />
+        ) : (
+          <ActionButtons 
+            onWatchReplay={onWatchReplay}
+            onNewBattle={onNewBattle}
+            onEditTeam={onEditTeam}
+          />
+        )}
       </div>
     </div>
   );

@@ -52,8 +52,8 @@ export const SNAPSHOT_CONSTANTS = {
   MAX_MATCHMAKING_CANDIDATES: 100,
   /** Rating range for matchmaking */
   RATING_RANGE: 200,
-  /** Win range for matchmaking */
-  WIN_RANGE: 1,
+  /** Round range for matchmaking (0 = exact match) */
+  ROUND_RANGE: 0,
 } as const;
 
 /**
@@ -72,7 +72,7 @@ export const SNAPSHOT_CONSTANTS = {
 @Entity('roguelike_snapshots')
 @Index(['playerId'])
 @Index(['runId'])
-@Index(['wins', 'rating', 'createdAt']) // Composite index for matchmaking queries
+@Index(['round', 'rating', 'createdAt']) // Composite index for matchmaking queries
 @Index(['faction'])
 export class RoguelikeSnapshotEntity {
   /**
@@ -95,10 +95,18 @@ export class RoguelikeSnapshotEntity {
 
   /**
    * Number of wins at the time of snapshot.
-   * Used for matchmaking to find opponents with similar progress.
+   * Stored for statistics and display purposes.
    */
   @Column({ type: 'int' })
   wins!: number;
+
+  /**
+   * Round number at the time of snapshot (wins + losses + 1).
+   * Used for matchmaking to ensure fair budget matching.
+   * Budget is determined by round, so matching by round ensures equal budgets.
+   */
+  @Column({ type: 'int' })
+  round!: number;
 
   /**
    * Rating at the time of snapshot.
@@ -215,6 +223,9 @@ export class RoguelikeSnapshotEntity {
     if (this.wins < 0 || this.wins > 9) {
       throw new Error('Wins must be between 0 and 9');
     }
+    if (this.round < 1 || this.round > 12) {
+      throw new Error('Round must be between 1 and 12');
+    }
     if (this.rating < 0) {
       throw new Error('Rating cannot be negative');
     }
@@ -237,6 +248,7 @@ export class RoguelikeSnapshotEntity {
   getSummary(): {
     id: string;
     wins: number;
+    round: number;
     rating: number;
     faction: Faction;
     teamSize: number;
@@ -245,6 +257,7 @@ export class RoguelikeSnapshotEntity {
     return {
       id: this.id,
       wins: this.wins,
+      round: this.round,
       rating: this.rating,
       faction: this.faction,
       teamSize: this.team.length,
