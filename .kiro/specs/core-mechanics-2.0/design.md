@@ -144,11 +144,14 @@ interface ResolveConfig {
   /** Undead units crumble when resolve = 0. Default: true */
   undeadCrumble: boolean;
   
-  /** Resolve damage from flanking attacks. Default: 12 */
-  flankingResolveDamage: number;
+  /** Resolve damage multiplier from attacker's ATK. Default: 0.25 (25%) */
+  resolveDamageMultiplier: number;
   
-  /** Resolve damage from rear attacks. Default: 20 */
-  rearResolveDamage: number;
+  /** Resolve damage bonus for flanking attacks. Default: 0 (no bonus, uses multiplier) */
+  flankingResolveDamageBonus: number;
+  
+  /** Resolve damage bonus for rear attacks. Default: 0 (no bonus, uses multiplier) */
+  rearResolveDamageBonus: number;
 }
 
 const DEFAULT_RESOLVE_CONFIG: ResolveConfig = {
@@ -156,8 +159,9 @@ const DEFAULT_RESOLVE_CONFIG: ResolveConfig = {
   baseRegeneration: 5,
   humanRetreat: true,
   undeadCrumble: true,
-  flankingResolveDamage: 12,
-  rearResolveDamage: 20,
+  resolveDamageMultiplier: 0.25,  // 25% от ATK атакующего
+  flankingResolveDamageBonus: 0,  // Без дополнительного бонуса
+  rearResolveDamageBonus: 0,      // Без дополнительного бонуса
 };
 
 /**
@@ -1378,8 +1382,9 @@ export const ROGUELIKE_PRESET: MechanicsConfig = {
     baseRegeneration: 5,
     humanRetreat: true,
     undeadCrumble: true,
-    flankingResolveDamage: 12,
-    rearResolveDamage: 20,
+    resolveDamageMultiplier: 0.25,  // 25% от ATK атакующего
+    flankingResolveDamageBonus: 0,
+    rearResolveDamageBonus: 0,
   },
   engagement: {
     attackOfOpportunity: true,
