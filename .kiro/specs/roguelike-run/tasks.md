@@ -415,15 +415,15 @@ Roguelike-run использует переиспользуемые систем
 ### Task 17: Frontend Component Tests
 **Estimate**: 60 min | **Requirement**: All
 
-- [ ] 17.1 Add tests for FactionSelect component
-- [ ] 17.2 Add tests for LeaderSelect component
-- [ ] 17.3 Add tests for DraftScreen component
-- [ ] 17.4 Add tests for UpgradeShop component
-- [ ] 17.5 Add tests for RunStatusBar component
-- [ ] 17.6 Add tests for SpellTimingSelect component
-- [ ] 17.7 Test loading and error states
-- [ ] 17.8 Test keyboard navigation (a11y)
-- [ ] 17.9 **VERIFY**: `npm test`
+- [x] 17.1 Add tests for FactionSelect component
+- [x] 17.2 Add tests for LeaderSelect component
+- [x] 17.3 Add tests for DraftScreen component
+- [x] 17.4 Add tests for UpgradeShop component
+- [x] 17.5 Add tests for RunStatusBar component
+- [x] 17.6 Add tests for SpellTimingSelect component
+- [x] 17.7 Test loading and error states
+- [x] 17.8 Test keyboard navigation (a11y)
+- [x] 17.9 **VERIFY**: `npm test`
 
 ### Task 18: Final Verification
 **Estimate**: 30 min | **Requirement**: All
@@ -433,7 +433,7 @@ Roguelike-run использует переиспользуемые систем
 - [ ] 18.3 Verify MVP mode still works (backward compatibility)
 - [ ] 18.4 Verify migration can be rolled back safely
 - [ ] 18.5 Update CHANGELOG.md
-- [ ] 18.6 **VERIFY**: All tests pass
+- [ ] 18.6 **VERIFY**: All tests pass1
 
 **CHECKPOINT 4**: All tests pass. MVP backward compatible.
 
