@@ -43,6 +43,7 @@ export {
   shouldStartNewRound,
   canUnitAct,
   ResolveState,
+  VigilanceState,
 } from './turn-order';
 
 export type { TurnOrderUnit } from './turn-order';

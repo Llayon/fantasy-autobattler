@@ -29,48 +29,48 @@
 
 
 
-- [ ] Create `config/presets/` subdirectory
-- [ ] Create placeholder `index.ts` files
+- [x] Create `config/presets/` subdirectory
+- [x] Create placeholder `index.ts` files
 
 ### Task 2: Define MechanicsConfig types
-- [ ] Create `config/mechanics.types.ts`
-- [ ] Define `MechanicsConfig` interface
-- [ ] Define all sub-config interfaces (ResolveConfig, RiposteConfig, etc.)
-- [ ] Add JSDoc documentation for all types
+- [x] Create `config/mechanics.types.ts`
+- [x] Define `MechanicsConfig` interface
+- [x] Define all sub-config interfaces (ResolveConfig, RiposteConfig, etc.)
+- [x] Add JSDoc documentation for all types
 
 ### Task 3: Implement default configurations
-- [ ] Create `config/defaults.ts`
-- [ ] Define `DEFAULT_RESOLVE_CONFIG`
-- [ ] Define `DEFAULT_ENGAGEMENT_CONFIG`
-- [ ] Define `DEFAULT_RIPOSTE_CONFIG`
-- [ ] Define `DEFAULT_INTERCEPT_CONFIG`
-- [ ] Define `DEFAULT_CHARGE_CONFIG`
-- [ ] Define `DEFAULT_PHALANX_CONFIG`
-- [ ] Define `DEFAULT_LOS_CONFIG`
-- [ ] Define `DEFAULT_AMMO_CONFIG`
-- [ ] Define `DEFAULT_CONTAGION_CONFIG`
-- [ ] Define `DEFAULT_SHRED_CONFIG`
+- [x] Create `config/defaults.ts`
+- [x] Define `DEFAULT_RESOLVE_CONFIG`
+- [x] Define `DEFAULT_ENGAGEMENT_CONFIG`
+- [x] Define `DEFAULT_RIPOSTE_CONFIG`
+- [x] Define `DEFAULT_INTERCEPT_CONFIG`
+- [x] Define `DEFAULT_CHARGE_CONFIG`
+- [x] Define `DEFAULT_PHALANX_CONFIG`
+- [x] Define `DEFAULT_LOS_CONFIG`
+- [x] Define `DEFAULT_AMMO_CONFIG`
+- [x] Define `DEFAULT_CONTAGION_CONFIG`
+- [x] Define `DEFAULT_SHRED_CONFIG`
 
 
 ### Task 4: Implement dependency resolution
-- [ ] Create `config/dependencies.ts`
-- [ ] Define `MECHANIC_DEPENDENCIES` constant
-- [ ] Implement `resolveDependencies()` function
-- [ ] Implement `getDefaultConfig()` helper
+- [x] Create `config/dependencies.ts`
+- [x] Define `MECHANIC_DEPENDENCIES` constant
+- [x] Implement `resolveDependencies()` function
+- [x] Implement `getDefaultConfig()` helper
 - [ ] Add unit tests for dependency resolution
 
 ### Task 5: Create presets
-- [ ] Create `config/presets/mvp.ts` with `MVP_PRESET`
-- [ ] Create `config/presets/roguelike.ts` with `ROGUELIKE_PRESET`
-- [ ] Create `config/presets/tactical.ts` with `TACTICAL_PRESET`
-- [ ] Create `config/presets/index.ts` re-exports
+- [x] Create `config/presets/mvp.ts` with `MVP_PRESET`
+- [x] Create `config/presets/roguelike.ts` with `ROGUELIKE_PRESET`
+- [x] Create `config/presets/tactical.ts` with `TACTICAL_PRESET`
+- [x] Create `config/presets/index.ts` re-exports
 - [ ] Add tests verifying preset structure
 
 ### Task 6: Implement config validator
-- [ ] Create `config/validator.ts`
-- [ ] Implement `validateMechanicsConfig()` function
-- [ ] Validate config values are within bounds
-- [ ] Validate dependency consistency
+- [x] Create `config/validator.ts`
+- [x] Implement `validateMechanicsConfig()` function
+- [x] Validate config values are within bounds
+- [x] Validate dependency consistency
 - [ ] Add unit tests for validation
 
 ---
@@ -344,6 +344,11 @@
 
 
 
+
+
+
+
+
 ### Task 40: Update turn order
 - [x] Ensure turn order respects resolve state (routing units skip)
 
@@ -351,30 +356,113 @@
 
 
 
-- [ ] Add vigilance state consideration
+- [x] Add vigilance state consideration
+
+
+
+
+
 - [ ] Maintain backward compatibility
 
 ### Task 41: Create public API exports
-- [ ] Create `mechanics/index.ts` with all exports
-- [ ] Update `core/index.ts` to include mechanics
-- [ ] Verify all types are exported
-- [ ] Verify all processors are exported
+- [x] Create `mechanics/index.ts` with all exports
+
+
+
+- [x] Update `core/index.ts` to include mechanics
+
+
+
+
+
+
+
+- [x] Verify all types are exported
+
+
+
+
+
+
+
+
+
+
+
+
+
+- [x] Verify all processors are exported
+
+
+
+
+
 
 ### Task 42: Integration test suite
-- [ ] Test full battle with MVP preset (identical to core 1.0)
-- [ ] Test full battle with ROGUELIKE preset
-- [ ] Test full battle with TACTICAL preset
-- [ ] Test custom config with partial mechanics
+- [x] Test full battle with MVP preset (identical to core 1.0)
+
+
+
+
+
+
+- [x] Test full battle with ROGUELIKE preset
+
+
+
+
+- [x] Test full battle with TACTICAL preset
+
+
+
+
+
+
+
+
+- [x] Test custom config with partial mechanics
+
+
+
+
+
+
+
+
+
+
+
+
 
 ---
 
 ## Phase 7: Testing & Documentation (Tasks 43-48)
 
 ### Task 43: Backward compatibility tests
-- [ ] Create snapshot tests for MVP preset
-- [ ] Compare results with core 1.0 simulator
-- [ ] Verify event sequence is identical
-- [ ] Verify final state is identical
+- [x] Create snapshot tests for MVP preset
+
+
+
+
+
+- [x] Compare results with core 1.0 simulator
+
+
+
+
+
+- [x] Verify event sequence is identical
+
+
+
+
+
+- [x] Verify final state is identical
+
+
+
+
+
 
 ### Task 44: Regression test suite
 - [ ] Create test fixtures for common battle scenarios

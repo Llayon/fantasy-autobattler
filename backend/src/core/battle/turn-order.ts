@@ -5,6 +5,7 @@
  * @fileoverview Turn order implementation with deterministic sorting.
  * Provides deterministic turn ordering based on initiative, speed, and ID tiebreaking.
  * Supports resolve state filtering (routing units skip their turns).
+ * Supports vigilance state filtering (units in overwatch skip their normal turns).
  *
  * @module core/battle/turn-order
  */
@@ -21,6 +22,22 @@ export enum ResolveState {
   STEADY = 'steady',
   WAVERING = 'wavering',
   ROUTING = 'routing',
+}
+
+// =============================================================================
+// VIGILANCE STATE (for overwatch mechanic)
+// =============================================================================
+
+/**
+ * Vigilance state for units (overwatch mechanic).
+ * Units in vigilance mode are waiting to react to enemy movement
+ * and skip their normal turns.
+ */
+export enum VigilanceState {
+  /** Unit acts normally */
+  NORMAL = 'normal',
+  /** Unit is in overwatch mode, skips normal turn but reacts to enemy movement */
+  VIGILANT = 'vigilant',
 }
 
 // =============================================================================
@@ -51,6 +68,8 @@ export interface TurnOrderUnit {
   team: 'player' | 'bot';
   /** Optional resolve state for morale system */
   resolveState?: ResolveState;
+  /** Optional vigilance state for overwatch mechanic */
+  vigilanceState?: VigilanceState;
 }
 
 // =============================================================================
@@ -59,7 +78,7 @@ export interface TurnOrderUnit {
 
 /**
  * Check if a unit can act in the turn order.
- * A unit can act if it is alive and not routing.
+ * A unit can act if it is alive, not routing, and not in vigilance mode.
  *
  * @param unit - Unit to check
  * @returns True if unit can act
@@ -76,6 +95,11 @@ export function canUnitAct<T extends TurnOrderUnit>(unit: T): boolean {
 
   // Routing units skip their turns
   if (unit.resolveState === ResolveState.ROUTING) {
+    return false;
+  }
+
+  // Vigilant units skip their normal turns (they react to enemy movement instead)
+  if (unit.vigilanceState === VigilanceState.VIGILANT) {
     return false;
   }
 
@@ -348,6 +372,11 @@ export function validateTurnQueue<T extends TurnOrderUnit>(queue: T[]): {
     // Warn about routing units in queue (they should be filtered out)
     if (unit.resolveState === ResolveState.ROUTING && unit.alive) {
       warnings.push(`Unit ${unit.instanceId} is routing and should skip turns`);
+    }
+
+    // Warn about vigilant units in queue (they should be filtered out)
+    if (unit.vigilanceState === VigilanceState.VIGILANT && unit.alive) {
+      warnings.push(`Unit ${unit.instanceId} is vigilant and should skip normal turns`);
     }
   }
 
