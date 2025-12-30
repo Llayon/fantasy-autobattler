@@ -57,7 +57,12 @@
 - [x] Define `MECHANIC_DEPENDENCIES` constant
 - [x] Implement `resolveDependencies()` function
 - [x] Implement `getDefaultConfig()` helper
-- [ ] Add unit tests for dependency resolution
+- [x] Add unit tests for dependency resolution
+
+
+
+
+
 
 ### Task 5: Create presets
 - [x] Create `config/presets/mvp.ts` with `MVP_PRESET`
@@ -465,16 +470,16 @@
 
 
 ### Task 44: Regression test suite
-- [ ] Create test fixtures for common battle scenarios
-- [ ] Add snapshot tests for deterministic battles
-- [ ] Test with multiple seeds
-- [ ] Test edge cases (empty teams, single unit, etc.)
+- [x] Create test fixtures for common battle scenarios
+- [x] Add snapshot tests for deterministic battles
+- [x] Test with multiple seeds
+- [x] Test edge cases (empty teams, single unit, etc.)
 
 ### Task 45: Performance benchmarks
-- [ ] Benchmark MVP preset vs core 1.0
-- [ ] Benchmark ROGUELIKE preset (all mechanics)
-- [ ] Identify performance bottlenecks
-- [ ] Optimize if needed (target: <10% overhead)
+- [x] Benchmark MVP preset vs core 1.0
+- [x] Benchmark ROGUELIKE preset (all mechanics)
+- [x] Identify performance bottlenecks
+- [x] Optimize if needed (target: <10% overhead)
 
 ### Task 46: Create README documentation
 - [ ] Create `backend/src/core/mechanics/README.md`
