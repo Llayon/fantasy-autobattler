@@ -59,8 +59,10 @@ export interface FacingConfig {
  */
 export interface ArmorShredConfig {
   enabled?: boolean;
+  shredPerHit?: number;
   maxShred?: number;
   decayPerTurn?: number;
+  percentBased?: boolean;
 }
 
 /**
@@ -179,8 +181,12 @@ export interface AmmunitionConfig {
 export interface ContagionConfig {
   enabled?: boolean;
   spreadChance?: number;
+  spreadChances?: Record<string, number>;
+  phalanxSpreadBonus?: number;
   phalanxBonusChance?: number;
   spreadRange?: number;
+  spreadToEnemies?: boolean;
+  maxStacks?: number;
 }
 
 /**

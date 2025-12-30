@@ -1,15 +1,24 @@
 /**
  * Battle Simulator v3 for Fantasy Autobattler.
- * Enhanced with ability system, status effects, and AI decision making.
+ * Enhanced with ability system, status effects, AI decision making,
+ * and optional Core Mechanics 2.0 integration.
  * 
  * @fileoverview Advanced battle simulation with 8×10 grid, A* pathfinding,
  * role-based AI, abilities, status effects, and comprehensive event logging.
  * 
  * Turn flow:
  * 1. Tick status effects (duration, DoT/HoT)
- * 2. AI decides action (ability/attack/move)
- * 3. Execute action
- * 4. Tick ability cooldowns
+ * 2. [MECHANICS] turn_start phase
+ * 3. AI decides action (ability/attack/move)
+ * 4. [MECHANICS] movement phase (if moving)
+ * 5. [MECHANICS] pre_attack phase (if attacking)
+ * 6. Execute action
+ * 7. [MECHANICS] attack phase (if attacking)
+ * 8. [MECHANICS] post_attack phase (if attacking)
+ * 9. [MECHANICS] turn_end phase
+ * 10. Tick ability cooldowns
+ * 
+ * @module battle/simulator
  */
 
 import { 
@@ -46,6 +55,13 @@ import {
 import { decideAction, UnitAction } from './ai.decision';
 import { getUnitAbility } from '../abilities/ability.data';
 import { isActiveAbility } from '../types/ability.types';
+
+// Core Mechanics 2.0 imports
+import type { 
+  MechanicsProcessor, 
+  PhaseContext,
+  BattleAction as MechanicsBattleAction 
+} from '../core/mechanics/processor';
 
 
 // =============================================================================
@@ -311,15 +327,18 @@ function tickAllCooldowns(state: BattleStateWithAbilities): BattleStateWithAbili
  * @param unit - Unit taking the turn
  * @param state - Current battle state
  * @param seed - Random seed for deterministic behavior
+ * @param processor - Optional mechanics processor for Core 2.0 mechanics
  * @returns Events generated during the turn and updated state
  */
 function executeUnitTurnWithAbilities(
   unit: BattleUnitWithAbilities,
   state: BattleStateWithAbilities,
-  seed: number
+  seed: number,
+  processor?: MechanicsProcessor
 ): { events: BattleEvent[]; state: BattleStateWithAbilities } {
   const events: BattleEvent[] = [];
   let currentState = state;
+  let currentSeed = seed;
   
   // Skip turn if unit is stunned
   if (unit.isStunned) {
@@ -328,6 +347,53 @@ function executeUnitTurnWithAbilities(
   
   // Get AI decision for this unit
   const action = decideAction(unit, currentState);
+  
+  /**
+   * Convert UnitAction to MechanicsBattleAction format for processor.
+   * Note: UnitAction doesn't have path property, so we don't include it.
+   * Movement path would need to be computed separately if needed.
+   */
+  function buildMechanicsAction(unitAction: UnitAction): MechanicsBattleAction {
+    return {
+      type: unitAction.type === 'attack' ? 'attack' 
+          : unitAction.type === 'ability' ? 'ability'
+          : unitAction.type === 'move' ? 'move' 
+          : 'wait',
+      ...(unitAction.target?.instanceId && { targetId: unitAction.target.instanceId }),
+      ...(unitAction.abilityId && { abilityId: unitAction.abilityId }),
+    };
+  }
+  
+  const mechanicsAction = buildMechanicsAction(action);
+  
+  /**
+   * Build PhaseContext for mechanics processor.
+   * Only includes defined properties to satisfy exactOptionalPropertyTypes.
+   */
+  function buildPhaseContext(
+    activeUnit: BattleUnitWithAbilities,
+    phaseSeed: number,
+    target?: BattleUnitWithAbilities,
+    battleAction?: MechanicsBattleAction
+  ): PhaseContext {
+    const context: PhaseContext = {
+      activeUnit,
+      seed: phaseSeed,
+    };
+    if (target) {
+      context.target = target;
+    }
+    if (battleAction) {
+      context.action = battleAction;
+    }
+    return context;
+  }
+  
+  // TURN_START phase - apply mechanics at turn start
+  if (processor) {
+    const context = buildPhaseContext(unit, currentSeed++, undefined, mechanicsAction);
+    currentState = processor.process('turn_start', currentState, context) as BattleStateWithAbilities;
+  }
   
   // Execute based on action type
   switch (action.type) {
@@ -353,10 +419,59 @@ function executeUnitTurnWithAbilities(
       break;
     }
     
-    case 'attack':
-    case 'move':
+    case 'attack': {
+      // Find target for attack
+      const target = action.target 
+        ? currentState.units.find(u => u.instanceId === action.target?.instanceId)
+        : undefined;
+      
+      // PRE_ATTACK phase - apply mechanics before attack
+      if (processor && target) {
+        const context = buildPhaseContext(unit, currentSeed++, target, mechanicsAction);
+        currentState = processor.process('pre_attack', currentState, context) as BattleStateWithAbilities;
+      }
+      
+      // Execute the attack using legacy turn execution
+      const turnEvents = executeTurn(unit, currentState, seed);
+      
+      if (turnEvents.length > 0) {
+        currentState = applyBattleEvents(currentState, turnEvents) as BattleStateWithAbilities;
+        events.push(...turnEvents);
+      }
+      
+      // ATTACK phase - apply mechanics during attack (riposte, armor shred, etc.)
+      if (processor && target) {
+        const context = buildPhaseContext(unit, currentSeed++, target, mechanicsAction);
+        currentState = processor.process('attack', currentState, context) as BattleStateWithAbilities;
+      }
+      
+      // POST_ATTACK phase - apply mechanics after attack (resolve damage, phalanx recalc)
+      if (processor && target) {
+        const context = buildPhaseContext(unit, currentSeed++, target, mechanicsAction);
+        currentState = processor.process('post_attack', currentState, context) as BattleStateWithAbilities;
+      }
+      break;
+    }
+    
+    case 'move': {
+      // MOVEMENT phase - apply mechanics during movement (engagement, intercept, overwatch)
+      if (processor) {
+        const context = buildPhaseContext(unit, currentSeed++, undefined, mechanicsAction);
+        currentState = processor.process('movement', currentState, context) as BattleStateWithAbilities;
+      }
+      
+      // Execute the move using legacy turn execution
+      const turnEvents = executeTurn(unit, currentState, seed);
+      
+      if (turnEvents.length > 0) {
+        currentState = applyBattleEvents(currentState, turnEvents) as BattleStateWithAbilities;
+        events.push(...turnEvents);
+      }
+      break;
+    }
+    
     default: {
-      // Use legacy turn execution for basic attacks and movement
+      // Use legacy turn execution for other actions
       const turnEvents = executeTurn(unit, currentState, seed);
       
       if (turnEvents.length > 0) {
@@ -367,6 +482,12 @@ function executeUnitTurnWithAbilities(
     }
   }
   
+  // TURN_END phase - apply mechanics at turn end
+  if (processor) {
+    const context = buildPhaseContext(unit, currentSeed++, undefined, mechanicsAction);
+    currentState = processor.process('turn_end', currentState, context) as BattleStateWithAbilities;
+  }
+  
   return { events, state: currentState };
 }
 
@@ -375,14 +496,31 @@ function executeUnitTurnWithAbilities(
 // =============================================================================
 
 /**
+ * Options for battle simulation.
+ */
+export interface SimulateBattleOptions {
+  /** Optional mechanics processor for Core 2.0 mechanics */
+  processor?: MechanicsProcessor;
+}
+
+/**
  * Simulate a complete battle between two teams.
  * Uses advanced grid-based combat with pathfinding, targeting, abilities,
  * status effects, and deterministic AI.
  * 
+ * Supports optional Core Mechanics 2.0 integration via processor parameter.
+ * When no processor is provided, uses MVP behavior (Core 1.0 compatible).
+ * 
  * Turn flow per unit:
  * 1. Check if stunned (skip if true)
- * 2. AI decides action (ability/attack/move)
- * 3. Execute action
+ * 2. [MECHANICS] turn_start phase (if processor provided)
+ * 3. AI decides action (ability/attack/move)
+ * 4. [MECHANICS] movement phase (if moving, processor provided)
+ * 5. [MECHANICS] pre_attack phase (if attacking, processor provided)
+ * 6. Execute action
+ * 7. [MECHANICS] attack phase (if attacking, processor provided)
+ * 8. [MECHANICS] post_attack phase (if attacking, processor provided)
+ * 9. [MECHANICS] turn_end phase (if processor provided)
  * 
  * Round flow:
  * 1. Tick status effects (duration, DoT/HoT)
@@ -394,19 +532,40 @@ function executeUnitTurnWithAbilities(
  * @param playerTeam - Player team setup with units and positions
  * @param enemyTeam - Enemy team setup with units and positions
  * @param seed - Random seed for deterministic simulation
+ * @param options - Optional configuration including mechanics processor
  * @returns Complete battle result with events and final states
  * @throws Error if team setups are invalid
+ * 
  * @example
+ * // Basic usage (MVP mode, no mechanics)
  * const playerTeam = { units: [warrior, mage], positions: [{ x: 1, y: 0 }, { x: 2, y: 1 }] };
  * const enemyTeam = { units: [orc, goblin], positions: [{ x: 1, y: 9 }, { x: 2, y: 8 }] };
  * const result = simulateBattle(playerTeam, enemyTeam, 12345);
+ * 
+ * @example
+ * // With Core Mechanics 2.0 (Roguelike preset)
+ * import { createMechanicsProcessor, ROGUELIKE_PRESET } from '../core/mechanics';
+ * const processor = createMechanicsProcessor(ROGUELIKE_PRESET);
+ * const result = simulateBattle(playerTeam, enemyTeam, 12345, { processor });
+ * 
+ * @example
+ * // With custom mechanics config
+ * import { createMechanicsProcessor } from '../core/mechanics';
+ * const processor = createMechanicsProcessor({
+ *   facing: true,
+ *   flanking: true,
+ *   riposte: { baseChance: 0.4 },
+ * });
+ * const result = simulateBattle(playerTeam, enemyTeam, 12345, { processor });
  */
 export function simulateBattle(
   playerTeam: TeamSetup,
   enemyTeam: TeamSetup,
-  seed: number
+  seed: number,
+  options?: SimulateBattleOptions
 ): BattleResult {
   const startTime = Date.now();
+  const processor = options?.processor;
   
   // Validate team setups
   const playerValidation = validateTeamSetup(playerTeam, 'player');
@@ -432,7 +591,7 @@ export function simulateBattle(
   
   const allEvents: BattleEvent[] = [];
   
-  // Add battle start event
+  // Add battle start event with mechanics info
   allEvents.push({
     round: 0,
     type: 'round_start',
@@ -441,6 +600,7 @@ export function simulateBattle(
       message: 'Battle begins',
       playerUnits: playerUnits.length,
       enemyUnits: enemyUnits.length,
+      mechanicsEnabled: processor ? processor.enabledMechanics : [],
     },
   });
   
@@ -475,11 +635,12 @@ export function simulateBattle(
         positions: [unit.position] 
       });
       
-      // Execute unit's turn with ability support
+      // Execute unit's turn with ability support and optional mechanics
       const turnResult = executeUnitTurnWithAbilities(
         currentUnit as BattleUnitWithAbilities, 
         battleState, 
-        turnSeed
+        turnSeed,
+        processor
       );
       
       // Update state and collect events

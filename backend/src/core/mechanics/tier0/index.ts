@@ -1,3 +1,3 @@
 // Tier 0 mechanics exports
-export * from './facing';
-export * from './armor-shred';
+// Re-export with namespace to avoid conflicts
+export * as facing from './facing';

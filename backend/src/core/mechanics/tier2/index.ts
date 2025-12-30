@@ -7,6 +7,7 @@
  * - Aura: Territorial effects (static/pulse)
  */
 
-export * from './riposte';
-export * from './intercept';
-export * from './aura';
+// Re-export with namespace to avoid conflicts
+export * as riposte from './riposte';
+export * as intercept from './intercept';
+export * as aura from './aura';

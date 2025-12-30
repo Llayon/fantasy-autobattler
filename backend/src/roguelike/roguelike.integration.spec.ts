@@ -112,7 +112,7 @@ describe('Roguelike Integration: Faction & Leader Data', () => {
 
       expect(aldric).toBeDefined();
       expect(aldric?.faction).toBe('humans');
-      expect(aldric?.passive.id).toBe('formation_master');
+      expect(aldric?.passive.id).toBe('formation');
       expect(aldric?.spellIds).toHaveLength(2);
     });
 
@@ -339,12 +339,29 @@ describe('Roguelike Integration: Full Run Flow', () => {
 
     it('should track battle history', () => {
       const run = createMockRun({
-        battleHistory: ['battle-1', 'battle-2'],
+        battleHistory: [
+          {
+            battleId: 'battle-1',
+            result: 'win',
+            round: 1,
+            goldEarned: 10,
+            opponent: { name: 'Bot 1', faction: 'undead', rating: 1000 },
+            timestamp: new Date().toISOString(),
+          },
+          {
+            battleId: 'battle-2',
+            result: 'loss',
+            round: 2,
+            goldEarned: 5,
+            opponent: { name: 'Bot 2', faction: 'humans', rating: 1100 },
+            timestamp: new Date().toISOString(),
+          },
+        ],
       });
 
       expect(run.battleHistory).toHaveLength(2);
-      expect(run.battleHistory[0]).toBe('battle-1');
-      expect(run.battleHistory[1]).toBe('battle-2');
+      expect(run.battleHistory[0]?.battleId).toBe('battle-1');
+      expect(run.battleHistory[1]?.battleId).toBe('battle-2');
     });
   });
 

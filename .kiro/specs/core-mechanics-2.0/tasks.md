@@ -289,6 +289,9 @@
 
 ### Task 36: Document Tier 4 mechanics
 - [ ] Add JSDoc to all Tier 4 processors
+
+
+
 - [ ] Add inline comments for spread formulas
 - [ ] Update README with Tier 4 usage examples
 
@@ -297,17 +300,17 @@
 ## Phase 6: Integration (Tasks 37-42)
 
 ### Task 37: Implement MechanicsProcessor
-- [ ] Create `processor.ts`
-- [ ] Implement `createMechanicsProcessor()` factory
-- [ ] Implement `buildProcessors()` helper
-- [ ] Implement `applyMechanics()` phase dispatcher
-- [ ] Define `PHASE_MECHANICS` mapping
+- [x] Create `processor.ts`
+- [x] Implement `createMechanicsProcessor()` factory
+- [x] Implement `buildProcessors()` helper
+- [x] Implement `applyMechanics()` phase dispatcher
+- [x] Define `PHASE_MECHANICS` mapping
 
 ### Task 38: Integrate with battle simulator
-- [ ] Modify `simulateBattle()` to accept optional processor
-- [ ] Add phase hooks for mechanics
-- [ ] Ensure backward compatibility (no processor = MVP behavior)
-- [ ] Add integration tests
+- [x] Modify `simulateBattle()` to accept optional processor
+- [x] Add phase hooks for mechanics
+- [x] Ensure backward compatibility (no processor = MVP behavior)
+- [x] Add integration tests
 
 ### Task 39: Update damage calculation
 - [ ] Modify `calculatePhysicalDamage()` to use effective armor

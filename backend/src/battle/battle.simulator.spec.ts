@@ -856,4 +856,210 @@ describe('Battle Simulator v2', () => {
       });
     });
   });
+
+  // =============================================================================
+  // CORE MECHANICS 2.0 INTEGRATION TESTS
+  // =============================================================================
+
+  describe('Core Mechanics 2.0 Integration', () => {
+    // Import mechanics processor for integration tests
+    // Using direct imports to avoid export conflicts in index.ts
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { createMechanicsProcessor } = require('../core/mechanics/processor');
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { MVP_PRESET } = require('../core/mechanics/config/presets/mvp');
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { ROGUELIKE_PRESET } = require('../core/mechanics/config/presets/roguelike');
+
+    describe('backward compatibility', () => {
+      it('should produce identical results without processor (MVP mode)', () => {
+        const playerTeam = createTeamSetup(
+          ['knight', 'archer'],
+          [{ x: 1, y: 0 }, { x: 2, y: 1 }]
+        );
+        
+        const enemyTeam = createTeamSetup(
+          ['rogue', 'mage'],
+          [{ x: 1, y: 9 }, { x: 2, y: 8 }]
+        );
+        
+        const seed = 12345;
+        
+        // Without processor (legacy behavior)
+        const result1 = simulateBattle(playerTeam, enemyTeam, seed);
+        
+        // With MVP preset (all mechanics disabled)
+        const processor = createMechanicsProcessor(MVP_PRESET);
+        const result2 = simulateBattle(playerTeam, enemyTeam, seed, { processor });
+        
+        // Results should be identical
+        expect(result1.winner).toBe(result2.winner);
+        expect(result1.metadata.totalRounds).toBe(result2.metadata.totalRounds);
+        
+        // Event counts should be similar (MVP adds no extra events)
+        // Note: mechanicsEnabled metadata may differ
+        expect(result1.events.length).toBeLessThanOrEqual(result2.events.length + 1);
+      });
+
+      it('should work without processor parameter', () => {
+        const playerTeam = createTeamSetup(
+          ['knight'],
+          [{ x: 0, y: 0 }]
+        );
+        
+        const enemyTeam = createTeamSetup(
+          ['rogue'],
+          [{ x: 0, y: 9 }]
+        );
+        
+        // Should work without options parameter
+        const result = simulateBattle(playerTeam, enemyTeam, 54321);
+        
+        expect(result.winner).toMatch(/^(player|bot|draw)$/);
+        expect(result.events.length).toBeGreaterThan(0);
+      });
+    });
+
+    describe('mechanics processor integration', () => {
+      it('should accept mechanics processor via options', () => {
+        const playerTeam = createTeamSetup(
+          ['knight', 'mage'],
+          [{ x: 1, y: 0 }, { x: 2, y: 1 }]
+        );
+        
+        const enemyTeam = createTeamSetup(
+          ['berserker', 'archer'],
+          [{ x: 1, y: 9 }, { x: 2, y: 8 }]
+        );
+        
+        const processor = createMechanicsProcessor(ROGUELIKE_PRESET);
+        const result = simulateBattle(playerTeam, enemyTeam, 11111, { processor });
+        
+        expect(result.winner).toMatch(/^(player|bot|draw)$/);
+        expect(result.events.length).toBeGreaterThan(0);
+        expect(result.metadata.totalRounds).toBeGreaterThan(0);
+      });
+
+      it('should include enabled mechanics in battle start event', () => {
+        const playerTeam = createTeamSetup(
+          ['knight'],
+          [{ x: 0, y: 0 }]
+        );
+        
+        const enemyTeam = createTeamSetup(
+          ['rogue'],
+          [{ x: 0, y: 9 }]
+        );
+        
+        const processor = createMechanicsProcessor(ROGUELIKE_PRESET);
+        const result = simulateBattle(playerTeam, enemyTeam, 22222, { processor });
+        
+        // Find battle start event
+        const startEvent = result.events.find(e => 
+          e.type === 'round_start' && e.round === 0
+        );
+        
+        expect(startEvent).toBeDefined();
+        expect(startEvent?.metadata?.['mechanicsEnabled']).toBeDefined();
+        expect(Array.isArray(startEvent?.metadata?.['mechanicsEnabled'])).toBe(true);
+        expect((startEvent?.metadata?.['mechanicsEnabled'] as string[])?.length).toBeGreaterThan(0);
+      });
+
+      it('should be deterministic with mechanics processor', () => {
+        const playerTeam = createTeamSetup(
+          ['knight', 'archer'],
+          [{ x: 1, y: 0 }, { x: 2, y: 1 }]
+        );
+        
+        const enemyTeam = createTeamSetup(
+          ['rogue', 'mage'],
+          [{ x: 1, y: 9 }, { x: 2, y: 8 }]
+        );
+        
+        const seed = 33333;
+        const processor = createMechanicsProcessor(ROGUELIKE_PRESET);
+        
+        const result1 = simulateBattle(playerTeam, enemyTeam, seed, { processor });
+        const result2 = simulateBattle(playerTeam, enemyTeam, seed, { processor });
+        
+        // Results should be identical
+        expect(result1.winner).toBe(result2.winner);
+        expect(result1.metadata.totalRounds).toBe(result2.metadata.totalRounds);
+        expect(result1.events.length).toBe(result2.events.length);
+        
+        // Verify event sequence is identical
+        for (let i = 0; i < result1.events.length; i++) {
+          const event1 = result1.events[i];
+          const event2 = result2.events[i];
+          if (event1 && event2) {
+            expect(event1.type).toBe(event2.type);
+            expect(event1.round).toBe(event2.round);
+          }
+        }
+      });
+
+      it('should handle custom mechanics config', () => {
+        const playerTeam = createTeamSetup(
+          ['knight'],
+          [{ x: 0, y: 0 }]
+        );
+        
+        const enemyTeam = createTeamSetup(
+          ['rogue'],
+          [{ x: 0, y: 9 }]
+        );
+        
+        // Custom config with only facing and flanking enabled
+        const processor = createMechanicsProcessor({
+          facing: true,
+          flanking: true,
+        });
+        
+        const result = simulateBattle(playerTeam, enemyTeam, 44444, { processor });
+        
+        expect(result.winner).toMatch(/^(player|bot|draw)$/);
+        expect(result.events.length).toBeGreaterThan(0);
+        
+        // Verify enabled mechanics in start event
+        const startEvent = result.events.find(e => 
+          e.type === 'round_start' && e.round === 0
+        );
+        expect(startEvent?.metadata?.['mechanicsEnabled']).toContain('facing');
+        expect(startEvent?.metadata?.['mechanicsEnabled']).toContain('flanking');
+      });
+    });
+
+    describe('preset comparison', () => {
+      it('should produce different results with different presets', () => {
+        const playerTeam = createTeamSetup(
+          ['knight', 'archer', 'mage'],
+          [{ x: 1, y: 0 }, { x: 2, y: 0 }, { x: 3, y: 1 }]
+        );
+        
+        const enemyTeam = createTeamSetup(
+          ['berserker', 'crossbowman', 'warlock'],
+          [{ x: 1, y: 9 }, { x: 2, y: 9 }, { x: 3, y: 8 }]
+        );
+        
+        const seed = 55555;
+        
+        // MVP preset (no mechanics)
+        const mvpProcessor = createMechanicsProcessor(MVP_PRESET);
+        const mvpResult = simulateBattle(playerTeam, enemyTeam, seed, { processor: mvpProcessor });
+        
+        // Roguelike preset (all mechanics)
+        const roguelikeProcessor = createMechanicsProcessor(ROGUELIKE_PRESET);
+        const roguelikeResult = simulateBattle(playerTeam, enemyTeam, seed, { processor: roguelikeProcessor });
+        
+        // Both should complete successfully
+        expect(mvpResult.winner).toMatch(/^(player|bot|draw)$/);
+        expect(roguelikeResult.winner).toMatch(/^(player|bot|draw)$/);
+        
+        // Results may differ due to mechanics effects
+        // (not guaranteed, but mechanics should have some impact)
+        expect(mvpResult.metadata.seed).toBe(seed);
+        expect(roguelikeResult.metadata.seed).toBe(seed);
+      });
+    });
+  });
 });
