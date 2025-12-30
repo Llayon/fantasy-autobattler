@@ -16,16 +16,23 @@ export {
   calculateArmorReduction,
   canSurviveDamage,
   calculateLethalDamage,
+  getEffectiveArmor,
 } from './damage';
 
-export type { DamageUnit } from './damage';
+export type { 
+  DamageUnit, 
+  PhysicalDamageOptions, 
+  ResolvePhysicalAttackOptions 
+} from './damage';
 
 // Turn order
 export {
   buildTurnQueue,
   getNextUnit,
   removeDeadUnits,
+  removeInactiveUnits,
   hasLivingUnits,
+  hasActiveUnits,
   getLivingUnitsByTeam,
   countLivingUnitsByTeam,
   findUnitById,
@@ -34,6 +41,8 @@ export {
   isTurnQueueSorted,
   advanceToNextTurn,
   shouldStartNewRound,
+  canUnitAct,
+  ResolveState,
 } from './turn-order';
 
 export type { TurnOrderUnit } from './turn-order';

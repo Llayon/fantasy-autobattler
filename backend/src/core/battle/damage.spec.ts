@@ -17,6 +17,7 @@ import {
   calculateArmorReduction,
   canSurviveDamage,
   calculateLethalDamage,
+  getEffectiveArmor,
   DamageUnit,
   DEFAULT_BATTLE_CONFIG,
 } from './damage';
@@ -27,18 +28,26 @@ describe('Damage System (Core)', () => {
   const createMockUnit = (
     stats: Partial<DamageUnit['stats']> = {},
     currentHp: number = 100,
-    maxHp: number = 100
-  ): DamageUnit => ({
-    stats: {
-      atk: 10,
-      atkCount: 1,
-      armor: 0,
-      dodge: 0,
-      ...stats,
-    },
-    currentHp,
-    maxHp,
-  });
+    maxHp: number = 100,
+    armorShred?: number
+  ): DamageUnit => {
+    const unit: DamageUnit = {
+      stats: {
+        atk: 10,
+        atkCount: 1,
+        armor: 0,
+        dodge: 0,
+        ...stats,
+      },
+      currentHp,
+      maxHp,
+    };
+    // Only add armorShred if it's defined (to satisfy exactOptionalPropertyTypes)
+    if (armorShred !== undefined) {
+      unit.armorShred = armorShred;
+    }
+    return unit;
+  };
 
   describe('calculatePhysicalDamage', () => {
     it('should calculate basic physical damage', () => {
@@ -100,6 +109,49 @@ describe('Damage System (Core)', () => {
 
       expect(damage).toBe(5); // Custom minimum
     });
+
+    it('should use effective armor when target has armor shred', () => {
+      const attacker = createMockUnit({ atk: 15, atkCount: 1 });
+      const target = createMockUnit({ armor: 10 }, 100, 100, 4); // 4 armor shred
+
+      const damage = calculatePhysicalDamage(attacker, target);
+
+      // Effective armor = 10 - 4 = 6
+      // Damage = (15 - 6) * 1 = 9
+      expect(damage).toBe(9);
+    });
+
+    it('should handle full armor shred (armor reduced to 0)', () => {
+      const attacker = createMockUnit({ atk: 15, atkCount: 1 });
+      const target = createMockUnit({ armor: 5 }, 100, 100, 5); // Full shred
+
+      const damage = calculatePhysicalDamage(attacker, target);
+
+      // Effective armor = 5 - 5 = 0
+      // Damage = (15 - 0) * 1 = 15
+      expect(damage).toBe(15);
+    });
+
+    it('should handle over-shred (shred > armor)', () => {
+      const attacker = createMockUnit({ atk: 15, atkCount: 1 });
+      const target = createMockUnit({ armor: 5 }, 100, 100, 10); // Over-shred
+
+      const damage = calculatePhysicalDamage(attacker, target);
+
+      // Effective armor = max(0, 5 - 10) = 0
+      // Damage = (15 - 0) * 1 = 15
+      expect(damage).toBe(15);
+    });
+
+    it('should be backward compatible when armorShred is undefined', () => {
+      const attacker = createMockUnit({ atk: 15, atkCount: 1 });
+      const target = createMockUnit({ armor: 5 }); // No armorShred
+
+      const damage = calculatePhysicalDamage(attacker, target);
+
+      // Should behave exactly as before: (15 - 5) * 1 = 10
+      expect(damage).toBe(10);
+    });
   });
 
   describe('calculateMagicDamage', () => {
@@ -134,6 +186,56 @@ describe('Damage System (Core)', () => {
 
       // 12 * 2 = 24 (armor ignored)
       expect(damage).toBe(24);
+    });
+  });
+
+  describe('getEffectiveArmor', () => {
+    it('should return base armor when no shred', () => {
+      const unit = createMockUnit({ armor: 10 });
+
+      const effectiveArmor = getEffectiveArmor(unit);
+
+      expect(effectiveArmor).toBe(10);
+    });
+
+    it('should reduce armor by shred amount', () => {
+      const unit = createMockUnit({ armor: 10 }, 100, 100, 3);
+
+      const effectiveArmor = getEffectiveArmor(unit);
+
+      expect(effectiveArmor).toBe(7); // 10 - 3
+    });
+
+    it('should not go below 0', () => {
+      const unit = createMockUnit({ armor: 5 }, 100, 100, 10);
+
+      const effectiveArmor = getEffectiveArmor(unit);
+
+      expect(effectiveArmor).toBe(0); // max(0, 5 - 10)
+    });
+
+    it('should handle zero armor', () => {
+      const unit = createMockUnit({ armor: 0 }, 100, 100, 5);
+
+      const effectiveArmor = getEffectiveArmor(unit);
+
+      expect(effectiveArmor).toBe(0);
+    });
+
+    it('should handle undefined armorShred', () => {
+      const unit = createMockUnit({ armor: 8 });
+
+      const effectiveArmor = getEffectiveArmor(unit);
+
+      expect(effectiveArmor).toBe(8);
+    });
+
+    it('should handle zero armorShred', () => {
+      const unit = createMockUnit({ armor: 8 }, 100, 100, 0);
+
+      const effectiveArmor = getEffectiveArmor(unit);
+
+      expect(effectiveArmor).toBe(8);
     });
   });
 
@@ -335,6 +437,20 @@ describe('Damage System (Core)', () => {
       expect(result.killed).toBe(true);
       expect(result.overkill).toBe(5); // 20 - 15 = 5 overkill
     });
+
+    it('should use effective armor when target has armor shred', () => {
+      const attacker = createMockUnit({ atk: 15, atkCount: 1 });
+      const target = createMockUnit({ armor: 10, dodge: 0 }, 50, 100, 4); // 4 armor shred
+
+      const result = resolvePhysicalAttack(attacker, target, 12345);
+
+      // Effective armor = 10 - 4 = 6
+      // Damage = (15 - 6) * 1 = 9
+      expect(result.damage).toBe(9);
+      expect(result.dodged).toBe(false);
+      expect(result.newHp).toBe(41); // 50 - 9
+      expect(result.killed).toBe(false);
+    });
   });
 
   describe('resolveMagicAttack', () => {
@@ -383,6 +499,37 @@ describe('Damage System (Core)', () => {
 
       expect(result.reducedDamage).toBe(10);
       expect(result.damageBlocked).toBe(0);
+    });
+
+    it('should account for armor shred', () => {
+      const result = calculateArmorReduction(10, 15, DEFAULT_BATTLE_CONFIG, 4);
+
+      // Effective armor = 10 - 4 = 6
+      expect(result.reducedDamage).toBe(9); // max(1, 15 - 6)
+      expect(result.damageBlocked).toBe(6);
+    });
+
+    it('should handle full armor shred', () => {
+      const result = calculateArmorReduction(8, 12, DEFAULT_BATTLE_CONFIG, 8);
+
+      // Effective armor = 8 - 8 = 0
+      expect(result.reducedDamage).toBe(12);
+      expect(result.damageBlocked).toBe(0);
+    });
+
+    it('should handle over-shred', () => {
+      const result = calculateArmorReduction(5, 10, DEFAULT_BATTLE_CONFIG, 10);
+
+      // Effective armor = max(0, 5 - 10) = 0
+      expect(result.reducedDamage).toBe(10);
+      expect(result.damageBlocked).toBe(0);
+    });
+
+    it('should be backward compatible without shred parameter', () => {
+      const result = calculateArmorReduction(5, 12);
+
+      expect(result.reducedDamage).toBe(7);
+      expect(result.damageBlocked).toBe(5);
     });
   });
 
@@ -444,6 +591,384 @@ describe('Damage System (Core)', () => {
 
       const result = resolvePhysicalAttack(superAttacker, superTank, 12345);
       expect(result.killed).toBe(true);
+    });
+  });
+
+  describe('flanking damage modifier (Core 2.0)', () => {
+    describe('calculatePhysicalDamage with flanking modifier', () => {
+      it('should apply front attack modifier (1.0x - no change)', () => {
+        const attacker = createMockUnit({ atk: 15, atkCount: 1 });
+        const target = createMockUnit({ armor: 5 });
+
+        const damage = calculatePhysicalDamage(attacker, target, DEFAULT_BATTLE_CONFIG, { flankingModifier: 1.0 });
+
+        // (15 - 5) * 1 * 1.0 = 10
+        expect(damage).toBe(10);
+      });
+
+      it('should apply flank attack modifier (1.3x)', () => {
+        const attacker = createMockUnit({ atk: 15, atkCount: 1 });
+        const target = createMockUnit({ armor: 5 });
+
+        const damage = calculatePhysicalDamage(attacker, target, DEFAULT_BATTLE_CONFIG, { flankingModifier: 1.3 });
+
+        // floor((15 - 5) * 1 * 1.3) = floor(13) = 13
+        expect(damage).toBe(13);
+      });
+
+      it('should apply rear attack modifier (1.5x)', () => {
+        const attacker = createMockUnit({ atk: 15, atkCount: 1 });
+        const target = createMockUnit({ armor: 5 });
+
+        const damage = calculatePhysicalDamage(attacker, target, DEFAULT_BATTLE_CONFIG, { flankingModifier: 1.5 });
+
+        // floor((15 - 5) * 1 * 1.5) = floor(15) = 15
+        expect(damage).toBe(15);
+      });
+
+      it('should floor the result after applying modifier', () => {
+        const attacker = createMockUnit({ atk: 10, atkCount: 1 });
+        const target = createMockUnit({ armor: 3 });
+
+        const damage = calculatePhysicalDamage(attacker, target, DEFAULT_BATTLE_CONFIG, { flankingModifier: 1.3 });
+
+        // floor((10 - 3) * 1 * 1.3) = floor(9.1) = 9
+        expect(damage).toBe(9);
+      });
+
+      it('should still respect minimum damage with flanking modifier', () => {
+        const attacker = createMockUnit({ atk: 5, atkCount: 1 });
+        const target = createMockUnit({ armor: 10 }); // More armor than attack
+
+        const damage = calculatePhysicalDamage(attacker, target, DEFAULT_BATTLE_CONFIG, { flankingModifier: 1.5 });
+
+        // max(1, floor((5 - 10) * 1 * 1.5)) = max(1, floor(-7.5)) = max(1, -7) = 1
+        expect(damage).toBe(1);
+      });
+
+      it('should combine flanking modifier with armor shred', () => {
+        const attacker = createMockUnit({ atk: 15, atkCount: 1 });
+        const target = createMockUnit({ armor: 10 }, 100, 100, 4); // 4 armor shred
+
+        const damage = calculatePhysicalDamage(attacker, target, DEFAULT_BATTLE_CONFIG, { flankingModifier: 1.3 });
+
+        // Effective armor = 10 - 4 = 6
+        // floor((15 - 6) * 1 * 1.3) = floor(11.7) = 11
+        expect(damage).toBe(11);
+      });
+
+      it('should combine flanking modifier with multiple attacks', () => {
+        const attacker = createMockUnit({ atk: 8, atkCount: 2 });
+        const target = createMockUnit({ armor: 3 });
+
+        const damage = calculatePhysicalDamage(attacker, target, DEFAULT_BATTLE_CONFIG, { flankingModifier: 1.5 });
+
+        // floor((8 - 3) * 2 * 1.5) = floor(15) = 15
+        expect(damage).toBe(15);
+      });
+
+      it('should be backward compatible when no options provided', () => {
+        const attacker = createMockUnit({ atk: 15, atkCount: 1 });
+        const target = createMockUnit({ armor: 5 });
+
+        const damageWithoutOptions = calculatePhysicalDamage(attacker, target);
+        const damageWithUndefinedOptions = calculatePhysicalDamage(attacker, target, DEFAULT_BATTLE_CONFIG, undefined);
+
+        // Both should be the same: (15 - 5) * 1 = 10
+        expect(damageWithoutOptions).toBe(10);
+        expect(damageWithUndefinedOptions).toBe(10);
+      });
+
+      it('should not apply modifier when flankingModifier is undefined', () => {
+        const attacker = createMockUnit({ atk: 15, atkCount: 1 });
+        const target = createMockUnit({ armor: 5 });
+
+        const damage = calculatePhysicalDamage(attacker, target, DEFAULT_BATTLE_CONFIG, {});
+
+        // (15 - 5) * 1 = 10 (no modifier applied)
+        expect(damage).toBe(10);
+      });
+    });
+
+    describe('resolvePhysicalAttack with flanking modifier', () => {
+      it('should apply flanking modifier to resolved attack', () => {
+        const attacker = createMockUnit({ atk: 15, atkCount: 1 });
+        const target = createMockUnit({ armor: 5, dodge: 0 }, 50, 100);
+
+        const result = resolvePhysicalAttack(attacker, target, 12345, DEFAULT_BATTLE_CONFIG, { flankingModifier: 1.3 });
+
+        // floor((15 - 5) * 1 * 1.3) = 13
+        expect(result.damage).toBe(13);
+        expect(result.dodged).toBe(false);
+        expect(result.newHp).toBe(37); // 50 - 13
+        expect(result.killed).toBe(false);
+      });
+
+      it('should apply rear attack modifier to resolved attack', () => {
+        const attacker = createMockUnit({ atk: 20, atkCount: 1 });
+        const target = createMockUnit({ armor: 5, dodge: 0 }, 30, 100);
+
+        const result = resolvePhysicalAttack(attacker, target, 12345, DEFAULT_BATTLE_CONFIG, { flankingModifier: 1.5 });
+
+        // floor((20 - 5) * 1 * 1.5) = floor(22.5) = 22
+        expect(result.damage).toBe(22);
+        expect(result.dodged).toBe(false);
+        expect(result.newHp).toBe(8); // 30 - 22
+        expect(result.killed).toBe(false);
+      });
+
+      it('should handle lethal flanking attack', () => {
+        const attacker = createMockUnit({ atk: 20, atkCount: 1 });
+        const target = createMockUnit({ armor: 5, dodge: 0 }, 20, 100);
+
+        const result = resolvePhysicalAttack(attacker, target, 12345, DEFAULT_BATTLE_CONFIG, { flankingModifier: 1.5 });
+
+        // floor((20 - 5) * 1 * 1.5) = 22
+        expect(result.damage).toBe(22);
+        expect(result.killed).toBe(true);
+        expect(result.newHp).toBe(0);
+        expect(result.overkill).toBe(2); // 22 - 20 = 2
+      });
+
+      it('should not apply flanking modifier when attack is dodged', () => {
+        const attacker = createMockUnit({ atk: 15, atkCount: 1 });
+        const target = createMockUnit({ armor: 5, dodge: 100 }, 50, 100); // 100% dodge
+
+        const result = resolvePhysicalAttack(attacker, target, 12345, DEFAULT_BATTLE_CONFIG, { flankingModifier: 1.5 });
+
+        expect(result.damage).toBe(0);
+        expect(result.dodged).toBe(true);
+        expect(result.newHp).toBe(50); // No damage taken
+      });
+
+      it('should be backward compatible when no options provided', () => {
+        const attacker = createMockUnit({ atk: 15, atkCount: 1 });
+        const target = createMockUnit({ armor: 5, dodge: 0 }, 50, 100);
+
+        const result = resolvePhysicalAttack(attacker, target, 12345);
+
+        // (15 - 5) * 1 = 10
+        expect(result.damage).toBe(10);
+        expect(result.newHp).toBe(40);
+      });
+
+      it('should combine flanking modifier with armor shred in resolved attack', () => {
+        const attacker = createMockUnit({ atk: 15, atkCount: 1 });
+        const target = createMockUnit({ armor: 10, dodge: 0 }, 50, 100, 4); // 4 armor shred
+
+        const result = resolvePhysicalAttack(attacker, target, 12345, DEFAULT_BATTLE_CONFIG, { flankingModifier: 1.3 });
+
+        // Effective armor = 10 - 4 = 6
+        // floor((15 - 6) * 1 * 1.3) = floor(11.7) = 11
+        expect(result.damage).toBe(11);
+        expect(result.newHp).toBe(39); // 50 - 11
+      });
+    });
+  });
+
+  describe('charge momentum bonus (Core 2.0)', () => {
+    describe('calculatePhysicalDamage with momentum bonus', () => {
+      it('should apply momentum bonus (0.2 = +20%)', () => {
+        const attacker = createMockUnit({ atk: 15, atkCount: 1 });
+        const target = createMockUnit({ armor: 5 });
+
+        const damage = calculatePhysicalDamage(attacker, target, DEFAULT_BATTLE_CONFIG, { momentumBonus: 0.2 });
+
+        // floor((15 - 5) * 1 * (1 + 0.2)) = floor(12) = 12
+        expect(damage).toBe(12);
+      });
+
+      it('should apply momentum bonus (0.6 = +60%)', () => {
+        const attacker = createMockUnit({ atk: 15, atkCount: 1 });
+        const target = createMockUnit({ armor: 5 });
+
+        const damage = calculatePhysicalDamage(attacker, target, DEFAULT_BATTLE_CONFIG, { momentumBonus: 0.6 });
+
+        // floor((15 - 5) * 1 * (1 + 0.6)) = floor(16) = 16
+        expect(damage).toBe(16);
+      });
+
+      it('should apply max momentum bonus (1.0 = +100%)', () => {
+        const attacker = createMockUnit({ atk: 15, atkCount: 1 });
+        const target = createMockUnit({ armor: 5 });
+
+        const damage = calculatePhysicalDamage(attacker, target, DEFAULT_BATTLE_CONFIG, { momentumBonus: 1.0 });
+
+        // floor((15 - 5) * 1 * (1 + 1.0)) = floor(20) = 20
+        expect(damage).toBe(20);
+      });
+
+      it('should floor the result after applying momentum bonus', () => {
+        const attacker = createMockUnit({ atk: 10, atkCount: 1 });
+        const target = createMockUnit({ armor: 3 });
+
+        const damage = calculatePhysicalDamage(attacker, target, DEFAULT_BATTLE_CONFIG, { momentumBonus: 0.3 });
+
+        // floor((10 - 3) * 1 * (1 + 0.3)) = floor(9.1) = 9
+        expect(damage).toBe(9);
+      });
+
+      it('should not apply momentum bonus when value is 0', () => {
+        const attacker = createMockUnit({ atk: 15, atkCount: 1 });
+        const target = createMockUnit({ armor: 5 });
+
+        const damage = calculatePhysicalDamage(attacker, target, DEFAULT_BATTLE_CONFIG, { momentumBonus: 0 });
+
+        // (15 - 5) * 1 = 10 (no bonus applied)
+        expect(damage).toBe(10);
+      });
+
+      it('should not apply momentum bonus when undefined', () => {
+        const attacker = createMockUnit({ atk: 15, atkCount: 1 });
+        const target = createMockUnit({ armor: 5 });
+
+        const damage = calculatePhysicalDamage(attacker, target, DEFAULT_BATTLE_CONFIG, {});
+
+        // (15 - 5) * 1 = 10 (no bonus applied)
+        expect(damage).toBe(10);
+      });
+
+      it('should still respect minimum damage with momentum bonus', () => {
+        const attacker = createMockUnit({ atk: 5, atkCount: 1 });
+        const target = createMockUnit({ armor: 10 }); // More armor than attack
+
+        const damage = calculatePhysicalDamage(attacker, target, DEFAULT_BATTLE_CONFIG, { momentumBonus: 1.0 });
+
+        // max(1, floor((5 - 10) * 1 * 2.0)) = max(1, floor(-10)) = max(1, -10) = 1
+        expect(damage).toBe(1);
+      });
+
+      it('should combine momentum bonus with armor shred', () => {
+        const attacker = createMockUnit({ atk: 15, atkCount: 1 });
+        const target = createMockUnit({ armor: 10 }, 100, 100, 4); // 4 armor shred
+
+        const damage = calculatePhysicalDamage(attacker, target, DEFAULT_BATTLE_CONFIG, { momentumBonus: 0.5 });
+
+        // Effective armor = 10 - 4 = 6
+        // floor((15 - 6) * 1 * (1 + 0.5)) = floor(13.5) = 13
+        expect(damage).toBe(13);
+      });
+
+      it('should combine momentum bonus with multiple attacks', () => {
+        const attacker = createMockUnit({ atk: 8, atkCount: 2 });
+        const target = createMockUnit({ armor: 3 });
+
+        const damage = calculatePhysicalDamage(attacker, target, DEFAULT_BATTLE_CONFIG, { momentumBonus: 0.4 });
+
+        // floor((8 - 3) * 2 * (1 + 0.4)) = floor(14) = 14
+        expect(damage).toBe(14);
+      });
+
+      it('should combine momentum bonus with flanking modifier', () => {
+        const attacker = createMockUnit({ atk: 15, atkCount: 1 });
+        const target = createMockUnit({ armor: 5 });
+
+        const damage = calculatePhysicalDamage(attacker, target, DEFAULT_BATTLE_CONFIG, { 
+          flankingModifier: 1.3, 
+          momentumBonus: 0.4 
+        });
+
+        // Base damage = (15 - 5) * 1 = 10
+        // After flanking = floor(10 * 1.3) = 13
+        // After momentum = floor(13 * 1.4) = 18
+        expect(damage).toBe(18);
+      });
+
+      it('should combine all modifiers: flanking, momentum, and armor shred', () => {
+        const attacker = createMockUnit({ atk: 20, atkCount: 1 });
+        const target = createMockUnit({ armor: 10 }, 100, 100, 4); // 4 armor shred
+
+        const damage = calculatePhysicalDamage(attacker, target, DEFAULT_BATTLE_CONFIG, { 
+          flankingModifier: 1.5, 
+          momentumBonus: 0.6 
+        });
+
+        // Effective armor = 10 - 4 = 6
+        // Base damage = (20 - 6) * 1 = 14
+        // After flanking = floor(14 * 1.5) = 21
+        // After momentum = floor(21 * 1.6) = 33
+        expect(damage).toBe(33);
+      });
+    });
+
+    describe('resolvePhysicalAttack with momentum bonus', () => {
+      it('should apply momentum bonus to resolved attack', () => {
+        const attacker = createMockUnit({ atk: 15, atkCount: 1 });
+        const target = createMockUnit({ armor: 5, dodge: 0 }, 50, 100);
+
+        const result = resolvePhysicalAttack(attacker, target, 12345, DEFAULT_BATTLE_CONFIG, { momentumBonus: 0.6 });
+
+        // floor((15 - 5) * 1 * 1.6) = 16
+        expect(result.damage).toBe(16);
+        expect(result.dodged).toBe(false);
+        expect(result.newHp).toBe(34); // 50 - 16
+        expect(result.killed).toBe(false);
+      });
+
+      it('should apply max momentum bonus to resolved attack', () => {
+        const attacker = createMockUnit({ atk: 15, atkCount: 1 });
+        const target = createMockUnit({ armor: 5, dodge: 0 }, 50, 100);
+
+        const result = resolvePhysicalAttack(attacker, target, 12345, DEFAULT_BATTLE_CONFIG, { momentumBonus: 1.0 });
+
+        // floor((15 - 5) * 1 * 2.0) = 20
+        expect(result.damage).toBe(20);
+        expect(result.dodged).toBe(false);
+        expect(result.newHp).toBe(30); // 50 - 20
+        expect(result.killed).toBe(false);
+      });
+
+      it('should handle lethal charge attack', () => {
+        const attacker = createMockUnit({ atk: 15, atkCount: 1 });
+        const target = createMockUnit({ armor: 5, dodge: 0 }, 15, 100);
+
+        const result = resolvePhysicalAttack(attacker, target, 12345, DEFAULT_BATTLE_CONFIG, { momentumBonus: 0.6 });
+
+        // floor((15 - 5) * 1 * 1.6) = 16
+        expect(result.damage).toBe(16);
+        expect(result.killed).toBe(true);
+        expect(result.newHp).toBe(0);
+        expect(result.overkill).toBe(1); // 16 - 15 = 1
+      });
+
+      it('should not apply momentum bonus when attack is dodged', () => {
+        const attacker = createMockUnit({ atk: 15, atkCount: 1 });
+        const target = createMockUnit({ armor: 5, dodge: 100 }, 50, 100); // 100% dodge
+
+        const result = resolvePhysicalAttack(attacker, target, 12345, DEFAULT_BATTLE_CONFIG, { momentumBonus: 1.0 });
+
+        expect(result.damage).toBe(0);
+        expect(result.dodged).toBe(true);
+        expect(result.newHp).toBe(50); // No damage taken
+      });
+
+      it('should combine momentum bonus with flanking modifier in resolved attack', () => {
+        const attacker = createMockUnit({ atk: 15, atkCount: 1 });
+        const target = createMockUnit({ armor: 5, dodge: 0 }, 50, 100);
+
+        const result = resolvePhysicalAttack(attacker, target, 12345, DEFAULT_BATTLE_CONFIG, { 
+          flankingModifier: 1.3, 
+          momentumBonus: 0.4 
+        });
+
+        // Base damage = (15 - 5) * 1 = 10
+        // After flanking = floor(10 * 1.3) = 13
+        // After momentum = floor(13 * 1.4) = 18
+        expect(result.damage).toBe(18);
+        expect(result.newHp).toBe(32); // 50 - 18
+      });
+
+      it('should combine momentum bonus with armor shred in resolved attack', () => {
+        const attacker = createMockUnit({ atk: 15, atkCount: 1 });
+        const target = createMockUnit({ armor: 10, dodge: 0 }, 50, 100, 4); // 4 armor shred
+
+        const result = resolvePhysicalAttack(attacker, target, 12345, DEFAULT_BATTLE_CONFIG, { momentumBonus: 0.5 });
+
+        // Effective armor = 10 - 4 = 6
+        // floor((15 - 6) * 1 * 1.5) = floor(13.5) = 13
+        expect(result.damage).toBe(13);
+        expect(result.newHp).toBe(37); // 50 - 13
+      });
     });
   });
 });

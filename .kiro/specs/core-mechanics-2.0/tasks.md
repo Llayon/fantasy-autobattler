@@ -18,8 +18,17 @@
 ## Phase 1: Foundation (Tasks 1-6)
 
 ### Task 1: Create mechanics module structure
-- [ ] Create `backend/src/core/mechanics/` directory
-- [ ] Create subdirectories: `config/`, `tier0/`, `tier1/`, `tier2/`, `tier3/`, `tier4/`
+- [x] Create `backend/src/core/mechanics/` directory
+
+
+
+
+- [x] Create subdirectories: `config/`, `tier0/`, `tier1/`, `tier2/`, `tier3/`, `tier4/`
+
+
+
+
+
 - [ ] Create `config/presets/` subdirectory
 - [ ] Create placeholder `index.ts` files
 
@@ -310,13 +319,38 @@
 - [ ] Add integration tests
 
 ### Task 39: Update damage calculation
-- [ ] Modify `calculatePhysicalDamage()` to use effective armor
-- [ ] Add flanking damage modifier support
-- [ ] Add charge momentum bonus support
-- [ ] Maintain backward compatibility
+- [x] Modify `calculatePhysicalDamage()` to use effective armor
+
+
+
+
+
+- [x] Add flanking damage modifier support
+
+
+
+
+
+- [x] Add charge momentum bonus support
+
+
+
+
+
+- [x] Maintain backward compatibility
+
+
+
+
+
 
 ### Task 40: Update turn order
-- [ ] Ensure turn order respects resolve state (routing units skip)
+- [x] Ensure turn order respects resolve state (routing units skip)
+
+
+
+
+
 - [ ] Add vigilance state consideration
 - [ ] Maintain backward compatibility
 
@@ -403,9 +437,17 @@ Phase 7 (Testing & Docs)
 
 ## Prerequisites
 
-- [ ] `core-extraction` spec completed (PR 5 merged)
+- [x] `core-extraction` spec completed (PR 5 merged)
+
+
+
+
 - [ ] All 650+ existing tests passing
-- [ ] Feature branch `feature/core-mechanics-2.0` created
+- [x] Feature branch `feature/core-mechanics-2.0` created
+
+
+
+
 
 ---
 
