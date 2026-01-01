@@ -10,23 +10,56 @@
 import type { MechanicsConfig } from './config/mechanics.types';
 import { resolveDependencies } from './config/dependencies';
 import type { BattleState, BattleUnit, Position } from '../types';
+import { createFacingProcessor } from './tier0/facing/facing.processor';
+import { createResolveProcessor } from './tier1/resolve/resolve.processor';
+import { createEngagementProcessor } from './tier1/engagement/engagement.processor';
+import { createFlankingProcessor } from './tier1/flanking/flanking.processor';
+import { createRiposteProcessor } from './tier2/riposte/riposte.processor';
+import { createInterceptProcessor } from './tier2/intercept/intercept.processor';
+import { createAuraProcessor } from './tier2/aura/aura.processor';
 
 /**
  * Battle action types for mechanics processing.
+ *
+ * - move: Unit movement across the grid
+ * - attack: Basic attack against a target
+ * - ability: Special ability usage
+ * - wait: Skip turn without action
+ *
+ * @example
+ * const actionType: BattleActionType = 'attack';
  */
 export type BattleActionType = 'move' | 'attack' | 'ability' | 'wait';
 
 /**
  * Battle action for mechanics context.
+ * Describes the action being performed by the active unit.
+ *
+ * @example
+ * // Move action
+ * const moveAction: BattleAction = {
+ *   type: 'move',
+ *   path: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }],
+ * };
+ *
+ * @example
+ * // Attack action
+ * const attackAction: BattleAction = {
+ *   type: 'attack',
+ *   targetId: 'enemy_1',
+ * };
  */
 export interface BattleAction {
-  /** Action type */
+  /** Action type being performed */
   type: BattleActionType;
-  /** Target unit ID (for attack/ability) */
+
+  /** Target unit ID (required for attack/ability actions) */
   targetId?: string;
-  /** Movement path (for move actions) */
+
+  /** Movement path as array of positions (required for move actions) */
   path?: Position[];
-  /** Ability ID (for ability actions) */
+
+  /** Ability ID being used (required for ability actions) */
   abilityId?: string;
 }
 
@@ -36,6 +69,19 @@ export interface BattleAction {
 
 /**
  * Battle phases where mechanics can be applied.
+ * Mechanics are triggered at specific phases during combat resolution.
+ *
+ * Phase order during a unit's turn:
+ * 1. turn_start - Beginning of unit's turn (resolve regen, aura pulses)
+ * 2. movement - Unit movement phase (engagement checks, intercepts)
+ * 3. pre_attack - Before attack resolution (facing, flanking calculation)
+ * 4. attack - During attack (armor shred, riposte triggers)
+ * 5. post_attack - After attack (resolve damage, formation updates)
+ * 6. turn_end - End of unit's turn (effect spreading, state resets)
+ *
+ * @example
+ * const phase: BattlePhase = 'pre_attack';
+ * const newState = processor.process(phase, state, context);
  */
 export type BattlePhase =
   | 'turn_start'
@@ -47,23 +93,53 @@ export type BattlePhase =
 
 /**
  * Context provided to mechanics during phase processing.
+ * Contains all information needed for mechanics to make decisions.
+ *
+ * @example
+ * const context: PhaseContext = {
+ *   activeUnit: currentUnit,
+ *   target: targetUnit,
+ *   action: { type: 'attack', targetId: targetUnit.instanceId },
+ *   seed: 12345,
+ * };
  */
 export interface PhaseContext {
   /** The unit currently taking its turn */
   activeUnit: BattleUnit;
-  /** Target unit (for attack phases) */
+
+  /** Target unit for attack/ability actions (undefined for movement/wait) */
   target?: BattleUnit;
-  /** Current action being performed */
+
+  /** Current action being performed by the active unit */
   action?: BattleAction;
-  /** Random seed for deterministic behavior */
+
+  /** Random seed for deterministic behavior (ensures reproducible results) */
   seed: number;
 }
 
 /**
  * Individual mechanic processor interface.
+ * Each mechanic implements this interface to integrate with the phase system.
+ *
+ * @example
+ * const facingProcessor: MechanicProcessor = {
+ *   apply: (phase, state, context) => {
+ *     if (phase === 'pre_attack') {
+ *       // Auto-face target before attack
+ *     }
+ *     return state;
+ *   },
+ * };
  */
 export interface MechanicProcessor {
-  /** Apply this mechanic for the given phase */
+  /**
+   * Apply this mechanic for the given phase.
+   *
+   * @param phase - Current battle phase
+   * @param state - Current battle state
+   * @param context - Phase context with active unit and action info
+   * @returns Updated battle state (may be unchanged if mechanic doesn't apply)
+   */
   apply(
     phase: BattlePhase,
     state: BattleState,
@@ -73,6 +149,13 @@ export interface MechanicProcessor {
 
 /**
  * Map of mechanic names to their processors.
+ * Only contains processors for enabled mechanics.
+ *
+ * @example
+ * const processors: MechanicProcessorMap = {
+ *   facing: createFacingProcessor(),
+ *   flanking: createFlankingProcessor(),
+ * };
  */
 export type MechanicProcessorMap = Partial<
   Record<keyof MechanicsConfig, MechanicProcessor>
@@ -80,21 +163,34 @@ export type MechanicProcessorMap = Partial<
 
 /**
  * Main mechanics processor interface.
+ * Orchestrates all enabled mechanics and applies them during battle phases.
+ *
+ * @example
+ * const processor = createMechanicsProcessor(ROGUELIKE_PRESET);
+ *
+ * // Process a phase
+ * const newState = processor.process('pre_attack', state, {
+ *   activeUnit: attacker,
+ *   target: defender,
+ *   action: { type: 'attack', targetId: defender.instanceId },
+ *   seed: 12345,
+ * });
  */
 export interface MechanicsProcessor {
-  /** Resolved configuration */
+  /** Resolved configuration with all dependencies enabled */
   readonly config: MechanicsConfig;
 
-  /** Individual mechanic processors */
+  /** Individual mechanic processors for enabled mechanics */
   readonly processors: MechanicProcessorMap;
 
   /**
    * Apply all enabled mechanics for a given phase.
+   * Mechanics are applied in tier order (Tier 0 → Tier 4).
    *
    * @param phase - Current battle phase
    * @param state - Current battle state
-   * @param context - Phase context
-   * @returns Updated battle state
+   * @param context - Phase context with active unit and action info
+   * @returns Updated battle state with all mechanics applied
    */
   process(
     phase: BattlePhase,
@@ -110,11 +206,23 @@ export interface MechanicsProcessor {
 /**
  * Mapping of phases to mechanics (in execution order).
  * Mechanics are applied in tier order within each phase.
+ *
+ * Phase-to-mechanic mapping:
+ * - turn_start: resolve (regen), ammunition (reload), aura (pulse), phalanx (recalc)
+ * - movement: engagement (ZoC), intercept (blocking), overwatch (trigger), charge (momentum)
+ * - pre_attack: engagement (penalty), facing (auto-face), flanking (arc), charge (bonus), los (check), ammunition (consume)
+ * - attack: armorShred (apply), riposte (trigger), contagion (apply)
+ * - post_attack: resolve (damage), phalanx (recalc)
+ * - turn_end: contagion (spread), aura (decay), overwatch (reset)
+ *
+ * @example
+ * const mechanicsToApply = PHASE_MECHANICS['pre_attack'];
+ * // ['engagement', 'facing', 'flanking', 'charge', 'lineOfSight', 'ammunition']
  */
 export const PHASE_MECHANICS: Record<BattlePhase, (keyof MechanicsConfig)[]> = {
   turn_start: ['resolve', 'ammunition', 'aura', 'phalanx'],
   movement: ['engagement', 'intercept', 'overwatch', 'charge'],
-  pre_attack: ['facing', 'flanking', 'charge', 'lineOfSight', 'ammunition'],
+  pre_attack: ['engagement', 'facing', 'flanking', 'charge', 'lineOfSight', 'ammunition'],
   attack: ['armorShred', 'riposte', 'contagion'],
   post_attack: ['resolve', 'phalanx'],
   turn_end: ['contagion', 'aura', 'overwatch'],
@@ -128,38 +236,59 @@ export const PHASE_MECHANICS: Record<BattlePhase, (keyof MechanicsConfig)[]> = {
  * Builds processor map for enabled mechanics.
  * Only creates processors for mechanics that are enabled in config.
  *
- * @param config - Resolved mechanics configuration
- * @returns Map of mechanic processors
+ * @param config - Resolved mechanics configuration with all dependencies enabled
+ * @returns Map of mechanic processors keyed by mechanic name
+ *
+ * @example
+ * const config = resolveDependencies({ flanking: true });
+ * const processors = buildProcessors(config);
+ * // processors.facing exists (dependency of flanking)
+ * // processors.flanking exists
  */
 export function buildProcessors(config: MechanicsConfig): MechanicProcessorMap {
   const processors: MechanicProcessorMap = {};
 
   // Tier 0
   if (config.facing) {
-    // Processor will be imported when implemented
-    // processors.facing = createFacingProcessor();
+    processors.facing = createFacingProcessor();
   }
 
   // Tier 1
   if (config.resolve) {
-    // processors.resolve = createResolveProcessor(config.resolve);
+    const resolveConfig =
+      typeof config.resolve === 'object' ? config.resolve : undefined;
+    if (resolveConfig) {
+      processors.resolve = createResolveProcessor(resolveConfig);
+    }
   }
   if (config.engagement) {
-    // processors.engagement = createEngagementProcessor(config.engagement);
+    const engagementConfig =
+      typeof config.engagement === 'object' ? config.engagement : undefined;
+    if (engagementConfig) {
+      processors.engagement = createEngagementProcessor(engagementConfig);
+    }
   }
   if (config.flanking) {
-    // processors.flanking = createFlankingProcessor();
+    processors.flanking = createFlankingProcessor();
   }
 
   // Tier 2
   if (config.riposte) {
-    // processors.riposte = createRiposteProcessor(config.riposte);
+    const riposteConfig =
+      typeof config.riposte === 'object' ? config.riposte : undefined;
+    if (riposteConfig) {
+      processors.riposte = createRiposteProcessor(riposteConfig);
+    }
   }
   if (config.intercept) {
-    // processors.intercept = createInterceptProcessor(config.intercept);
+    const interceptConfig =
+      typeof config.intercept === 'object' ? config.intercept : undefined;
+    if (interceptConfig) {
+      processors.intercept = createInterceptProcessor(interceptConfig);
+    }
   }
   if (config.aura) {
-    // processors.aura = createAuraProcessor();
+    processors.aura = createAuraProcessor();
   }
 
   // Tier 3

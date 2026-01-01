@@ -196,10 +196,17 @@ const _verifyBattleAction: BattleAction = {
 // Verify Aura interface
 const _verifyAura: Aura = {
   id: 'test',
+  name: 'Test Aura',
   type: 'static',
+  target: 'allies',
   range: 2,
-  effect: 'buff',
-  value: 10,
+  effect: {
+    type: 'buff_stat',
+    stat: 'atk',
+    value: 10,
+    isPercentage: false,
+  },
+  stackable: false,
 };
 
 // Verify ValidationResult interface

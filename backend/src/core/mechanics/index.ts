@@ -122,26 +122,136 @@ export type {
 // ═══════════════════════════════════════════════════════════════
 
 export { createResolveProcessor } from './tier1/resolve/resolve.processor';
-export type { ResolveProcessor, MechanicsResolveState } from './tier1/resolve/resolve.types';
+export type {
+  ResolveProcessor,
+  MechanicsResolveState,
+  ResolveFaction,
+  UnitWithResolve,
+  ResolveDamageSource,
+  ResolveDamageEvent,
+  ResolveBreakEvent,
+  ResolveRegenEvent,
+  ResolveBreakResult,
+  ResolveDamageOptions,
+} from './tier1/resolve/resolve.types';
 
 export { createEngagementProcessor } from './tier1/engagement/engagement.processor';
-export type { EngagementProcessor } from './tier1/engagement/engagement.types';
+export type {
+  EngagementProcessor,
+  EngagementStatus,
+  UnitWithEngagement,
+  ZoneOfControl,
+  ZoCCheckResult,
+  AoOTrigger,
+  AoOResult,
+  EngagementEvent,
+  DisengagementEvent,
+  AttackOfOpportunityEvent,
+  ArcherPenaltyEvent,
+  EngagementOptions,
+  EngagementUpdateResult,
+} from './tier1/engagement/engagement.types';
 
 export { createFlankingProcessor } from './tier1/flanking/flanking.processor';
-export type { FlankingProcessor } from './tier1/flanking/flanking.types';
+export type {
+  FlankingProcessor,
+  FlankingResult,
+  FlankingAttackEvent,
+  RiposteDisabledEvent,
+  FlankingProcessorOptions,
+  FlankingContext,
+} from './tier1/flanking/flanking.types';
+export {
+  FLANKING_DAMAGE_MODIFIERS,
+  DEFAULT_FLANKING_RESOLVE_DAMAGE,
+} from './tier1/flanking/flanking.types';
 
 // ═══════════════════════════════════════════════════════════════
 // TIER 2: ADVANCED MECHANICS
 // ═══════════════════════════════════════════════════════════════
 
 export { createRiposteProcessor } from './tier2/riposte/riposte.processor';
-export type { RiposteProcessor } from './tier2/riposte/riposte.types';
+export type {
+  RiposteProcessor,
+  UnitWithRiposte,
+  RiposteEligibility,
+  RiposteBlockReason,
+  RiposteChanceResult,
+  RiposteExecutionResult,
+  RiposteTriggeredEvent,
+  RiposteFailedEvent,
+  RiposteBlockedEvent,
+  RiposteChargesResetEvent,
+  RiposteEvent,
+  RiposteProcessorOptions,
+  RiposteContext,
+  RiposteCheckResult,
+} from './tier2/riposte/riposte.types';
+export {
+  RIPOSTE_DAMAGE_MULTIPLIER,
+  MIN_RIPOSTE_CHANCE,
+  MAX_RIPOSTE_CHANCE,
+} from './tier2/riposte/riposte.types';
 
 export { createInterceptProcessor } from './tier2/intercept/intercept.processor';
-export type { InterceptProcessor, InterceptType } from './tier2/intercept/intercept.types';
+export type {
+  InterceptProcessor,
+  InterceptType,
+  InterceptResult,
+  UnitWithIntercept,
+  InterceptOpportunity,
+  InterceptBlockReason,
+  InterceptCheckResult,
+  InterceptExecutionResult,
+  DisengageResult,
+  DisengageFailReason,
+  HardInterceptEvent,
+  SoftInterceptEvent,
+  InterceptBlockedEvent,
+  DisengageEvent,
+  InterceptChargesResetEvent,
+  InterceptEvent,
+  InterceptProcessorOptions,
+  InterceptContext,
+  InterceptFullResult,
+} from './tier2/intercept/intercept.types';
+export {
+  HARD_INTERCEPT_DAMAGE_MULTIPLIER,
+  DEFAULT_DISENGAGE_COST,
+  HARD_INTERCEPT_TAG,
+  CAVALRY_TAG,
+} from './tier2/intercept/intercept.types';
 
 export { createAuraProcessor } from './tier2/aura/aura.processor';
-export type { AuraProcessor, Aura, AuraType } from './tier2/aura/aura.types';
+export type {
+  AuraProcessor,
+  Aura,
+  AuraType,
+  AuraTarget,
+  AuraEffectType,
+  AuraStat,
+  AuraEffect,
+  ActiveAura,
+  AuraBuff,
+  UnitWithAura,
+  AuraRangeCheck,
+  AuraApplicationResult,
+  AuraBlockReason,
+  AuraActivatedEvent,
+  AuraDeactivatedEvent,
+  AuraEffectAppliedEvent,
+  AuraEffectRemovedEvent,
+  AuraPulseEvent,
+  AuraEvent,
+  AuraProcessorOptions,
+  AuraContext,
+  AuraFullResult,
+} from './tier2/aura/aura.types';
+export {
+  DEFAULT_AURA_RANGE,
+  MAX_AURA_RANGE,
+  DEFAULT_PULSE_INTERVAL,
+} from './tier2/aura/aura.types';
 
 // ═══════════════════════════════════════════════════════════════
 // TIER 3: SPECIALIZED MECHANICS
@@ -177,3 +287,32 @@ export type { ArmorShredProcessor } from './tier4/armor-shred/armor-shred.types'
 // ═══════════════════════════════════════════════════════════════
 
 export { updateUnit, updateUnits, findUnit } from './helpers';
+
+// ═══════════════════════════════════════════════════════════════
+// TEST FIXTURES
+// ═══════════════════════════════════════════════════════════════
+
+export {
+  // Unit factory functions
+  createTestUnit,
+  createUnitFromTemplate,
+  // Battle state factory functions
+  createTestBattleState,
+  // Team setup factory functions
+  createTeamSetup,
+  createCustomTeamSetup,
+  // Constants
+  TEST_SEEDS,
+  PLAYER_POSITIONS,
+  ENEMY_POSITIONS,
+  // Predefined scenarios
+  BATTLE_SCENARIOS,
+  MECHANICS_FIXTURES,
+  EDGE_CASE_FIXTURES,
+  // Helper functions
+  getAllBattleScenarios,
+  getAllEdgeCaseFixtures,
+  createBattleStateFromScenario,
+  generateRandomPositions,
+  createRandomTeamSetup,
+} from './test-fixtures';

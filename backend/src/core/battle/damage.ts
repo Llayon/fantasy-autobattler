@@ -84,6 +84,9 @@ export interface DamageUnit {
 export function getEffectiveArmor(unit: DamageUnit): number {
   const baseArmor = unit.stats.armor;
   const shred = unit.armorShred ?? 0;
+
+  // Formula: effectiveArmor = max(0, baseArmor - armorShred)
+  // Armor shred reduces effective armor but cannot make it negative
   return Math.max(0, baseArmor - shred);
 }
 
@@ -170,22 +173,38 @@ export function calculatePhysicalDamage(
   config: BattleConfig = DEFAULT_BATTLE_CONFIG,
   options?: PhysicalDamageOptions
 ): number {
-  // Use effective armor (accounts for armor shred)
+  // Step 1: Calculate effective armor (accounts for armor shred from Core 2.0)
+  // Formula: effectiveArmor = max(0, baseArmor - armorShred)
   const effectiveArmor = getEffectiveArmor(target);
+
+  // Step 2: Calculate base damage after armor reduction
+  // Formula: baseDamage = ATK - effectiveArmor
   const baseDamage = attacker.stats.atk - effectiveArmor;
+
+  // Step 3: Apply attack count multiplier
+  // Formula: totalDamage = baseDamage * atkCount
   let totalDamage = baseDamage * attacker.stats.atkCount;
 
-  // Apply flanking modifier if provided (Core 2.0 mechanics)
+  // Step 4: Apply flanking modifier if provided (Core 2.0 mechanics)
+  // Formula: totalDamage = floor(totalDamage * flankingModifier)
+  // - Front: 1.0 (no bonus)
+  // - Flank: 1.15 (+15% damage)
+  // - Rear: 1.3 (+30% damage)
   if (options?.flankingModifier !== undefined && options.flankingModifier !== 1.0) {
     totalDamage = Math.floor(totalDamage * options.flankingModifier);
   }
 
-  // Apply charge momentum bonus if provided (Core 2.0 mechanics)
+  // Step 5: Apply charge momentum bonus if provided (Core 2.0 mechanics)
+  // Formula: totalDamage = floor(totalDamage * (1 + momentumBonus))
+  // Momentum is calculated as: min(maxMomentum, distance * momentumPerCell)
+  // Default: 0.2 per cell, max 1.0 (100%)
   if (options?.momentumBonus !== undefined && options.momentumBonus > 0) {
     totalDamage = Math.floor(totalDamage * (1 + options.momentumBonus));
   }
 
-  // Ensure minimum damage per config
+  // Step 6: Ensure minimum damage per config
+  // Formula: finalDamage = max(minDamage, totalDamage)
+  // Default minDamage = 1 (attacks always deal at least 1 damage)
   return Math.max(config.minDamage, totalDamage);
 }
 
@@ -204,7 +223,9 @@ export function calculatePhysicalDamage(
  * // Returns: 20 * 1 = 20 (armor ignored)
  */
 export function calculateMagicDamage(attacker: DamageUnit, _target: DamageUnit): number {
-  // Magic damage ignores armor completely
+  // Magic damage formula: damage = ATK * atkCount
+  // Magic damage ignores armor completely, making it effective against heavily armored units
+  // but typically has lower base values or cooldowns to balance
   return attacker.stats.atk * attacker.stats.atkCount;
 }
 
@@ -222,10 +243,12 @@ export function calculateMagicDamage(attacker: DamageUnit, _target: DamageUnit):
  * // Returns: true or false based on seeded random roll
  */
 export function rollDodge(target: DamageUnit, seed: number): boolean {
-  // Generate deterministic random number [0, 1)
+  // Generate deterministic random number [0, 1) using seeded PRNG
   const roll = seededRandom(seed);
 
-  // Convert dodge percentage to decimal and compare
+  // Dodge formula: dodged = roll < (dodge / 100)
+  // Convert dodge percentage (0-100) to decimal (0-1) for comparison
+  // Example: 25% dodge means dodged if roll < 0.25
   const dodgeChance = target.stats.dodge / 100;
 
   return roll < dodgeChance;
@@ -247,8 +270,15 @@ export function applyDamage(
   target: DamageUnit,
   damage: number
 ): { newHp: number; killed: boolean; overkill: number } {
+  // HP reduction formula: newHp = max(0, currentHp - damage)
+  // HP cannot go below 0
   const newHp = Math.max(0, target.currentHp - damage);
+
+  // Death check: unit is killed when HP reaches exactly 0
   const killed = newHp === 0;
+
+  // Overkill calculation: excess damage beyond what was needed to kill
+  // Formula: overkill = damage > currentHp ? damage - currentHp : 0
   const overkill = damage > target.currentHp ? damage - target.currentHp : 0;
 
   return {
@@ -275,8 +305,15 @@ export function applyHealing(
   target: DamageUnit,
   healAmount: number
 ): { newHp: number; overheal: number } {
+  // Calculate potential HP after healing
   const potentialHp = target.currentHp + healAmount;
+
+  // Healing formula: newHp = min(maxHp, currentHp + healAmount)
+  // HP cannot exceed maxHp (no overhealing)
   const newHp = Math.min(target.maxHp, potentialHp);
+
+  // Overheal calculation: excess healing beyond maxHp
+  // Formula: overheal = potentialHp > maxHp ? potentialHp - maxHp : 0
   const overheal = potentialHp > target.maxHp ? potentialHp - target.maxHp : 0;
 
   return {
@@ -453,9 +490,17 @@ export function calculateArmorReduction(
   config: BattleConfig = DEFAULT_BATTLE_CONFIG,
   armorShred: number = 0
 ): { reducedDamage: number; damageBlocked: number } {
-  // Calculate effective armor (accounts for shred)
+  // Step 1: Calculate effective armor after shred
+  // Formula: effectiveArmor = max(0, armor - armorShred)
   const effectiveArmor = Math.max(0, armor - armorShred);
+
+  // Step 2: Calculate damage blocked by armor
+  // Formula: damageBlocked = min(effectiveArmor, incomingDamage - minDamage)
+  // Cannot block more than would reduce damage below minimum
   const damageBlocked = Math.min(effectiveArmor, incomingDamage - config.minDamage);
+
+  // Step 3: Calculate reduced damage after armor
+  // Formula: reducedDamage = max(minDamage, incomingDamage - effectiveArmor)
   const reducedDamage = Math.max(config.minDamage, incomingDamage - effectiveArmor);
 
   return {

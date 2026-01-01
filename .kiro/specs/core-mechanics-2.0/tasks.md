@@ -69,113 +69,394 @@
 - [x] Create `config/presets/roguelike.ts` with `ROGUELIKE_PRESET`
 - [x] Create `config/presets/tactical.ts` with `TACTICAL_PRESET`
 - [x] Create `config/presets/index.ts` re-exports
-- [ ] Add tests verifying preset structure
+- [x] Add tests verifying preset structure
+
+
+
+
+
 
 ### Task 6: Implement config validator
 - [x] Create `config/validator.ts`
 - [x] Implement `validateMechanicsConfig()` function
 - [x] Validate config values are within bounds
 - [x] Validate dependency consistency
-- [ ] Add unit tests for validation
+- [x] Add unit tests for validation
+
+
+
+
 
 ---
 
 ## Phase 2: Tier 0-1 Mechanics (Tasks 7-14)
 
 ### Task 7: Implement Facing processor (Tier 0)
-- [ ] Create `tier0/facing/facing.types.ts`
-- [ ] Create `tier0/facing/facing.processor.ts`
-- [ ] Implement `getFacing()`, `faceTarget()`, `getAttackArc()`
-- [ ] Implement `apply()` for phase integration
-- [ ] Create `tier0/facing/facing.spec.ts` with unit tests
+- [x] Create `tier0/facing/facing.types.ts`
+
+
+
+
+
+- [x] Create `tier0/facing/facing.processor.ts`
+
+
+
+
+
+- [x] Implement `getFacing()`, `faceTarget()`, `getAttackArc()`
+
+
+
+
+
+- [x] Implement `apply()` for phase integration
+
+
+
+
+
+- [x] Create `tier0/facing/facing.spec.ts` with unit tests
+
+
+
+
+
 
 ### Task 8: Implement Resolve processor (Tier 1)
-- [ ] Create `tier1/resolve/resolve.types.ts`
-- [ ] Create `tier1/resolve/resolve.processor.ts`
-- [ ] Implement `regenerate()`, `applyDamage()`, `checkState()`
-- [ ] Implement faction-specific behavior (human retreat, undead crumble)
-- [ ] Create `tier1/resolve/resolve.spec.ts` with unit tests
+- [x] Create `tier1/resolve/resolve.types.ts`
+- [x] Create `tier1/resolve/resolve.processor.ts`
+- [x] Implement `regenerate()`, `applyDamage()`, `checkState()`
+- [x] Implement faction-specific behavior (human retreat, undead crumble)
+- [x] Create `tier1/resolve/resolve.processor.spec.ts` with unit tests (20 tests)
 
 ### Task 9: Implement Engagement processor (Tier 1)
-- [ ] Create `tier1/engagement/engagement.types.ts`
-- [ ] Create `tier1/engagement/engagement.processor.ts`
-- [ ] Implement Zone of Control detection
-- [ ] Implement Attack of Opportunity
-- [ ] Implement archer penalty when engaged
-- [ ] Create `tier1/engagement/engagement.spec.ts` with unit tests
+- [x] Create `tier1/engagement/engagement.types.ts`
+
+
+
+
+
+- [x] Create `tier1/engagement/engagement.processor.ts`
+
+
+
+
+
+- [x] Implement Zone of Control detection
+
+
+
+
+
+- [x] Implement Attack of Opportunity
+
+
+
+
+
+
+
+- [x] Implement archer penalty when engaged
+
+
+
+- [x] Create `tier1/engagement/engagement.spec.ts` with unit tests
+
+
+
+
+
 
 ### Task 10: Implement Flanking processor (Tier 1)
-- [ ] Create `tier1/flanking/flanking.types.ts`
-- [ ] Create `tier1/flanking/flanking.processor.ts`
-- [ ] Implement `getDamageModifier()` for front/flank/rear
-- [ ] Implement `getResolveDamage()` for flanking attacks
-- [ ] Implement `disablesRiposte()` check
-- [ ] Create `tier1/flanking/flanking.spec.ts` with unit tests
+- [x] Create `tier1/flanking/flanking.types.ts`
+
+
+
+
+
+- [x] Create `tier1/flanking/flanking.processor.ts`
+
+
+
+
+
+
+
+
+
+- [x] Implement `getDamageModifier()` for front/flank/rear
+
+
+
+
+
+
+- [x] Implement `getResolveDamage()` for flanking attacks
+
+
+
+
+
+- [x] Implement `disablesRiposte()` check
+
+
+
+
+
+- [x] Create `tier1/flanking/flanking.spec.ts` with unit tests
+
+
+
+
 
 ### Task 11: Tier 0-1 integration tests
-- [ ] Create integration tests for facing + flanking
-- [ ] Test resolve damage from flanking attacks
-- [ ] Test engagement + archer penalty interaction
-- [ ] Verify dependency auto-resolution works
+- [x] Create integration tests for facing + flanking
+- [x] Test resolve damage from flanking attacks
+- [x] Test engagement + archer penalty interaction
+- [x] Verify dependency auto-resolution works
 
 ### Task 12: Add BattleUnit extensions for Tier 0-1
-- [ ] Extend `BattleUnit` type with `facing?: FacingDirection`
-- [ ] Extend `BattleUnit` type with `resolve?: number`
-- [ ] Extend `BattleUnit` type with `engaged?: boolean`
-- [ ] Extend `BattleUnit` type with `faction?: string`
-- [ ] Update type exports
+- [x] Extend `BattleUnit` type with `facing?: FacingDirection`
+
+
+
+- [x] Extend `BattleUnit` type with  resolve?: number`
+
+
+
+
+
+
+
+- [x] Extend `BattleUnit` type with `engaged?: boolean`
+
+
+
+- [x] Extend `BattleUnit` type with `faction?: string`
+
+
+
+
+
+
+
+- [x] Update type exports
+
+
+
+
+
+
+
+
 
 ### Task 13: Implement helper functions for Tier 0-1
-- [ ] Create `updateUnit()` helper for immutable state updates
-- [ ] Create `updateUnits()` helper for batch updates
-- [ ] Create `findUnit()` helper
-- [ ] Add unit tests for helpers
+- [x] Create `updateUnit()` helper for immutable state updates
+
+
+
+
+
+- [x] Create `updateUnits()` helper for batch updates
+
+
+
+
+
+- [x] Create `findUnit()` helper
+
+
+
+
+- [x] Add unit tests for helpers
+
+
+
+
+
 
 ### Task 14: Document Tier 0-1 mechanics
-- [ ] Add JSDoc to all Tier 0-1 processors
-- [ ] Add inline comments explaining formulas
-- [ ] Update README with Tier 0-1 usage examples
+- [x] Add JSDoc to all Tier 0-1 processors
+
+
+
+
+
+
+
+
+
+
+
+
+- [x] Add inline comments explaining formulas
+
+
+
+
+
+- [x] Update README with Tier 0-1 usage examples
+
+
+
+
+
 
 ---
 
 ## Phase 3: Tier 2 Mechanics (Tasks 15-20)
 
 ### Task 15: Implement Riposte processor (Tier 2)
-- [ ] Create `tier2/riposte/riposte.types.ts`
-- [ ] Create `tier2/riposte/riposte.processor.ts`
-- [ ] Implement `canRiposte()` with arc check
-- [ ] Implement `getRiposteChance()` with Initiative formula
-- [ ] Implement `executeRiposte()` counter-attack
-- [ ] Implement charge tracking per round
-- [ ] Create `tier2/riposte/riposte.spec.ts` with unit tests
+- [x] Create `tier2/riposte/riposte.types.ts`
+
+
+
+
+
+- [x] Create `tier2/riposte/riposte.processor.ts`
+
+
+
+
+
+- [x] Implement `canRiposte()` with arc check
+
+
+
+
+
+
+- [x] Implement `getRiposteChance()` with Initiative formula
+
+
+
+
+
+- [x] Implement `executeRiposte()` counter-attack
+
+
+
+
+
+- [x] Implement charge tracking per round
+
+
+
+
+
+- [x] Create `tier2/riposte/riposte.spec.ts` with unit tests
+
+
+
+
+
 
 ### Task 16: Implement Intercept processor (Tier 2)
-- [ ] Create `tier2/intercept/intercept.types.ts`
-- [ ] Create `tier2/intercept/intercept.processor.ts`
-- [ ] Implement Hard Intercept (spearmen stop cavalry)
-- [ ] Implement Soft Intercept (infantry engages)
-- [ ] Implement disengage cost calculation
-- [ ] Create `tier2/intercept/intercept.spec.ts` with unit tests
+- [x] Create `tier2/intercept/intercept.types.ts`
+
+
+
+
+
+- [x] Create `tier2/intercept/intercept.processor.ts`
+
+
+
+
+
+- [x] Implement Hard Intercept (spearmen stop cavalry)
+
+
+
+
+
+
+- [x] Implement Soft Intercept (infantry engages)
+
+
+
+
+
+- [x] Implement disengage cost calculation
+
+
+
+
+
+
+
+- [x] Create `tier2/intercept/intercept.spec.ts` with unit tests
 
 ### Task 17: Implement Aura processor (Tier 2)
-- [ ] Create `tier2/aura/aura.types.ts`
-- [ ] Create `tier2/aura/aura.processor.ts`
-- [ ] Implement Static aura (always active)
-- [ ] Implement Pulse aura (per turn effect)
-- [ ] Implement aura range calculation
-- [ ] Create `tier2/aura/aura.spec.ts` with unit tests
+- [x] Create `tier2/aura/aura.types.ts`
+
+
+
+
+
+- [x] Create `tier2/aura/aura.processor.ts`
+
+
+
+
+
+- [x] Implement Static aura (always active)
+
+
+
+
+
+- [x] Implement Pulse aura (per turn effect)
+- [x] Implement aura range calculation
+- [x] Create `tier2/aura/aura.spec.ts` with unit tests
 
 ### Task 18: Add BattleUnit extensions for Tier 2
-- [ ] Extend `BattleUnit` type with `riposteCharges?: number`
-- [ ] Extend `BattleUnit` type with `tags?: string[]`
-- [ ] Extend `BattleUnit` type with `auras?: Aura[]`
-- [ ] Update type exports
+- [x] Extend `BattleUnit` type with `riposteCharges?: number`
+
+
+
+
+
+- [x] Extend `BattleUnit` type with `tags?: string[]`
+
+
+
+
+
+- [x] Extend `BattleUnit` type with `auras?: Aura[]`
+
+
+
+
+
+- [x] Update type exports
 
 ### Task 19: Tier 2 integration tests
-- [ ] Test riposte disabled by flanking
-- [ ] Test intercept + engagement interaction
-- [ ] Test aura stacking rules
-- [ ] Test Initiative-based riposte chance
+- [x] Test riposte disabled by flanking
+
+
+
+
+
+- [x] Test intercept + engagement interaction
+
+
+
+
+
+
+- [x] Test aura stacking rules
+
+
+
+
+
+- [x] Test Initiative-based riposte chance
+
+
+
+
 
 ### Task 20: Document Tier 2 mechanics
 - [ ] Add JSDoc to all Tier 2 processors
