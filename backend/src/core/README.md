@@ -609,6 +609,304 @@ const processor = createMechanicsProcessor({
 });
 ```
 
+### Tier 2: Riposte (Counter-Attack)
+
+The riposte system allows defenders to counter-attack when hit from the front arc. Riposte is disabled when attacked from flank or rear. Requires flanking mechanic (Tier 1).
+
+```typescript
+import { createRiposteProcessor, DEFAULT_RIPOSTE_CONFIG } from '@core/mechanics';
+import type { RiposteConfig, UnitWithRiposte, AttackArc } from '@core/mechanics';
+
+const riposteProcessor = createRiposteProcessor({
+  initiativeBased: true,       // Use Initiative comparison for chance
+  chargesPerRound: 'attackCount', // Uses unit's attack count
+  baseChance: 0.5,             // 50% base chance
+  guaranteedThreshold: 10,     // Initiative diff for guaranteed riposte
+});
+
+// Check if defender can riposte (front arc only, has charges)
+const arc: AttackArc = 'front';
+const canRiposte = riposteProcessor.canRiposte(defender, attacker, arc);
+// Returns: true if front arc and has charges remaining
+
+// Calculate riposte chance based on Initiative
+const chance = riposteProcessor.getRiposteChance(defender, attacker, DEFAULT_RIPOSTE_CONFIG);
+// Formula: baseChance + (initDiff / guaranteedThreshold) * 0.5
+// Example: defender.initiative=15, attacker.initiative=10
+//   initDiff = 5, chance = 0.5 + (5/10)*0.5 = 0.75 (75%)
+
+// Execute riposte (deals 50% of defender's ATK)
+const newState = riposteProcessor.executeRiposte(defender, attacker, state);
+// Damage formula: floor(defender.atk * 0.5)
+// Consumes one riposte charge
+
+// Apply riposte logic during battle phase
+const newState = riposteProcessor.apply('attack', state, {
+  activeUnit: attacker,
+  target: defender,
+  seed: 12345,
+});
+```
+
+Riposte chance formula (Initiative-based):
+- `initDiff >= +10`: 100% chance (guaranteed)
+- `initDiff <= -10`: 0% chance (impossible)
+- Otherwise: `0.5 + (initDiff / 10) * 0.5` (linear interpolation)
+
+### Tier 2: Intercept (Movement Blocking)
+
+The intercept system allows units to block or engage passing enemies during movement. Requires engagement mechanic (Tier 1).
+
+```typescript
+import { createInterceptProcessor, DEFAULT_INTERCEPT_CONFIG } from '@core/mechanics';
+import type { InterceptConfig, UnitWithIntercept, InterceptCheckResult } from '@core/mechanics';
+
+const interceptProcessor = createInterceptProcessor({
+  hardIntercept: true,   // Spearmen stop cavalry
+  softIntercept: true,   // Infantry engages passing units
+  disengageCost: 2,      // Movement cost to leave engagement
+});
+
+// Check if unit can perform hard intercept (spearmen vs cavalry)
+const canHard = interceptProcessor.canHardIntercept(spearman, cavalry, DEFAULT_INTERCEPT_CONFIG);
+// Returns: true if spearman has 'spear_wall' tag and target is cavalry
+
+// Check if unit can perform soft intercept (melee engages passing unit)
+const canSoft = interceptProcessor.canSoftIntercept(infantry, enemy, DEFAULT_INTERCEPT_CONFIG);
+// Returns: true if infantry is melee (range <= 1) and has intercepts remaining
+
+// Check for intercept opportunities along a movement path
+const path = [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }];
+const check: InterceptCheckResult = interceptProcessor.checkIntercept(cavalry, path, state, DEFAULT_INTERCEPT_CONFIG);
+// check.hasIntercept: true if any intercept opportunity exists
+// check.movementBlocked: true if hard intercept stops movement
+// check.blockedAt: position where movement was stopped
+// check.opportunities: all intercept opportunities along path
+
+// Execute hard intercept (spearmen stop cavalry, deal 150% damage)
+const result = interceptProcessor.executeHardIntercept(spearman, cavalry, state, seed);
+// result.damage: floor(spearman.atk * 1.5)
+// result.movementStopped: true
+// result.stoppedAt: position where cavalry was stopped
+
+// Execute soft intercept (infantry engages, no damage)
+const result = interceptProcessor.executeSoftIntercept(infantry, enemy, state);
+// result.damage: 0 (soft intercept doesn't deal damage)
+// result.movementStopped: false (target can continue moving)
+// Target is now marked as engaged
+
+// Calculate disengage cost
+const cost = interceptProcessor.getDisengageCost(unit, state, DEFAULT_INTERCEPT_CONFIG);
+// Returns: 2 (default) if unit is engaged, 0 if not engaged
+
+// Attempt to disengage from engagement
+const disengageResult = interceptProcessor.attemptDisengage(unit, state, DEFAULT_INTERCEPT_CONFIG, seed);
+// disengageResult.success: true if unit had enough movement
+// disengageResult.movementCost: 2 (disengage cost)
+// disengageResult.triggeredAoO: true (disengaging triggers Attack of Opportunity)
+```
+
+Intercept types:
+- Hard Intercept: Spearmen (`spear_wall` tag) completely stop cavalry charges, deal 150% damage
+- Soft Intercept: Melee infantry engages passing units, triggers Zone of Control
+
+### Tier 2: Aura (Area Effects)
+
+The aura system allows units to project area effects that influence nearby allies or enemies. Aura is an independent mechanic (no dependencies).
+
+```typescript
+import { createAuraProcessor } from '@core/mechanics';
+import type { Aura, AuraProcessor, UnitWithAura, AuraStat } from '@core/mechanics';
+
+const auraProcessor = createAuraProcessor();
+
+// Define a leadership aura (+10% ATK to allies within range 2)
+const leadershipAura: Aura = {
+  id: 'leadership',
+  name: 'Leadership',
+  type: 'static',           // Always active while unit is alive
+  target: 'allies',         // Only affects friendly units
+  range: 2,                 // Manhattan distance
+  effect: {
+    type: 'buff_stat',
+    stat: 'atk',
+    value: 0.1,             // +10%
+    isPercentage: true,
+  },
+  stackable: false,
+};
+
+// Define a healing pulse aura (heal 5 HP per turn to allies)
+const healingPulse: Aura = {
+  id: 'healing_pulse',
+  name: 'Healing Pulse',
+  type: 'pulse',            // Applies effect once per turn
+  target: 'allies',
+  range: 2,
+  effect: {
+    type: 'heal',
+    value: 5,
+    isPercentage: false,
+  },
+  pulseInterval: 1,         // Every turn
+};
+
+// Define a fear aura (-15% ATK to enemies)
+const fearAura: Aura = {
+  id: 'fear',
+  name: 'Fear',
+  type: 'static',
+  target: 'enemies',
+  range: 3,
+  effect: {
+    type: 'debuff_stat',
+    stat: 'atk',
+    value: 0.15,            // -15%
+    isPercentage: true,
+  },
+  stackable: false,
+};
+
+// Find units within aura range
+const alliesInRange = auraProcessor.getUnitsInRange(leader, leadershipAura, state);
+// Returns: array of allied units within range 2
+
+// Get effective stat after aura modifications
+const effectiveAtk = auraProcessor.getEffectiveStat(unit, 'atk', state);
+// Returns: base ATK + all aura buff/debuff modifiers
+
+// Apply all static aura effects (call after state changes)
+const newState = auraProcessor.applyStaticAuras(state);
+// Recalculates all static aura buffs/debuffs
+
+// Trigger pulse auras (call at turn start)
+const newState = auraProcessor.triggerPulseAuras(state, seed);
+// Applies heal/damage effects from pulse auras
+
+// Handle aura cleanup when unit dies
+const newState = auraProcessor.handleUnitDeath(state, deadUnitId);
+// Removes all aura effects from the dead unit's auras
+
+// Recalculate auras after movement
+const newState = auraProcessor.recalculateAuras(state);
+// Updates aura effects based on new positions
+
+// Apply aura logic during battle phase
+const newState = auraProcessor.apply('turn_start', state, {
+  activeUnit: unit,
+  seed: 12345,
+});
+```
+
+Aura types:
+- Static: Always active while unit is alive (e.g., leadership, fear)
+- Pulse: Applies effect once per turn (e.g., healing pulse, damage aura)
+- Relic: Item-based auras with special properties (future)
+
+Aura targets:
+- `allies`: Only affects friendly units (excluding self)
+- `enemies`: Only affects enemy units
+- `all`: Affects all units in range (excluding self)
+- `self`: Only affects the aura source unit
+
+### Combining Tier 2 Mechanics
+
+Example of using riposte, intercept, and aura together:
+
+```typescript
+import {
+  createMechanicsProcessor,
+  createRiposteProcessor,
+  createInterceptProcessor,
+  createAuraProcessor,
+  createFacingProcessor,
+  DEFAULT_RIPOSTE_CONFIG,
+  DEFAULT_INTERCEPT_CONFIG,
+} from '@core/mechanics';
+
+// Create individual processors
+const facingProcessor = createFacingProcessor();
+const riposteProcessor = createRiposteProcessor(DEFAULT_RIPOSTE_CONFIG);
+const interceptProcessor = createInterceptProcessor(DEFAULT_INTERCEPT_CONFIG);
+const auraProcessor = createAuraProcessor();
+
+// Or use the unified mechanics processor (auto-resolves dependencies)
+const processor = createMechanicsProcessor({
+  facing: true,
+  flanking: true,
+  riposte: DEFAULT_RIPOSTE_CONFIG,
+  intercept: DEFAULT_INTERCEPT_CONFIG,
+  engagement: true,
+  aura: true,
+});
+
+// Example: Process cavalry charge with intercept check
+function processMovement(
+  unit: BattleUnit & UnitWithIntercept,
+  path: Position[],
+  state: BattleState,
+): BattleState {
+  // 1. Check for intercept opportunities
+  const interceptCheck = interceptProcessor.checkIntercept(
+    unit,
+    path,
+    state,
+    DEFAULT_INTERCEPT_CONFIG,
+  );
+
+  // 2. If hard intercept, stop movement and apply damage
+  if (interceptCheck.movementBlocked && interceptCheck.firstIntercept) {
+    const result = interceptProcessor.executeHardIntercept(
+      interceptCheck.firstIntercept.interceptor,
+      unit,
+      state,
+      seed,
+    );
+    return result.state;
+  }
+
+  // 3. If soft intercept, mark as engaged but continue
+  for (const opportunity of interceptCheck.opportunities) {
+    if (opportunity.type === 'soft' && opportunity.canIntercept) {
+      state = interceptProcessor.executeSoftIntercept(
+        opportunity.interceptor,
+        unit,
+        state,
+      ).state;
+    }
+  }
+
+  return state;
+}
+
+// Example: Process attack with riposte check
+function processAttack(
+  attacker: BattleUnit,
+  defender: BattleUnit & UnitWithRiposte,
+  state: BattleState,
+  seed: number,
+): BattleState {
+  // 1. Determine attack arc
+  const arc = facingProcessor.getAttackArc(attacker, defender);
+
+  // 2. Apply damage (not shown)
+  // ...
+
+  // 3. Check for riposte (only from front arc)
+  if (riposteProcessor.canRiposte(defender, attacker, arc)) {
+    const chance = riposteProcessor.getRiposteChance(defender, attacker, DEFAULT_RIPOSTE_CONFIG);
+    if (seededRandom(seed) < chance) {
+      state = riposteProcessor.executeRiposte(defender, attacker, state);
+    }
+  }
+
+  // 4. Recalculate auras after combat
+  state = auraProcessor.recalculateAuras(state);
+
+  return state;
+}
+```
+
 ### Testing Mechanics
 
 ```bash
@@ -620,9 +918,13 @@ npm test -- tier0/facing
 npm test -- tier1/resolve
 npm test -- tier1/engagement
 npm test -- tier1/flanking
+npm test -- tier2/riposte
+npm test -- tier2/intercept
+npm test -- tier2/aura
 
 # Run integration tests
 npm test -- tier0-1.integration.spec.ts
+npm test -- tier2.integration.spec.ts
 ```
 
 ## See Also

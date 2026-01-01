@@ -114,11 +114,31 @@ export function createRiposteProcessor(config: RiposteConfig): RiposteProcessor 
      * Calculates riposte chance based on Initiative comparison.
      * Higher defender Initiative = higher riposte chance.
      *
-     * Formula (when initiativeBased = true):
-     * - initDiff = defender.initiative - attacker.initiative
-     * - If initDiff >= guaranteedThreshold: chance = 1.0 (guaranteed)
-     * - If initDiff <= -guaranteedThreshold: chance = 0.0 (impossible)
-     * - Otherwise: chance = baseChance + (initDiff / guaranteedThreshold) * 0.5
+     * ═══════════════════════════════════════════════════════════════
+     * RIPOSTE CHANCE FORMULA (Initiative-Based)
+     * ═══════════════════════════════════════════════════════════════
+     *
+     * Step 1: Calculate Initiative difference
+     *   initDiff = defender.initiative - attacker.initiative
+     *
+     * Step 2: Determine chance based on initDiff
+     *   - If initDiff >= guaranteedThreshold (default: 10):
+     *       chance = 1.0 (100% - guaranteed riposte)
+     *
+     *   - If initDiff <= -guaranteedThreshold:
+     *       chance = 0.0 (0% - impossible to riposte)
+     *
+     *   - Otherwise (linear interpolation):
+     *       chance = baseChance + (initDiff / guaranteedThreshold) * 0.5
+     *
+     * Example calculations (with defaults: baseChance=0.5, threshold=10):
+     *   - initDiff = 0:   chance = 0.5 + (0/10)*0.5 = 0.50 (50%)
+     *   - initDiff = +5:  chance = 0.5 + (5/10)*0.5 = 0.75 (75%)
+     *   - initDiff = -5:  chance = 0.5 + (-5/10)*0.5 = 0.25 (25%)
+     *   - initDiff = +10: chance = 1.0 (guaranteed, threshold reached)
+     *   - initDiff = -10: chance = 0.0 (impossible, threshold reached)
+     *
+     * ═══════════════════════════════════════════════════════════════
      *
      * When initiativeBased = false, returns baseChance directly.
      *
@@ -138,40 +158,57 @@ export function createRiposteProcessor(config: RiposteConfig): RiposteProcessor 
       attacker: BattleUnit,
       _config?: RiposteConfig,
     ): number {
-      // If not using Initiative-based calculation, return flat base chance
+      // ─────────────────────────────────────────────────────────────
+      // Non-Initiative Mode: Return flat base chance
+      // ─────────────────────────────────────────────────────────────
       if (!config.initiativeBased) {
         return config.baseChance;
       }
 
-      // Get Initiative values (default to 0 if not set)
+      // ─────────────────────────────────────────────────────────────
+      // Step 1: Get Initiative values (default to 0 if not set)
+      // ─────────────────────────────────────────────────────────────
       const defenderInit = defender.initiative ?? defender.stats?.initiative ?? 0;
       const attackerWithRiposte = attacker as BattleUnit & UnitWithRiposte;
       const attackerInit = attackerWithRiposte.initiative ?? attacker.stats?.initiative ?? 0;
 
-      // Calculate Initiative difference
+      // ─────────────────────────────────────────────────────────────
+      // Step 2: Calculate Initiative difference
       // Positive = defender is faster, negative = attacker is faster
+      // ─────────────────────────────────────────────────────────────
       const initDiff = defenderInit - attackerInit;
 
-      // Guaranteed riposte if defender much faster
+      // ─────────────────────────────────────────────────────────────
+      // Step 3a: Check for guaranteed riposte (defender much faster)
       // Formula: if initDiff >= guaranteedThreshold, chance = 100%
+      // ─────────────────────────────────────────────────────────────
       if (initDiff >= config.guaranteedThreshold) {
-        return MAX_CHANCE;
+        return MAX_CHANCE; // 1.0 = 100%
       }
 
-      // No riposte if attacker much faster
+      // ─────────────────────────────────────────────────────────────
+      // Step 3b: Check for impossible riposte (attacker much faster)
       // Formula: if initDiff <= -guaranteedThreshold, chance = 0%
+      // ─────────────────────────────────────────────────────────────
       if (initDiff <= -config.guaranteedThreshold) {
-        return MIN_CHANCE;
+        return MIN_CHANCE; // 0.0 = 0%
       }
 
-      // Linear interpolation between 0% and 100%
+      // ─────────────────────────────────────────────────────────────
+      // Step 3c: Linear interpolation for intermediate values
       // Formula: chance = baseChance + (initDiff / guaranteedThreshold) * 0.5
-      // At initDiff = 0: chance = baseChance (default 50%)
-      // At initDiff = +threshold: chance = baseChance + 0.5 = 100%
-      // At initDiff = -threshold: chance = baseChance - 0.5 = 0%
+      //
+      // The 0.5 multiplier ensures:
+      // - At initDiff = 0: chance = baseChance (default 50%)
+      // - At initDiff = +threshold: chance = baseChance + 0.5 = 100%
+      // - At initDiff = -threshold: chance = baseChance - 0.5 = 0%
+      // ─────────────────────────────────────────────────────────────
       const chance = config.baseChance + (initDiff / config.guaranteedThreshold) * 0.5;
 
-      // Clamp to valid range [0, 1]
+      // ─────────────────────────────────────────────────────────────
+      // Step 4: Clamp to valid range [0, 1]
+      // Handles edge cases where baseChance is not 0.5
+      // ─────────────────────────────────────────────────────────────
       return Math.max(MIN_CHANCE, Math.min(MAX_CHANCE, chance));
     },
 
@@ -180,8 +217,27 @@ export function createRiposteProcessor(config: RiposteConfig): RiposteProcessor 
      * Deals 50% of defender's normal damage to attacker.
      * Consumes one riposte charge.
      *
-     * Riposte damage formula:
-     * damage = floor(defender.atk * RIPOSTE_DAMAGE_MULTIPLIER)
+     * ═══════════════════════════════════════════════════════════════
+     * RIPOSTE DAMAGE FORMULA
+     * ═══════════════════════════════════════════════════════════════
+     *
+     * Step 1: Calculate riposte damage
+     *   damage = floor(defender.atk * RIPOSTE_DAMAGE_MULTIPLIER)
+     *   where RIPOSTE_DAMAGE_MULTIPLIER = 0.5 (50%)
+     *
+     * Step 2: Apply damage to attacker
+     *   newHp = max(0, attacker.currentHp - damage)
+     *   alive = newHp > 0
+     *
+     * Step 3: Consume riposte charge
+     *   newCharges = max(0, currentCharges - 1)
+     *
+     * Example calculations:
+     *   - Defender ATK = 20: damage = floor(20 * 0.5) = 10
+     *   - Defender ATK = 15: damage = floor(15 * 0.5) = floor(7.5) = 7
+     *   - Defender ATK = 0:  damage = floor(0 * 0.5) = 0
+     *
+     * ═══════════════════════════════════════════════════════════════
      *
      * @param defender - Unit performing the riposte
      * @param attacker - Unit receiving riposte damage
@@ -196,22 +252,34 @@ export function createRiposteProcessor(config: RiposteConfig): RiposteProcessor 
       attacker: BattleUnit,
       state: BattleState,
     ): BattleState {
-      // Calculate riposte damage (50% of normal attack)
-      // Formula: damage = floor(ATK * 0.5)
+      // ─────────────────────────────────────────────────────────────
+      // Step 1: Calculate riposte damage (50% of normal attack)
+      // Formula: damage = floor(ATK * RIPOSTE_DAMAGE_MULTIPLIER)
+      // The floor() ensures we always deal whole number damage
+      // ─────────────────────────────────────────────────────────────
       const defenderAtk = defender.stats?.atk ?? 0;
       const damage = Math.floor(defenderAtk * DAMAGE_MULTIPLIER);
 
-      // Apply damage to attacker
+      // ─────────────────────────────────────────────────────────────
+      // Step 2: Apply damage to attacker
       // Formula: newHp = max(0, currentHp - damage)
+      // HP cannot go below 0
+      // ─────────────────────────────────────────────────────────────
       const newAttackerHp = Math.max(0, attacker.currentHp - damage);
       const attackerAlive = newAttackerHp > 0;
 
-      // Consume one riposte charge from defender
+      // ─────────────────────────────────────────────────────────────
+      // Step 3: Consume one riposte charge from defender
+      // Formula: newCharges = max(0, currentCharges - 1)
+      // Charges cannot go below 0
+      // ─────────────────────────────────────────────────────────────
       const maxCharges = getMaxRiposteCharges(defender, config);
       const currentCharges = defender.riposteCharges ?? maxCharges;
       const newCharges = Math.max(0, currentCharges - 1);
 
-      // Create updated units
+      // ─────────────────────────────────────────────────────────────
+      // Step 4: Create updated units with new values
+      // ─────────────────────────────────────────────────────────────
       const updatedAttacker: BattleUnit = {
         ...attacker,
         currentHp: newAttackerHp,

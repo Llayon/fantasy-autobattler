@@ -458,10 +458,28 @@
 
 
 
+
+
+
 ### Task 20: Document Tier 2 mechanics
-- [ ] Add JSDoc to all Tier 2 processors
-- [ ] Add inline comments for riposte formula
-- [ ] Update README with Tier 2 usage examples
+
+- [x] Add JSDoc to all Tier 2 processors
+
+
+
+
+- [x] Add inline comments for riposte formula
+
+
+
+
+
+- [x] Update README with Tier 2 usage examples
+
+
+
+
+
 
 ---
 
@@ -469,6 +487,7 @@
 
 ### Task 21: Implement Charge processor (Tier 3)
 - [ ] Create `tier3/charge/charge.types.ts`
+
 - [ ] Create `tier3/charge/charge.processor.ts`
 - [ ] Implement `calculateMomentum()` based on distance
 - [ ] Implement `applyChargeBonus()` damage modifier
