@@ -907,6 +907,790 @@ function processAttack(
 }
 ```
 
+### Tier 3: Charge (Cavalry Momentum)
+
+The charge system provides damage bonuses based on distance moved before attacking. Cavalry units build momentum as they move, dealing increased damage on impact. Spearmen with Spear Wall can counter charges.
+
+```typescript
+import { createChargeProcessor, DEFAULT_CHARGE_CONFIG } from '@core/mechanics';
+import type { ChargeConfig, UnitWithCharge, ChargeEligibility } from '@core/mechanics';
+
+const chargeProcessor = createChargeProcessor({
+  momentumPerCell: 0.2,      // +20% damage per cell moved
+  maxMomentum: 1.0,          // Maximum +100% damage bonus
+  shockResolveDamage: 10,    // Resolve damage on charge impact
+  minChargeDistance: 3,      // Minimum cells to qualify for charge
+});
+
+// Calculate momentum from distance moved
+const momentum = chargeProcessor.calculateMomentum(5, DEFAULT_CHARGE_CONFIG);
+// distance=5: momentum = min(1.0, 5 * 0.2) = 1.0 (capped)
+
+// Apply charge bonus to damage
+const baseDamage = 20;
+const totalDamage = chargeProcessor.applyChargeBonus(baseDamage, momentum);
+// totalDamage = floor(20 * (1 + 1.0)) = 40
+
+// Check if unit can charge
+const eligibility: ChargeEligibility = chargeProcessor.canCharge(cavalry, 4, DEFAULT_CHARGE_CONFIG);
+// eligibility.canCharge: true if cavalry tag and moved >= 3 cells
+// eligibility.momentum: 0.8 (4 * 0.2)
+
+// Check for Spear Wall counter
+if (chargeProcessor.isCounteredBySpearWall(target)) {
+  const counterDamage = chargeProcessor.calculateCounterDamage(target);
+  // counterDamage = floor(target.atk * 1.5) - 150% damage to charger
+}
+
+// Track movement for momentum calculation
+const updatedCavalry = chargeProcessor.trackMovement(cavalry, path, DEFAULT_CHARGE_CONFIG);
+// updatedCavalry.momentum: calculated from path length
+// updatedCavalry.isCharging: true if momentum > 0
+
+// Execute charge attack
+const result = chargeProcessor.executeCharge(cavalry, infantry, state, DEFAULT_CHARGE_CONFIG, seed);
+// result.damage: base damage + momentum bonus
+// result.shockDamage: resolve damage to target
+// result.wasCountered: true if stopped by Spear Wall
+
+// Reset charge state at turn end
+const resetUnit = chargeProcessor.resetCharge(cavalry);
+```
+
+Momentum formula:
+- If distance < minChargeDistance: momentum = 0
+- Otherwise: momentum = min(maxMomentum, distance × momentumPerCell)
+
+Charge damage formula:
+- totalDamage = floor(baseDamage × (1 + momentum))
+
+Spear Wall counter:
+- Spearmen with `spear_wall` tag stop cavalry charges
+- Counter damage = floor(spearman.atk × 1.5)
+
+### Tier 3: Overwatch (Ranged Reaction Fire)
+
+The overwatch system allows ranged units to enter a Vigilance state and automatically fire at enemies that move within their range. Requires intercept and ammunition mechanics.
+
+```typescript
+import { createOverwatchProcessor } from '@core/mechanics';
+import type { UnitWithOverwatch, OverwatchCheckResult, OverwatchShotResult } from '@core/mechanics';
+
+const overwatchProcessor = createOverwatchProcessor({
+  damageModifier: 0.75,      // 75% of normal damage
+  maxShots: 1,               // Shots per round
+  accuracyPenalty: 0.2,      // 20% accuracy penalty
+});
+
+// Check if unit can enter vigilance
+if (overwatchProcessor.canEnterVigilance(archer)) {
+  // Enter vigilance state (skips attack action)
+  const result = overwatchProcessor.enterVigilance(archer, state);
+  // result.unit.vigilance: 'active'
+  // result.unit.overwatchShotsRemaining: 1
+}
+
+// Check if unit is in vigilance
+const isVigilant = overwatchProcessor.isVigilant(archer);
+
+// Check for overwatch triggers along enemy movement path
+const check: OverwatchCheckResult = overwatchProcessor.checkOverwatch(enemy, path, state);
+// check.hasOverwatch: true if any vigilant enemies can fire
+// check.opportunities: array of overwatch opportunities
+// check.totalShots: number of shots that will be fired
+
+// Execute overwatch shot
+const shot: OverwatchShotResult = overwatchProcessor.executeOverwatchShot(
+  archer,
+  enemy,
+  state,
+  seed,
+);
+// shot.hit: true if shot hit (based on accuracy roll)
+// shot.damage: floor(archer.atk * 0.75)
+// shot.ammoConsumed: 1
+// shot.watcherShotsRemaining: 0
+
+// Toggle vigilance state
+const toggle = overwatchProcessor.toggleVigilance(archer, state);
+// toggle.action: 'entered' or 'exited'
+
+// Reset overwatch at turn end
+const resetUnit = overwatchProcessor.resetOverwatch(archer);
+```
+
+Overwatch damage formula:
+- damage = floor(watcher.atk × damageModifier)
+
+Hit chance formula:
+- hitChance = 1.0 - accuracyPenalty - targetDodge
+- Roll < hitChance = hit
+
+Vigilance states:
+- `inactive`: Not in overwatch
+- `active`: Ready to fire
+- `triggered`: Has fired this round
+- `exhausted`: Out of shots
+
+### Tier 3: Phalanx (Formation Bonuses)
+
+The phalanx system provides defensive bonuses to units in tight formations. Units gain armor and resolve bonuses based on adjacent allies facing the same direction. Requires facing mechanic.
+
+```typescript
+import { createPhalanxProcessor, DEFAULT_PHALANX_CONFIG } from '@core/mechanics';
+import type { PhalanxConfig, UnitWithPhalanx, FormationDetectionResult } from '@core/mechanics';
+
+const phalanxProcessor = createPhalanxProcessor({
+  maxArmorBonus: 5,          // Maximum armor bonus
+  maxResolveBonus: 25,       // Maximum resolve bonus
+  armorPerAlly: 1,           // Armor per adjacent ally
+  resolvePerAlly: 5,         // Resolve per adjacent ally
+});
+
+// Check if unit can join phalanx
+const eligibility = phalanxProcessor.canJoinPhalanx(spearman);
+// eligibility.canJoinPhalanx: true if has 'phalanx' tag and facing set
+
+// Detect formation (adjacent allies facing same direction)
+const detection: FormationDetectionResult = phalanxProcessor.detectFormation(spearman, state);
+// detection.adjacentAllies: all adjacent allies
+// detection.alignedAllies: allies facing same direction
+// detection.alignedCount: number of aligned allies
+// detection.canFormPhalanx: true if alignedCount > 0
+
+// Calculate bonuses based on adjacent allies
+const bonuses = phalanxProcessor.calculateBonuses(3, DEFAULT_PHALANX_CONFIG);
+// bonuses.armorBonus: 3 (3 × 1)
+// bonuses.resolveBonus: 15 (3 × 5)
+// bonuses.formationState: 'partial' | 'full' | 'none'
+
+// Get effective armor/resolve including phalanx bonus
+const effectiveArmor = phalanxProcessor.getEffectiveArmor(spearman);
+const effectiveResolve = phalanxProcessor.getEffectiveResolve(spearman);
+
+// Update phalanx state for a unit
+const updatedUnit = phalanxProcessor.updateUnitPhalanx(spearman, state, DEFAULT_PHALANX_CONFIG);
+// updatedUnit.inPhalanx: true
+// updatedUnit.phalanxArmorBonus: calculated bonus
+// updatedUnit.phalanxResolveBonus: calculated bonus
+
+// Recalculate all formations after casualties
+const result = phalanxProcessor.recalculate(state, 'unit_death');
+// result.unitsUpdated: IDs of units with changed bonuses
+// result.formationsChanged: number of formation changes
+
+// Check if unit is in phalanx
+const inPhalanx = phalanxProcessor.isInPhalanx(spearman);
+
+// Clear phalanx state when unit leaves formation
+const clearedUnit = phalanxProcessor.clearPhalanx(spearman);
+```
+
+Phalanx bonus formulas:
+- armorBonus = min(maxArmorBonus, adjacentCount × armorPerAlly)
+- resolveBonus = min(maxResolveBonus, adjacentCount × resolvePerAlly)
+
+Formation states:
+- `none`: No adjacent aligned allies
+- `partial`: 1-3 adjacent aligned allies
+- `full`: 4 adjacent aligned allies (maximum)
+
+Note: Phalanx formations are vulnerable to contagion (Tier 4) - dense formations spread effects faster.
+
+### Tier 3: Line of Sight (Ranged Attack Validation)
+
+The Line of Sight system controls ranged attack validation. It determines whether a ranged unit can target an enemy based on obstacles and firing mode. Requires facing mechanic.
+
+```typescript
+import { createLoSProcessor, DEFAULT_LOS_CONFIG } from '@core/mechanics';
+import type { LoSConfig, UnitWithLoS, LoSCheckResult, LoSValidationResult } from '@core/mechanics';
+
+const losProcessor = createLoSProcessor({
+  directFire: true,          // Enable direct fire (blocked by units)
+  arcFire: true,             // Enable arc fire (ignores obstacles)
+  arcFirePenalty: 0.2,       // 20% accuracy penalty for arc fire
+});
+
+// Calculate line of sight path using Bresenham's algorithm
+const line = losProcessor.getLineOfSight(archer.position, enemy.position);
+// line.cells: all cells along the line
+// line.length: number of cells
+
+// Check if position is blocked by obstacle
+const obstacle = losProcessor.isBlocked(position, state, excludeUnitId);
+// obstacle.type: 'unit' | 'terrain'
+// obstacle.unitId: blocking unit ID (if unit)
+
+// Check firing arc (based on unit facing)
+const arcCheck = losProcessor.checkFiringArc(archer, enemy);
+// arcCheck.inArc: true if target is within firing arc
+// arcCheck.angle: angle to target in degrees
+// arcCheck.arcLimit: half of unit's firing arc
+// arcCheck.relativeDirection: 'front' | 'side' | 'rear'
+
+// Full LoS check (range, arc, obstacles)
+const losCheck: LoSCheckResult = losProcessor.checkLoS(archer, enemy, state);
+// losCheck.hasLoS: true if can attack (direct or arc)
+// losCheck.directLoS: true if unobstructed line
+// losCheck.arcLoS: true if can use arc fire
+// losCheck.obstacles: array of blocking obstacles
+// losCheck.recommendedMode: 'direct' | 'arc' | 'blocked'
+// losCheck.distance: Manhattan distance to target
+
+// Validate ranged attack with accuracy modifier
+const validation: LoSValidationResult = losProcessor.validateRangedAttack(
+  archer,
+  enemy,
+  state,
+  DEFAULT_LOS_CONFIG,
+);
+// validation.valid: true if attack is allowed
+// validation.fireMode: 'direct' | 'arc' | 'blocked'
+// validation.accuracyModifier: 1.0 for direct, 0.8 for arc
+
+// Get accuracy modifier for fire mode
+const accuracy = losProcessor.getAccuracyModifier('arc', DEFAULT_LOS_CONFIG);
+// direct: 1.0, arc: 0.8, blocked: 0.0
+
+// Find all valid targets within range and LoS
+const targets = losProcessor.findValidTargets(archer, state, DEFAULT_LOS_CONFIG);
+// Array of { target, losCheck } for each valid target
+```
+
+Fire modes:
+- Direct Fire: Straight-line attacks, blocked by units/obstacles, 100% accuracy
+- Arc Fire: Lobbed attacks (catapults, mages), ignores obstacles, reduced accuracy
+
+Firing arc calculation:
+- Default firing arc: 90° (45° each side of facing)
+- Target must be within arc to be attacked
+
+### Tier 3: Ammunition (Resource Management)
+
+The ammunition system tracks resource consumption for ranged units and ability cooldowns for mages. Independent mechanic but required by overwatch.
+
+```typescript
+import { createAmmunitionProcessor, DEFAULT_AMMO_CONFIG } from '@core/mechanics';
+import type { AmmoConfig, UnitWithAmmunition, AmmoCheckResult, CooldownCheckResult } from '@core/mechanics';
+
+const ammoProcessor = createAmmunitionProcessor({
+  enabled: true,
+  mageCooldowns: true,       // Mages use cooldowns instead of ammo
+  defaultAmmo: 6,            // Default ammo for ranged units
+  defaultCooldown: 3,        // Default cooldown for mage abilities
+});
+
+// Determine resource type for a unit
+const resourceType = ammoProcessor.getResourceType(archer);
+// 'ammo' for ranged, 'cooldown' for mages, 'none' for melee
+
+// Check if ranged unit can attack
+const ammoCheck: AmmoCheckResult = ammoProcessor.checkAmmo(archer);
+// ammoCheck.canAttack: true if has ammo
+// ammoCheck.ammoRemaining: current ammo count
+// ammoCheck.ammoState: 'full' | 'partial' | 'empty' | 'reloading'
+
+// Check if mage ability is ready
+const cooldownCheck: CooldownCheckResult = ammoProcessor.checkCooldown(mage, 'fireball');
+// cooldownCheck.canUse: true if off cooldown
+// cooldownCheck.turnsRemaining: turns until ready
+// cooldownCheck.cooldownState: 'ready' | 'cooling' | 'reduced'
+
+// Consume ammunition on ranged attack
+const consumeResult = ammoProcessor.consumeAmmo(archer, state, 1);
+// consumeResult.success: true if had ammo
+// consumeResult.ammoConsumed: 1
+// consumeResult.ammoRemaining: new ammo count
+
+// Trigger cooldown after ability use
+const triggerResult = ammoProcessor.triggerCooldown(mage, 'fireball', state, 3);
+// triggerResult.cooldownDuration: 3 turns
+// triggerResult.unit: updated mage with cooldown
+
+// Reload ammunition (at turn start or via ability)
+const reloadResult = ammoProcessor.reload(archer, state);
+// reloadResult.ammoRestored: amount restored
+// reloadResult.newAmmo: new ammo count
+
+// Tick cooldowns at turn start (reduces by 1)
+const tickResult = ammoProcessor.tickCooldowns(mage);
+// tickResult.abilitiesReady: abilities now off cooldown
+// tickResult.cooldownsReduced: new cooldown values
+
+// Get current ammo/cooldown state
+const ammoState = ammoProcessor.getAmmoState(archer);
+const cooldownState = ammoProcessor.getCooldownState(mage, 'fireball');
+
+// Initialize unit with resource state at battle start
+const initializedUnit = ammoProcessor.initializeUnit(archer, DEFAULT_AMMO_CONFIG);
+// Sets ammo to maxAmmo, initializes cooldowns
+```
+
+Resource types:
+- Ammo: Ranged units (archers, crossbowmen) - consumed per attack
+- Cooldown: Mages - abilities have cooldown after use
+- None: Melee units - no resource tracking
+
+Special tags:
+- `unlimited_ammo`: Unit never runs out of ammo
+- `quick_cooldown`: Cooldowns tick by 2 instead of 1
+
+### Combining Tier 3 Mechanics
+
+Example of using charge, overwatch, phalanx, LoS, and ammunition together:
+
+```typescript
+import {
+  createMechanicsProcessor,
+  createChargeProcessor,
+  createOverwatchProcessor,
+  createPhalanxProcessor,
+  createLoSProcessor,
+  createAmmunitionProcessor,
+  DEFAULT_CHARGE_CONFIG,
+  DEFAULT_PHALANX_CONFIG,
+  DEFAULT_LOS_CONFIG,
+  DEFAULT_AMMO_CONFIG,
+} from '@core/mechanics';
+
+// Create unified processor with all Tier 3 mechanics
+const processor = createMechanicsProcessor({
+  facing: true,
+  flanking: true,
+  engagement: true,
+  intercept: true,
+  charge: DEFAULT_CHARGE_CONFIG,
+  overwatch: true,
+  phalanx: DEFAULT_PHALANX_CONFIG,
+  lineOfSight: DEFAULT_LOS_CONFIG,
+  ammunition: DEFAULT_AMMO_CONFIG,
+});
+
+// Example: Process cavalry charge with all mechanics
+function processCavalryCharge(
+  cavalry: BattleUnit & UnitWithCharge,
+  target: BattleUnit,
+  state: BattleState,
+  seed: number,
+): BattleState {
+  const chargeProcessor = createChargeProcessor(DEFAULT_CHARGE_CONFIG);
+  const overwatchProcessor = createOverwatchProcessor();
+  const phalanxProcessor = createPhalanxProcessor(DEFAULT_PHALANX_CONFIG);
+
+  // 1. Check for overwatch triggers during movement
+  const path = findPath(cavalry.position, target.position, state);
+  const overwatchCheck = overwatchProcessor.checkOverwatch(cavalry, path, state);
+
+  let currentState = state;
+  let currentSeed = seed;
+
+  // 2. Execute overwatch shots (may damage/kill cavalry)
+  for (const opportunity of overwatchCheck.opportunities) {
+    if (opportunity.canFire) {
+      const shot = overwatchProcessor.executeOverwatchShot(
+        opportunity.watcher,
+        cavalry,
+        currentState,
+        currentSeed++,
+      );
+      currentState = shot.state;
+
+      // If cavalry died, abort charge
+      if (shot.targetNewHp <= 0) {
+        return currentState;
+      }
+    }
+  }
+
+  // 3. Track movement and calculate momentum
+  const movedCavalry = chargeProcessor.trackMovement(cavalry, path, DEFAULT_CHARGE_CONFIG);
+
+  // 4. Check for Spear Wall counter
+  if (chargeProcessor.isCounteredBySpearWall(target)) {
+    const counterDamage = chargeProcessor.calculateCounterDamage(target);
+    // Apply counter damage to cavalry, stop charge
+    return applyDamage(currentState, cavalry.id, counterDamage);
+  }
+
+  // 5. Execute charge attack
+  const chargeResult = chargeProcessor.executeCharge(
+    movedCavalry,
+    target,
+    currentState,
+    DEFAULT_CHARGE_CONFIG,
+    currentSeed,
+  );
+
+  // 6. Recalculate phalanx formations after casualties
+  if (chargeResult.targetNewHp <= 0) {
+    const phalanxResult = phalanxProcessor.recalculate(chargeResult.state, 'unit_death');
+    return phalanxResult.state;
+  }
+
+  return chargeResult.state;
+}
+
+// Example: Ranged attack with LoS and ammunition
+function processRangedAttack(
+  archer: BattleUnit & UnitWithLoS & UnitWithAmmunition,
+  target: BattleUnit,
+  state: BattleState,
+  seed: number,
+): BattleState {
+  const losProcessor = createLoSProcessor(DEFAULT_LOS_CONFIG);
+  const ammoProcessor = createAmmunitionProcessor(DEFAULT_AMMO_CONFIG);
+
+  // 1. Check ammunition
+  const ammoCheck = ammoProcessor.checkAmmo(archer);
+  if (!ammoCheck.canAttack) {
+    return state; // No ammo, cannot attack
+  }
+
+  // 2. Validate LoS
+  const validation = losProcessor.validateRangedAttack(archer, target, state, DEFAULT_LOS_CONFIG);
+  if (!validation.valid) {
+    return state; // No LoS, cannot attack
+  }
+
+  // 3. Consume ammunition
+  const consumeResult = ammoProcessor.consumeAmmo(archer, state);
+  let currentState = updateUnit(consumeResult.state ?? state, consumeResult.unit);
+
+  // 4. Calculate damage with accuracy modifier
+  const baseDamage = archer.stats.atk;
+  const accuracyRoll = seededRandom(seed);
+  const hitChance = validation.accuracyModifier;
+
+  if (accuracyRoll < hitChance) {
+    // Hit - apply damage
+    currentState = applyDamage(currentState, target.id, baseDamage);
+  }
+
+  return currentState;
+}
+```
+
+### Tier 4: Contagion (Effect Spreading)
+
+The contagion system allows status effects to spread from infected units to adjacent units. Contagion is designed as a counter-mechanic to phalanx formations - dense formations have increased spread risk.
+
+```typescript
+import { createContagionProcessor, DEFAULT_CONTAGION_CONFIG } from '@core/mechanics';
+import type {
+  ContagionConfig,
+  ContagionType,
+  UnitWithContagion,
+  ContagiousEffect,
+  SpreadEligibility,
+  SpreadPhaseResult,
+} from '@core/mechanics';
+
+const contagionProcessor = createContagionProcessor({
+  fireSpread: 0.5,           // 50% chance for fire to spread
+  poisonSpread: 0.3,         // 30% chance for poison to spread
+  curseSpread: 0.25,         // 25% chance for curse to spread
+  frostSpread: 0.2,          // 20% chance for frost to spread
+  plagueSpread: 0.6,         // 60% chance for plague to spread
+  phalanxSpreadBonus: 0.15,  // +15% spread chance if target in phalanx
+});
+
+// Get base spread chance for an effect type
+const plagueChance = contagionProcessor.getSpreadChance('plague', DEFAULT_CONTAGION_CONFIG);
+// Returns: 0.6 (60%)
+
+// Get effective spread chance including phalanx bonus
+const effectiveChance = contagionProcessor.getEffectiveSpreadChance(
+  'plague',
+  targetInPhalanx,
+  DEFAULT_CONTAGION_CONFIG,
+);
+// Returns: 0.75 (60% + 15% phalanx bonus)
+
+// Find adjacent units that can be infected
+const targets = contagionProcessor.findSpreadTargets(infectedUnit, state.units);
+// Returns: units with Manhattan distance = 1 and HP > 0
+
+// Check if a specific effect can spread to a target
+const eligibility: SpreadEligibility = contagionProcessor.canSpreadTo(
+  'fire',
+  infectedUnit,
+  adjacentUnit,
+  DEFAULT_CONTAGION_CONFIG,
+);
+// eligibility.canSpread: true if target can be infected
+// eligibility.reason: 'immune' | 'already_infected' | 'dead' | etc.
+// eligibility.spreadChance: calculated spread chance
+// eligibility.phalanxBonusApplied: true if target in phalanx
+
+// Get all contagious effects from a unit
+const effects: ContagiousEffect[] = contagionProcessor.getContagiousEffects(unit);
+// Returns effects with type in ['fire', 'poison', 'curse', 'frost', 'plague']
+
+// Apply a contagious effect to a target
+const infectedTarget = contagionProcessor.applyEffect(target, plagueEffect, source.id);
+// target.statusEffects now includes the plague effect
+
+// Spread all effects at turn end (main spread phase)
+const newState = contagionProcessor.spreadEffects(state, seed);
+
+// Spread with detailed results for logging
+const result: SpreadPhaseResult = contagionProcessor.spreadEffectsWithDetails(
+  state,
+  seed,
+  DEFAULT_CONTAGION_CONFIG,
+);
+// result.totalAttempts: number of spread attempts
+// result.totalSuccessful: number of successful spreads
+// result.allNewlyInfectedIds: IDs of newly infected units
+// result.unitResults: detailed results per source unit
+
+// Apply contagion logic during battle phase
+const newState = contagionProcessor.apply('turn_end', state, {
+  activeUnit: currentUnit,
+  seed: 12345,
+});
+```
+
+Contagion types and default spread chances:
+- `plague`: 60% - Disease spreads rapidly in close quarters
+- `fire`: 50% - Burns spread quickly through contact
+- `poison`: 30% - Toxins spread moderately through contact
+- `curse`: 25% - Magical afflictions spread slowly
+- `frost`: 20% - Cold effects require sustained exposure
+
+Spread formula:
+- `effectiveChance = baseChance + (inPhalanx ? phalanxSpreadBonus : 0)`
+- Roll < effectiveChance = spread succeeds
+
+Phalanx counter-synergy:
+- Units in phalanx formation gain defensive bonuses but have +15% spread risk
+- This creates a strategic trade-off: tight formations are strong but vulnerable to contagion
+
+### Tier 4: Armor Shred (Armor Degradation)
+
+The armor shred system reduces target armor on physical attacks. Armor shred is a fully independent mechanic (no dependencies) that accumulates over multiple attacks.
+
+```typescript
+import { createShredProcessor, DEFAULT_SHRED_CONFIG } from '@core/mechanics';
+import type {
+  ShredConfig,
+  UnitWithArmorShred,
+  ApplyShredResult,
+  EffectiveArmorResult,
+  DecayShredResult,
+} from '@core/mechanics';
+
+const shredProcessor = createShredProcessor({
+  shredPerAttack: 1,         // 1 armor shred per physical attack
+  maxShredPercent: 0.4,      // Maximum 40% of base armor can be shredded
+  decayPerTurn: 0,           // No decay (shred is permanent)
+});
+
+// Apply shred on physical attack
+const shreddedTarget = shredProcessor.applyShred(target, DEFAULT_SHRED_CONFIG);
+// target.armorShred increased by shredPerAttack (capped at max)
+
+// Apply shred with detailed results
+const result: ApplyShredResult = shredProcessor.applyShredWithDetails(
+  target,
+  DEFAULT_SHRED_CONFIG,
+);
+// result.shredApplied: actual shred applied (may be less if capped)
+// result.wasCapped: true if shred hit the maximum
+// result.newTotalShred: new total shred on target
+// result.maxShred: maximum shred for this target
+
+// Get effective armor for damage calculation
+const effectiveArmor = shredProcessor.getEffectiveArmor(unit);
+// Formula: max(0, baseArmor - armorShred)
+// Example: 10 armor - 3 shred = 7 effective armor
+
+// Get detailed effective armor calculation
+const details: EffectiveArmorResult = shredProcessor.getEffectiveArmorDetails(
+  unit,
+  DEFAULT_SHRED_CONFIG,
+);
+// details.baseArmor: original armor value
+// details.currentShred: accumulated shred
+// details.effectiveArmor: armor after shred
+// details.maxShred: maximum possible shred
+// details.shredPercent: percentage of armor shredded
+
+// Calculate maximum shred for a unit
+const maxShred = shredProcessor.getMaxShred(unit, DEFAULT_SHRED_CONFIG);
+// Formula: floor(baseArmor * maxShredPercent)
+// Example: 10 armor * 0.4 = 4 max shred
+
+// Decay shred at turn end (if configured)
+const decayedUnit = shredProcessor.decayShred(unit, {
+  ...DEFAULT_SHRED_CONFIG,
+  decayPerTurn: 1,  // Decay 1 shred per turn
+});
+
+// Decay with detailed results
+const decayResult: DecayShredResult = shredProcessor.decayShredWithDetails(
+  unit,
+  { ...DEFAULT_SHRED_CONFIG, decayPerTurn: 1 },
+);
+// decayResult.decayAmount: shred that decayed
+// decayResult.previousShred: shred before decay
+// decayResult.newShred: shred after decay
+
+// Check if unit has any shred
+const hasShred = shredProcessor.hasShred(unit);
+// Returns: true if armorShred > 0
+
+// Check if unit is at maximum shred
+const isMaxed = shredProcessor.isAtMaxShred(unit, DEFAULT_SHRED_CONFIG);
+// Returns: true if currentShred >= maxShred
+
+// Reset shred (for cleanse effects)
+const cleansedUnit = shredProcessor.resetShred(unit);
+// unit.armorShred = 0
+
+// Apply shred logic during battle phase
+const newState = shredProcessor.apply('attack', state, {
+  activeUnit: attacker,
+  target: defender,
+  action: { type: 'attack', targetId: defender.id },
+  seed: 12345,
+});
+```
+
+Shred formulas:
+- Max shred: `floor(baseArmor * maxShredPercent)`
+- Effective armor: `max(0, baseArmor - currentShred)`
+- Shred per attack: configurable (default: 1)
+
+Example with 10 armor unit and 40% max shred:
+- Max shred = floor(10 * 0.4) = 4
+- After 1 attack: effective armor = 10 - 1 = 9
+- After 4 attacks: effective armor = 10 - 4 = 6 (capped)
+- After 5 attacks: still 6 (cannot exceed max shred)
+
+### Combining Tier 4 Mechanics
+
+Example of using contagion and armor shred together with other mechanics:
+
+```typescript
+import {
+  createMechanicsProcessor,
+  createContagionProcessor,
+  createShredProcessor,
+  createPhalanxProcessor,
+  DEFAULT_CONTAGION_CONFIG,
+  DEFAULT_SHRED_CONFIG,
+  DEFAULT_PHALANX_CONFIG,
+} from '@core/mechanics';
+
+// Create unified processor with Tier 4 mechanics
+const processor = createMechanicsProcessor({
+  facing: true,
+  flanking: true,
+  phalanx: DEFAULT_PHALANX_CONFIG,
+  contagion: DEFAULT_CONTAGION_CONFIG,
+  armorShred: DEFAULT_SHRED_CONFIG,
+});
+
+// Example: Process physical attack with armor shred
+function processPhysicalAttack(
+  attacker: BattleUnit,
+  target: BattleUnit & UnitWithArmorShred,
+  state: BattleState,
+  seed: number,
+): BattleState {
+  const shredProcessor = createShredProcessor(DEFAULT_SHRED_CONFIG);
+
+  // 1. Get effective armor (reduced by accumulated shred)
+  const effectiveArmor = shredProcessor.getEffectiveArmor(target);
+
+  // 2. Calculate damage with reduced armor
+  const baseDamage = attacker.stats.atk;
+  const damage = Math.max(1, baseDamage - effectiveArmor);
+
+  // 3. Apply damage to target
+  let currentState = applyDamage(state, target.id, damage);
+
+  // 4. Apply new shred from this attack
+  const shreddedTarget = shredProcessor.applyShred(target, DEFAULT_SHRED_CONFIG);
+  currentState = updateUnit(currentState, shreddedTarget);
+
+  return currentState;
+}
+
+// Example: Process contagion spread with phalanx interaction
+function processContagionPhase(
+  state: BattleState,
+  seed: number,
+): BattleState {
+  const contagionProcessor = createContagionProcessor(DEFAULT_CONTAGION_CONFIG);
+  const phalanxProcessor = createPhalanxProcessor(DEFAULT_PHALANX_CONFIG);
+
+  // 1. Update phalanx status for all units
+  let currentState = state;
+  for (const unit of state.units) {
+    const updatedUnit = phalanxProcessor.updateUnitPhalanx(
+      unit,
+      currentState,
+      DEFAULT_PHALANX_CONFIG,
+    );
+    currentState = updateUnit(currentState, updatedUnit);
+  }
+
+  // 2. Spread contagious effects (phalanx units have higher spread risk)
+  const spreadResult = contagionProcessor.spreadEffectsWithDetails(
+    currentState,
+    seed,
+    DEFAULT_CONTAGION_CONFIG,
+  );
+
+  // 3. Log spread results
+  if (spreadResult.totalSuccessful > 0) {
+    console.log(`${spreadResult.totalSuccessful} effects spread to ${spreadResult.allNewlyInfectedIds.length} units`);
+  }
+
+  return spreadResult.state;
+}
+
+// Example: Full turn end processing with Tier 4 mechanics
+function processTurnEnd(
+  state: BattleState,
+  seed: number,
+): BattleState {
+  const contagionProcessor = createContagionProcessor(DEFAULT_CONTAGION_CONFIG);
+  const shredProcessor = createShredProcessor({
+    ...DEFAULT_SHRED_CONFIG,
+    decayPerTurn: 1,  // Enable shred decay
+  });
+
+  let currentState = state;
+  let currentSeed = seed;
+
+  // 1. Spread contagious effects
+  currentState = contagionProcessor.spreadEffects(currentState, currentSeed++);
+
+  // 2. Decay armor shred on all units
+  for (const unit of currentState.units) {
+    const shredUnit = unit as BattleUnit & UnitWithArmorShred;
+    if (shredProcessor.hasShred(shredUnit)) {
+      const decayedUnit = shredProcessor.decayShred(shredUnit, {
+        ...DEFAULT_SHRED_CONFIG,
+        decayPerTurn: 1,
+      });
+      currentState = updateUnit(currentState, decayedUnit);
+    }
+  }
+
+  return currentState;
+}
+```
+
+Strategic considerations:
+- Armor shred is most effective against high-armor targets (tanks)
+- Contagion counters phalanx formations - spread fire/plague to break formations
+- Combine shred with flanking for maximum damage output
+- Use contagion immunity on key units to protect against spread
+
 ### Testing Mechanics
 
 ```bash
@@ -921,10 +1705,19 @@ npm test -- tier1/flanking
 npm test -- tier2/riposte
 npm test -- tier2/intercept
 npm test -- tier2/aura
+npm test -- tier3/charge
+npm test -- tier3/overwatch
+npm test -- tier3/phalanx
+npm test -- tier3/los
+npm test -- tier3/ammunition
+npm test -- tier4/contagion
+npm test -- tier4/armor-shred
 
 # Run integration tests
 npm test -- tier0-1.integration.spec.ts
 npm test -- tier2.integration.spec.ts
+npm test -- tier3.integration.spec.ts
+npm test -- tier4.integration.spec.ts
 ```
 
 ## See Also

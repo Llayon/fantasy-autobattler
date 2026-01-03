@@ -196,28 +196,40 @@ describe('MVP Preset Snapshot Tests', () => {
 
         // Run with MVP preset processor
         const processor = createMechanicsProcessor(MVP_PRESET);
-        // Note: Currently simulateBattle doesn't accept processor parameter
-        // This test verifies the processor is correctly configured
-        // When integration is complete, this will use the processor
 
         // Verify MVP preset has all mechanics disabled
         expect(processor.config).toEqual(MVP_PRESET);
         expect(Object.keys(processor.processors).length).toBe(0);
 
-        // Verify determinism - same result with same seed
-        const resultSecondRun = simulateBattle(
+        // Run with MVP preset processor - should produce identical results
+        const resultWithProcessor = simulateBattle(
           playerTeam,
           enemyTeam,
           scenario.seed,
+          processor,
         );
 
-        expect(resultNoProcessor.winner).toBe(resultSecondRun.winner);
+        // Verify MVP preset produces identical results to no-processor
+        expect(resultNoProcessor.winner).toBe(resultWithProcessor.winner);
         expect(resultNoProcessor.metadata.totalRounds).toBe(
-          resultSecondRun.metadata.totalRounds,
+          resultWithProcessor.metadata.totalRounds,
         );
         expect(resultNoProcessor.events.length).toBe(
-          resultSecondRun.events.length,
+          resultWithProcessor.events.length,
         );
+
+        // Verify event sequence is identical
+        for (let i = 0; i < resultNoProcessor.events.length; i++) {
+          expect(resultWithProcessor.events[i]!.type).toBe(
+            resultNoProcessor.events[i]!.type,
+          );
+          expect(resultWithProcessor.events[i]!.round).toBe(
+            resultNoProcessor.events[i]!.round,
+          );
+          expect(resultWithProcessor.events[i]!.actorId).toBe(
+            resultNoProcessor.events[i]!.actorId,
+          );
+        }
       },
     );
   });

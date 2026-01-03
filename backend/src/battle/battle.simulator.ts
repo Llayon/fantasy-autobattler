@@ -10,6 +10,11 @@
  * 2. AI decides action (ability/attack/move)
  * 3. Execute action
  * 4. Tick ability cooldowns
+ * 
+ * Core 2.0 Integration:
+ * - Optional MechanicsProcessor for advanced combat mechanics
+ * - Phase hooks for mechanics integration (turn_start, movement, pre_attack, attack, post_attack, turn_end)
+ * - Backward compatible: no processor = MVP behavior (identical to Core 1.0)
  */
 
 import { 
@@ -47,6 +52,10 @@ import { decideAction, UnitAction } from './ai.decision';
 import { getUnitAbility } from '../abilities/ability.data';
 import { isActiveAbility } from '../types/ability.types';
 
+// Core 2.0 Mechanics imports
+import type { MechanicsProcessor, PhaseContext, BattleAction } from '../core/mechanics';
+import type { BattleState as CoreBattleState, BattleUnit as CoreBattleUnit } from '../core/types';
+
 
 // =============================================================================
 // TEAM SETUP INTERFACE
@@ -69,6 +78,57 @@ export interface TeamSetup {
 interface BattleStateWithAbilities extends BattleState {
   /** Units with ability state */
   units: BattleUnitWithAbilities[];
+}
+
+/**
+ * Convert game-specific BattleState to core BattleState for mechanics processor.
+ * The mechanics processor expects the core BattleState interface.
+ * 
+ * @param state - Game-specific battle state
+ * @returns Core battle state compatible with mechanics processor
+ */
+function toCoreBattleState(state: BattleStateWithAbilities): CoreBattleState<CoreBattleUnit> {
+  return {
+    units: state.units as unknown as CoreBattleUnit[],
+    round: state.currentRound,
+    events: state.events,
+  };
+}
+
+/**
+ * Apply core battle state changes back to game-specific state.
+ * Merges unit changes from mechanics processor back into game state.
+ * 
+ * @param gameState - Original game-specific state
+ * @param coreState - Updated core state from mechanics processor
+ * @returns Updated game-specific state
+ */
+function fromCoreBattleState(
+  gameState: BattleStateWithAbilities,
+  coreState: CoreBattleState<CoreBattleUnit>
+): BattleStateWithAbilities {
+  // Merge unit changes from core state back to game state
+  const updatedUnits = gameState.units.map(gameUnit => {
+    const coreUnit = coreState.units.find(u => u.instanceId === gameUnit.instanceId);
+    if (coreUnit) {
+      // Merge core unit properties back to game unit
+      return {
+        ...gameUnit,
+        ...coreUnit,
+        // Preserve game-specific properties that might not be in core
+        abilityCooldowns: gameUnit.abilityCooldowns,
+        statusEffects: gameUnit.statusEffects,
+        isStunned: gameUnit.isStunned,
+        hasTaunt: gameUnit.hasTaunt,
+      } as BattleUnitWithAbilities;
+    }
+    return gameUnit;
+  });
+
+  return {
+    ...gameState,
+    units: updatedUnits,
+  };
 }
 
 // =============================================================================
@@ -311,19 +371,33 @@ function tickAllCooldowns(state: BattleStateWithAbilities): BattleStateWithAbili
  * @param unit - Unit taking the turn
  * @param state - Current battle state
  * @param seed - Random seed for deterministic behavior
+ * @param processor - Optional mechanics processor for Core 2.0 mechanics
  * @returns Events generated during the turn and updated state
  */
 function executeUnitTurnWithAbilities(
   unit: BattleUnitWithAbilities,
   state: BattleStateWithAbilities,
-  seed: number
+  seed: number,
+  processor?: MechanicsProcessor
 ): { events: BattleEvent[]; state: BattleStateWithAbilities } {
   const events: BattleEvent[] = [];
   let currentState = state;
+  let currentSeed = seed;
   
   // Skip turn if unit is stunned
   if (unit.isStunned) {
     return { events: [], state: currentState };
+  }
+  
+  // TURN_START phase (Core 2.0)
+  if (processor) {
+    const turnStartContext: PhaseContext = {
+      activeUnit: unit as unknown as CoreBattleUnit,
+      seed: currentSeed++,
+    };
+    const coreState = toCoreBattleState(currentState);
+    const updatedCoreState = processor.process('turn_start', coreState, turnStartContext);
+    currentState = fromCoreBattleState(currentState, updatedCoreState);
   }
   
   // Get AI decision for this unit
@@ -332,6 +406,19 @@ function executeUnitTurnWithAbilities(
   // Execute based on action type
   switch (action.type) {
     case 'ability': {
+      // PRE_ATTACK phase for abilities (Core 2.0)
+      if (processor && action.target) {
+        const preAttackContext: PhaseContext = {
+          activeUnit: unit as unknown as CoreBattleUnit,
+          target: action.target as unknown as CoreBattleUnit,
+          action: convertToBattleAction(action),
+          seed: currentSeed++,
+        };
+        const coreState = toCoreBattleState(currentState);
+        const updatedCoreState = processor.process('pre_attack', coreState, preAttackContext);
+        currentState = fromCoreBattleState(currentState, updatedCoreState);
+      }
+      
       // Execute ability
       const abilityEvents = executeAbilityAction(unit, action, currentState, seed);
       
@@ -350,13 +437,85 @@ function executeUnitTurnWithAbilities(
         // Add ability events to result
         events.push(...abilityEvents);
       }
+      
+      // POST_ATTACK phase for abilities (Core 2.0)
+      if (processor && action.target) {
+        const postAttackContext: PhaseContext = {
+          activeUnit: unit as unknown as CoreBattleUnit,
+          target: action.target as unknown as CoreBattleUnit,
+          seed: currentSeed++,
+        };
+        const coreState = toCoreBattleState(currentState);
+        const updatedCoreState = processor.process('post_attack', coreState, postAttackContext);
+        currentState = fromCoreBattleState(currentState, updatedCoreState);
+      }
       break;
     }
     
-    case 'attack':
+    case 'attack': {
+      // PRE_ATTACK phase (Core 2.0)
+      if (processor && action.target) {
+        const preAttackContext: PhaseContext = {
+          activeUnit: unit as unknown as CoreBattleUnit,
+          target: action.target as unknown as CoreBattleUnit,
+          action: convertToBattleAction(action),
+          seed: currentSeed++,
+        };
+        const coreState = toCoreBattleState(currentState);
+        const updatedCoreState = processor.process('pre_attack', coreState, preAttackContext);
+        currentState = fromCoreBattleState(currentState, updatedCoreState);
+      }
+      
+      // Use legacy turn execution for basic attacks
+      const turnEvents = executeTurn(unit, currentState, seed);
+      
+      if (turnEvents.length > 0) {
+        currentState = applyBattleEvents(currentState, turnEvents) as BattleStateWithAbilities;
+        events.push(...turnEvents);
+      }
+      
+      // ATTACK phase (Core 2.0)
+      if (processor && action.target) {
+        const attackContext: PhaseContext = {
+          activeUnit: unit as unknown as CoreBattleUnit,
+          target: action.target as unknown as CoreBattleUnit,
+          action: convertToBattleAction(action),
+          seed: currentSeed++,
+        };
+        const coreState = toCoreBattleState(currentState);
+        const updatedCoreState = processor.process('attack', coreState, attackContext);
+        currentState = fromCoreBattleState(currentState, updatedCoreState);
+      }
+      
+      // POST_ATTACK phase (Core 2.0)
+      if (processor && action.target) {
+        const postAttackContext: PhaseContext = {
+          activeUnit: unit as unknown as CoreBattleUnit,
+          target: action.target as unknown as CoreBattleUnit,
+          seed: currentSeed++,
+        };
+        const coreState = toCoreBattleState(currentState);
+        const updatedCoreState = processor.process('post_attack', coreState, postAttackContext);
+        currentState = fromCoreBattleState(currentState, updatedCoreState);
+      }
+      break;
+    }
+    
     case 'move':
     default: {
-      // Use legacy turn execution for basic attacks and movement
+      // MOVEMENT phase (Core 2.0)
+      if (processor) {
+        const movementContext: PhaseContext = {
+          activeUnit: unit as unknown as CoreBattleUnit,
+          action: convertToBattleAction(action),
+          seed: currentSeed++,
+        };
+        const coreState = toCoreBattleState(currentState);
+        const updatedCoreState = processor.process('movement', coreState, movementContext);
+        currentState = fromCoreBattleState(currentState, updatedCoreState);
+      }
+      
+      // Use legacy turn execution for movement
       const turnEvents = executeTurn(unit, currentState, seed);
       
       if (turnEvents.length > 0) {
@@ -367,7 +526,55 @@ function executeUnitTurnWithAbilities(
     }
   }
   
+  // TURN_END phase (Core 2.0)
+  if (processor) {
+    const turnEndContext: PhaseContext = {
+      activeUnit: unit as unknown as CoreBattleUnit,
+      seed: currentSeed++,
+    };
+    const coreState = toCoreBattleState(currentState);
+    const updatedCoreState = processor.process('turn_end', coreState, turnEndContext);
+    currentState = fromCoreBattleState(currentState, updatedCoreState);
+  }
+  
   return { events, state: currentState };
+}
+
+/**
+ * Convert UnitAction to BattleAction for mechanics processor.
+ * 
+ * @param action - AI decision action
+ * @returns BattleAction for mechanics processor
+ */
+function convertToBattleAction(action: UnitAction): BattleAction {
+  switch (action.type) {
+    case 'ability': {
+      const battleAction: BattleAction = { type: 'ability' };
+      if (action.target?.instanceId) {
+        battleAction.targetId = action.target.instanceId;
+      }
+      if (action.abilityId) {
+        battleAction.abilityId = action.abilityId;
+      }
+      return battleAction;
+    }
+    case 'attack': {
+      const battleAction: BattleAction = { type: 'attack' };
+      if (action.target?.instanceId) {
+        battleAction.targetId = action.target.instanceId;
+      }
+      return battleAction;
+    }
+    case 'move': {
+      const battleAction: BattleAction = { type: 'move' };
+      if (action.targetPosition) {
+        battleAction.path = [action.targetPosition];
+      }
+      return battleAction;
+    }
+    default:
+      return { type: 'wait' };
+  }
 }
 
 // =============================================================================
@@ -379,10 +586,19 @@ function executeUnitTurnWithAbilities(
  * Uses advanced grid-based combat with pathfinding, targeting, abilities,
  * status effects, and deterministic AI.
  * 
+ * Core 2.0 Integration:
+ * - Optional MechanicsProcessor for advanced combat mechanics
+ * - Phase hooks: turn_start, movement, pre_attack, attack, post_attack, turn_end
+ * - Backward compatible: no processor = MVP behavior (identical to Core 1.0)
+ * 
  * Turn flow per unit:
  * 1. Check if stunned (skip if true)
- * 2. AI decides action (ability/attack/move)
- * 3. Execute action
+ * 2. [Core 2.0] Apply turn_start mechanics
+ * 3. AI decides action (ability/attack/move)
+ * 4. [Core 2.0] Apply movement/pre_attack mechanics
+ * 5. Execute action
+ * 6. [Core 2.0] Apply attack/post_attack mechanics
+ * 7. [Core 2.0] Apply turn_end mechanics
  * 
  * Round flow:
  * 1. Tick status effects (duration, DoT/HoT)
@@ -394,17 +610,24 @@ function executeUnitTurnWithAbilities(
  * @param playerTeam - Player team setup with units and positions
  * @param enemyTeam - Enemy team setup with units and positions
  * @param seed - Random seed for deterministic simulation
+ * @param processor - Optional mechanics processor for Core 2.0 mechanics
  * @returns Complete battle result with events and final states
  * @throws Error if team setups are invalid
  * @example
- * const playerTeam = { units: [warrior, mage], positions: [{ x: 1, y: 0 }, { x: 2, y: 1 }] };
- * const enemyTeam = { units: [orc, goblin], positions: [{ x: 1, y: 9 }, { x: 2, y: 8 }] };
+ * // MVP mode (Core 1.0 behavior, no mechanics)
  * const result = simulateBattle(playerTeam, enemyTeam, 12345);
+ * 
+ * @example
+ * // With Core 2.0 mechanics (roguelike preset)
+ * import { createMechanicsProcessor, ROGUELIKE_PRESET } from '@core/mechanics';
+ * const processor = createMechanicsProcessor(ROGUELIKE_PRESET);
+ * const result = simulateBattle(playerTeam, enemyTeam, 12345, processor);
  */
 export function simulateBattle(
   playerTeam: TeamSetup,
   enemyTeam: TeamSetup,
-  seed: number
+  seed: number,
+  processor?: MechanicsProcessor
 ): BattleResult {
   const startTime = Date.now();
   
@@ -431,6 +654,7 @@ export function simulateBattle(
   };
   
   const allEvents: BattleEvent[] = [];
+  let currentSeed = seed;
   
   // Add battle start event
   allEvents.push({
@@ -441,6 +665,7 @@ export function simulateBattle(
       message: 'Battle begins',
       playerUnits: playerUnits.length,
       enemyUnits: enemyUnits.length,
+      mechanicsEnabled: processor ? true : false,
     },
   });
   
@@ -470,16 +695,18 @@ export function simulateBattle(
       if (!currentUnit || !currentUnit.alive) continue;
       
       // Generate seed for this turn (deterministic based on battle seed, round, and unit)
-      const turnSeed = seed + battleState.currentRound * 1000 + hashTeamSetup({ 
+      const turnSeed = currentSeed + battleState.currentRound * 1000 + hashTeamSetup({ 
         units: [unit], 
         positions: [unit.position] 
       });
+      currentSeed = turnSeed + 1;
       
-      // Execute unit's turn with ability support
+      // Execute unit's turn with ability support and optional mechanics processor
       const turnResult = executeUnitTurnWithAbilities(
         currentUnit as BattleUnitWithAbilities, 
         battleState, 
-        turnSeed
+        turnSeed,
+        processor
       );
       
       // Update state and collect events
@@ -646,6 +873,7 @@ export function analyzeBattleResult(result: BattleResult): BattleAnalysis {
  * @param enemyUnits - Array of enemy unit templates
  * @param enemyPositions - Array of enemy unit positions
  * @param seed - Random seed for deterministic simulation
+ * @param processor - Optional mechanics processor for Core 2.0 mechanics
  * @returns Battle result
  */
 export function simulateBattleLegacy(
@@ -653,7 +881,8 @@ export function simulateBattleLegacy(
   playerPositions: Position[],
   enemyUnits: UnitTemplate[],
   enemyPositions: Position[],
-  seed: number
+  seed: number,
+  processor?: MechanicsProcessor
 ): BattleResult {
   const playerTeam: TeamSetup = {
     units: playerUnits,
@@ -665,5 +894,5 @@ export function simulateBattleLegacy(
     positions: enemyPositions,
   };
   
-  return simulateBattle(playerTeam, enemyTeam, seed);
+  return simulateBattle(playerTeam, enemyTeam, seed, processor);
 }

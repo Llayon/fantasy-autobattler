@@ -47,6 +47,117 @@ export type BattleWinner = 'player' | 'bot' | 'draw';
  */
 export type BattleAuraType = 'static' | 'pulse' | 'relic';
 
+// ═══════════════════════════════════════════════════════════════
+// STATUS EFFECT TYPES (Tier 4: Contagion mechanic and Ability system)
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Type of status effect.
+ * Determines how the effect modifies unit behavior or stats.
+ *
+ * - damage: Direct damage effect
+ * - heal: Direct healing effect
+ * - buff: Positive stat modification
+ * - debuff: Negative stat modification
+ * - stun: Prevents unit from acting
+ * - taunt: Forces enemies to target this unit
+ * - dot: Damage over time (fire, poison, etc.)
+ * - hot: Healing over time
+ * - shield: Absorbs incoming damage
+ * - cleanse: Removes negative effects
+ * - dispel: Removes positive effects from enemies
+ */
+export type BattleStatusEffectType =
+  | 'damage'
+  | 'heal'
+  | 'buff'
+  | 'debuff'
+  | 'stun'
+  | 'taunt'
+  | 'dot'
+  | 'hot'
+  | 'shield'
+  | 'cleanse'
+  | 'dispel';
+
+/**
+ * Contagious effect types that can spread between units.
+ * Used by the Contagion mechanic (Tier 4).
+ *
+ * - fire: Burns spread quickly (50% base chance)
+ * - poison: Toxins spread through contact (30% base chance)
+ * - curse: Magical afflictions spread slowly (25% base chance)
+ * - frost: Cold effects spread slowly (20% base chance)
+ * - plague: Disease spreads rapidly (60% base chance)
+ */
+export type BattleContagionType = 'fire' | 'poison' | 'curse' | 'frost' | 'plague';
+
+/**
+ * Active status effect on a unit.
+ * Represents a temporary modification to unit state from abilities or contagion.
+ *
+ * This is a simplified interface for BattleUnit. For full status effect tracking
+ * with ability integration, see StatusEffect in ability.types.ts.
+ *
+ * @example
+ * // Burn effect (DoT)
+ * const burnEffect: BattleStatusEffect = {
+ *   id: 'burn_1',
+ *   type: 'dot',
+ *   value: 5,
+ *   duration: 3,
+ *   sourceUnitId: 'mage_1',
+ * };
+ *
+ * // Attack buff
+ * const atkBuff: BattleStatusEffect = {
+ *   id: 'inspire_1',
+ *   type: 'buff',
+ *   stat: 'atk',
+ *   value: 0.2,
+ *   isPercentage: true,
+ *   duration: 2,
+ *   sourceUnitId: 'bard_1',
+ * };
+ */
+export interface BattleStatusEffect {
+  /** Unique identifier for this effect instance (optional for simple effects) */
+  id?: string;
+
+  /** Effect type (determines behavior) */
+  type: BattleStatusEffectType | BattleContagionType | string;
+
+  /** Effect value (damage, heal amount, or stat modifier) */
+  value?: number;
+
+  /** Stat being modified (for buff/debuff effects) */
+  stat?: BattleAuraStat;
+
+  /** Whether value is a percentage (true) or flat amount (false) */
+  isPercentage?: boolean;
+
+  /** Remaining duration in turns */
+  duration: number;
+
+  /** ID of the unit that applied this effect */
+  sourceUnitId?: string;
+
+  /** ID of the ability that created this effect */
+  sourceAbilityId?: string;
+
+  /** Current stack count (for stackable effects) */
+  stacks?: number;
+
+  /** Maximum stacks allowed */
+  maxStacks?: number;
+
+  /** Whether this effect was spread from another unit (contagion) */
+  isSpread?: boolean;
+
+  /** ID of unit this effect spread from (if isSpread is true) */
+  spreadFromId?: string;
+}
+
 /**
  * Aura effect targets.
  *
@@ -377,6 +488,210 @@ export interface BattleUnit {
    * };
    */
   auras?: BattleAura[];
+
+  // ═══════════════════════════════════════════════════════════════
+  // MECHANICS 2.0 EXTENSIONS (Tier 3)
+  // ═══════════════════════════════════════════════════════════════
+
+  /**
+   * Unit's current momentum value (Tier 3: Charge mechanic).
+   * Momentum accumulates based on distance moved before attacking.
+   * Provides a damage bonus when attacking after movement.
+   *
+   * Momentum calculation:
+   * - If distance < minChargeDistance: momentum = 0
+   * - Otherwise: momentum = min(maxMomentum, distance * momentumPerCell)
+   *
+   * Default config values:
+   * - momentumPerCell: 0.2 (+20% damage per cell moved)
+   * - maxMomentum: 1.0 (+100% maximum damage bonus)
+   * - minChargeDistance: 3 cells
+   *
+   * Momentum is reset after attacking or at turn end.
+   * Primarily used by cavalry units with 'cavalry' or 'charge' tags.
+   *
+   * If not set, defaults to 0 (no momentum).
+   *
+   * @see ChargeConfig for configuration options
+   * @example
+   * // Cavalry that moved 4 cells with default config:
+   * // momentum = 4 * 0.2 = 0.8 (+80% damage bonus)
+   * const cavalry: BattleUnit = { ...baseUnit, momentum: 0.8 };
+   */
+  momentum?: number;
+
+  /**
+   * Whether unit is currently in a phalanx formation (Tier 3: Phalanx mechanic).
+   * True when unit has at least one adjacent ally facing the same direction.
+   *
+   * Units in phalanx receive defensive bonuses:
+   * - Armor bonus: +1 per adjacent ally (default, capped at +5)
+   * - Resolve bonus: +5 per adjacent ally (default, capped at +25)
+   *
+   * Phalanx formation requires:
+   * - Unit has 'phalanx' tag (typically infantry with shields)
+   * - Unit has facing direction set
+   * - At least one adjacent ally facing the same direction
+   *
+   * Formation is recalculated after:
+   * - Unit movement
+   * - Unit death (casualties break formation)
+   * - Facing direction change
+   *
+   * If not set, defaults to false (unit is not in formation).
+   *
+   * @see PhalanxConfig for configuration options
+   * @see UnitWithPhalanx for full phalanx state (adjacentAlliesCount, bonuses, etc.)
+   * @example
+   * const spearman: BattleUnit = { ...baseUnit, inPhalanx: true, tags: ['phalanx'] };
+   */
+  inPhalanx?: boolean;
+
+  /**
+   * Current ammunition count for ranged units (Tier 3: Ammunition mechanic).
+   * Decremented on each ranged attack. When ammo reaches 0, unit cannot
+   * perform ranged attacks until reloaded.
+   *
+   * Ammunition tracking:
+   * - Each ranged attack consumes 1 ammo (configurable)
+   * - Units with 'unlimited_ammo' tag ignore ammo consumption
+   * - Ammo can be restored via reload action at turn start (if configured)
+   *
+   * Default config values:
+   * - defaultAmmo: 6 (starting ammunition)
+   * - autoReload: false (no automatic reload)
+   *
+   * Only used by units with 'ranged' tag. Mage units use cooldowns instead.
+   * If not set, defaults to defaultAmmo from AmmoConfig (default: 6).
+   *
+   * @see AmmoConfig for configuration options
+   * @see UnitWithAmmunition for full ammunition state (maxAmmo, ammoState, etc.)
+   * @example
+   * // Archer with 4 arrows remaining
+   * const archer: BattleUnit = { ...baseUnit, ammo: 4, tags: ['ranged'] };
+   */
+  ammo?: number;
+
+  /**
+   * Ability cooldowns map for mage units (Tier 3: Ammunition mechanic).
+   * Key: ability ID, Value: turns remaining until ability is ready.
+   * When cooldown reaches 0, the ability can be used again.
+   *
+   * Cooldown tracking:
+   * - Each ability use triggers its cooldown (configurable duration)
+   * - Cooldowns decrease by 1 at the start of each turn
+   * - Units with 'quick_cooldown' tag have reduced cooldown durations
+   * - Abilities not in the map are considered ready (cooldown = 0)
+   *
+   * Default config values:
+   * - defaultCooldown: 3 (turns before ability is ready again)
+   *
+   * Only used by units with 'mage' tag. Ranged units use ammo instead.
+   * If not set, defaults to empty object (all abilities ready).
+   *
+   * @see AmmoConfig for configuration options
+   * @see UnitWithAmmunition for full cooldown state
+   * @example
+   * // Mage with fireball on cooldown (2 turns remaining)
+   * const mage: BattleUnit = {
+   *   ...baseUnit,
+   *   cooldowns: { fireball: 2, frostbolt: 0 },
+   *   tags: ['mage'],
+   * };
+   */
+  cooldowns?: Record<string, number>;
+
+  // ═══════════════════════════════════════════════════════════════
+  // MECHANICS 2.0 EXTENSIONS (Tier 4)
+  // ═══════════════════════════════════════════════════════════════
+
+  /**
+   * Accumulated armor shred on this unit (Tier 4: Armor Shred mechanic).
+   * Reduces effective armor by this amount when calculating damage.
+   *
+   * Armor shred mechanics:
+   * - Physical attacks apply shred to targets (default: 1 per attack)
+   * - Shred accumulates up to a maximum percentage of base armor
+   * - Effective armor = base armor - accumulated shred
+   * - Optional decay reduces shred at turn end (default: no decay)
+   *
+   * Maximum shred calculation:
+   * - maxShred = floor(baseArmor * maxShredPercent)
+   * - Default maxShredPercent: 0.4 (40% of base armor)
+   *
+   * Example with default config:
+   * - Unit with 10 armor can have max 4 shred (40% of 10)
+   * - After 4 physical attacks: effective armor = 10 - 4 = 6
+   *
+   * Armor shred is a fully independent mechanic (no dependencies).
+   * If not set, defaults to 0 (no shred applied).
+   *
+   * @see ShredConfig for configuration options
+   * @see UnitWithArmorShred for full armor shred state interface
+   * @example
+   * // Unit with 10 base armor and 3 accumulated shred
+   * // Effective armor = 10 - 3 = 7
+   * const shreddedUnit: BattleUnit = {
+   *   ...baseUnit,
+   *   stats: { ...baseStats, armor: 10 },
+   *   armorShred: 3,
+   * };
+   */
+  armorShred?: number;
+
+  /**
+   * Active status effects on this unit (Tier 4: Contagion mechanic and Ability system).
+   * Status effects represent temporary modifications to unit state such as
+   * buffs, debuffs, damage over time, healing over time, stuns, etc.
+   *
+   * Status effects are used by multiple systems:
+   * - Ability System: Buffs, debuffs, stuns, taunts, DoT, HoT from abilities
+   * - Contagion Mechanic: Spreading effects (fire, poison, curse, frost, plague)
+   *
+   * Each status effect contains:
+   * - id: Unique identifier for the effect instance
+   * - sourceAbilityId: ID of the ability that created this effect
+   * - sourceUnitId: ID of the unit that applied this effect
+   * - effect: The actual effect definition (damage, heal, buff, etc.)
+   * - remainingDuration: Turns until effect expires
+   * - stacks: Number of stacks (for stackable effects)
+   *
+   * Status effects are processed at various battle phases:
+   * - Turn start: DoT damage, HoT healing, duration tick
+   * - Turn end: Contagion spread to adjacent units
+   * - On attack: Some effects trigger on attack
+   *
+   * If not set, defaults to empty array (no active effects).
+   *
+   * @see StatusEffect for effect structure
+   * @see BattleUnitWithEffects for full status effect tracking interface
+   * @see ContagionConfig for contagion spread configuration
+   * @example
+   * // Unit with a burn effect (DoT) and an attack buff
+   * const buffedUnit: BattleUnit = {
+   *   ...baseUnit,
+   *   statusEffects: [
+   *     {
+   *       id: 'burn_1',
+   *       sourceAbilityId: 'fireball',
+   *       sourceUnitId: 'mage_1',
+   *       effect: { type: 'dot', value: 5, damageType: 'magical', duration: 3 },
+   *       remainingDuration: 2,
+   *       stacks: 1,
+   *     },
+   *     {
+   *       id: 'atk_buff_1',
+   *       sourceAbilityId: 'inspire',
+   *       sourceUnitId: 'bard_1',
+   *       effect: { type: 'buff', stat: 'attack', percentage: 20, duration: 2 },
+   *       remainingDuration: 1,
+   *       stacks: 1,
+   *     },
+   *   ],
+   * };
+   */
+  statusEffects?: BattleStatusEffect[];
+
 }
 
 /**

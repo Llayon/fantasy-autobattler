@@ -17,6 +17,13 @@ import { createFlankingProcessor } from './tier1/flanking/flanking.processor';
 import { createRiposteProcessor } from './tier2/riposte/riposte.processor';
 import { createInterceptProcessor } from './tier2/intercept/intercept.processor';
 import { createAuraProcessor } from './tier2/aura/aura.processor';
+import { createChargeProcessor } from './tier3/charge/charge.processor';
+import { createOverwatchProcessor } from './tier3/overwatch/overwatch.processor';
+import { createPhalanxProcessor } from './tier3/phalanx/phalanx.processor';
+import { createLoSProcessor } from './tier3/los/los.processor';
+import { createAmmunitionProcessor } from './tier3/ammunition/ammunition.processor';
+import { createContagionProcessor } from './tier4/contagion/contagion.processor';
+import { createShredProcessor } from './tier4/armor-shred/armor-shred.processor';
 
 /**
  * Battle action types for mechanics processing.
@@ -293,27 +300,51 @@ export function buildProcessors(config: MechanicsConfig): MechanicProcessorMap {
 
   // Tier 3
   if (config.charge) {
-    // processors.charge = createChargeProcessor(config.charge);
+    const chargeConfig =
+      typeof config.charge === 'object' ? config.charge : undefined;
+    if (chargeConfig) {
+      processors.charge = createChargeProcessor(chargeConfig);
+    }
   }
   if (config.overwatch) {
-    // processors.overwatch = createOverwatchProcessor();
+    processors.overwatch = createOverwatchProcessor();
   }
   if (config.phalanx) {
-    // processors.phalanx = createPhalanxProcessor(config.phalanx);
+    const phalanxConfig =
+      typeof config.phalanx === 'object' ? config.phalanx : undefined;
+    if (phalanxConfig) {
+      processors.phalanx = createPhalanxProcessor(phalanxConfig);
+    }
   }
   if (config.lineOfSight) {
-    // processors.lineOfSight = createLoSProcessor(config.lineOfSight);
+    const losConfig =
+      typeof config.lineOfSight === 'object' ? config.lineOfSight : undefined;
+    if (losConfig) {
+      processors.lineOfSight = createLoSProcessor(losConfig);
+    }
   }
   if (config.ammunition) {
-    // processors.ammunition = createAmmoProcessor(config.ammunition);
+    const ammoConfig =
+      typeof config.ammunition === 'object' ? config.ammunition : undefined;
+    if (ammoConfig) {
+      processors.ammunition = createAmmunitionProcessor(ammoConfig);
+    }
   }
 
   // Tier 4
   if (config.contagion) {
-    // processors.contagion = createContagionProcessor(config.contagion);
+    const contagionConfig =
+      typeof config.contagion === 'object' ? config.contagion : undefined;
+    if (contagionConfig) {
+      processors.contagion = createContagionProcessor(contagionConfig);
+    }
   }
   if (config.armorShred) {
-    // processors.armorShred = createShredProcessor(config.armorShred);
+    const shredConfig =
+      typeof config.armorShred === 'object' ? config.armorShred : undefined;
+    if (shredConfig) {
+      processors.armorShred = createShredProcessor(shredConfig);
+    }
   }
 
   return processors;

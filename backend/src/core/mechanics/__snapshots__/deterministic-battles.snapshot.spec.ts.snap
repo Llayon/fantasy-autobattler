@@ -2,7 +2,7 @@
 
 exports[`Deterministic Battles Snapshot Tests Edge Case Scenarios should handle corner positions battle 1`] = `
 {
-  "eventCount": 49,
+  "eventCount": 51,
   "eventSequence": [
     {
       "actorId": "system",
@@ -215,6 +215,12 @@ exports[`Deterministic Battles Snapshot Tests Edge Case Scenarios should handle 
       "type": "attack",
     },
     {
+      "actorId": "bot_rogue_0",
+      "round": 6,
+      "targetId": "player_knight_0",
+      "type": "damage",
+    },
+    {
       "actorId": "bot_mage_1",
       "round": 6,
       "targetId": undefined,
@@ -225,6 +231,12 @@ exports[`Deterministic Battles Snapshot Tests Edge Case Scenarios should handle 
       "round": 6,
       "targetId": "bot_rogue_0",
       "type": "attack",
+    },
+    {
+      "actorId": "player_knight_0",
+      "round": 6,
+      "targetId": "bot_rogue_0",
+      "type": "damage",
     },
     {
       "actorId": "system",
@@ -303,7 +315,7 @@ exports[`Deterministic Battles Snapshot Tests Edge Case Scenarios should handle 
     "botUnits": [
       {
         "alive": true,
-        "currentHp": 52,
+        "currentHp": 43,
         "instanceId": "bot_rogue_0",
         "position": {
           "x": 1,
@@ -349,7 +361,7 @@ exports[`Deterministic Battles Snapshot Tests Edge Case Scenarios should handle 
 
 exports[`Deterministic Battles Snapshot Tests Edge Case Scenarios should handle max dodge units battle 1`] = `
 {
-  "eventCount": 41,
+  "eventCount": 55,
   "eventSequence": [
     {
       "actorId": "system",
@@ -386,6 +398,12 @@ exports[`Deterministic Battles Snapshot Tests Edge Case Scenarios should handle 
       "round": 1,
       "targetId": "player_assassin_1",
       "type": "attack",
+    },
+    {
+      "actorId": "bot_hunter_1",
+      "round": 1,
+      "targetId": "player_assassin_1",
+      "type": "damage",
     },
     {
       "actorId": "system",
@@ -428,6 +446,12 @@ exports[`Deterministic Battles Snapshot Tests Edge Case Scenarios should handle 
       "round": 2,
       "targetId": "player_assassin_1",
       "type": "attack",
+    },
+    {
+      "actorId": "bot_duelist_0",
+      "round": 2,
+      "targetId": "player_assassin_1",
+      "type": "damage",
     },
     {
       "actorId": "bot_hunter_1",
@@ -484,12 +508,6 @@ exports[`Deterministic Battles Snapshot Tests Edge Case Scenarios should handle 
       "type": "attack",
     },
     {
-      "actorId": "bot_duelist_0",
-      "round": 3,
-      "targetId": "player_assassin_1",
-      "type": "damage",
-    },
-    {
       "actorId": "system",
       "round": 4,
       "targetId": undefined,
@@ -502,16 +520,16 @@ exports[`Deterministic Battles Snapshot Tests Edge Case Scenarios should handle 
       "type": "attack",
     },
     {
-      "actorId": "player_rogue_0",
+      "actorId": "player_assassin_1",
       "round": 4,
       "targetId": "bot_duelist_0",
-      "type": "attack",
+      "type": "damage",
     },
     {
       "actorId": "player_rogue_0",
       "round": 4,
       "targetId": "bot_duelist_0",
-      "type": "damage",
+      "type": "attack",
     },
     {
       "actorId": "bot_duelist_0",
@@ -526,74 +544,152 @@ exports[`Deterministic Battles Snapshot Tests Edge Case Scenarios should handle 
       "type": "damage",
     },
     {
-      "actorId": "system",
-      "round": 5,
-      "targetId": undefined,
-      "type": "round_start",
-    },
-    {
       "actorId": "player_assassin_1",
-      "round": 5,
-      "targetId": "bot_duelist_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "player_assassin_1",
-      "round": 5,
-      "targetId": "bot_duelist_0",
-      "type": "damage",
-    },
-    {
-      "actorId": "player_rogue_0",
-      "round": 5,
-      "targetId": "bot_duelist_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "bot_duelist_0",
-      "round": 5,
-      "targetId": "player_assassin_1",
-      "type": "attack",
-    },
-    {
-      "actorId": "system",
-      "round": 6,
-      "targetId": undefined,
-      "type": "round_start",
-    },
-    {
-      "actorId": "player_assassin_1",
-      "round": 6,
-      "targetId": "bot_duelist_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "player_assassin_1",
-      "round": 6,
-      "targetId": "bot_duelist_0",
-      "type": "damage",
-    },
-    {
-      "actorId": "player_rogue_0",
-      "round": 6,
-      "targetId": "bot_duelist_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "player_rogue_0",
-      "round": 6,
-      "targetId": "bot_duelist_0",
-      "type": "damage",
-    },
-    {
-      "actorId": "bot_duelist_0",
-      "round": 6,
+      "round": 4,
       "targetId": undefined,
       "type": "death",
     },
     {
       "actorId": "system",
+      "round": 5,
+      "targetId": undefined,
+      "type": "round_start",
+    },
+    {
+      "actorId": "player_rogue_0",
+      "round": 5,
+      "targetId": "bot_duelist_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "bot_duelist_0",
+      "round": 5,
+      "targetId": "player_rogue_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "system",
       "round": 6,
+      "targetId": undefined,
+      "type": "round_start",
+    },
+    {
+      "actorId": "player_rogue_0",
+      "round": 6,
+      "targetId": "bot_duelist_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "bot_duelist_0",
+      "round": 6,
+      "targetId": "player_rogue_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "bot_duelist_0",
+      "round": 6,
+      "targetId": "player_rogue_0",
+      "type": "damage",
+    },
+    {
+      "actorId": "system",
+      "round": 7,
+      "targetId": undefined,
+      "type": "round_start",
+    },
+    {
+      "actorId": "player_rogue_0",
+      "round": 7,
+      "targetId": "bot_duelist_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "player_rogue_0",
+      "round": 7,
+      "targetId": "bot_duelist_0",
+      "type": "damage",
+    },
+    {
+      "actorId": "bot_duelist_0",
+      "round": 7,
+      "targetId": "player_rogue_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "system",
+      "round": 8,
+      "targetId": undefined,
+      "type": "round_start",
+    },
+    {
+      "actorId": "player_rogue_0",
+      "round": 8,
+      "targetId": "bot_duelist_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "player_rogue_0",
+      "round": 8,
+      "targetId": "bot_duelist_0",
+      "type": "damage",
+    },
+    {
+      "actorId": "bot_duelist_0",
+      "round": 8,
+      "targetId": "player_rogue_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "system",
+      "round": 9,
+      "targetId": undefined,
+      "type": "round_start",
+    },
+    {
+      "actorId": "player_rogue_0",
+      "round": 9,
+      "targetId": "bot_duelist_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "bot_duelist_0",
+      "round": 9,
+      "targetId": "player_rogue_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "bot_duelist_0",
+      "round": 9,
+      "targetId": "player_rogue_0",
+      "type": "damage",
+    },
+    {
+      "actorId": "system",
+      "round": 10,
+      "targetId": undefined,
+      "type": "round_start",
+    },
+    {
+      "actorId": "player_rogue_0",
+      "round": 10,
+      "targetId": "bot_duelist_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "player_rogue_0",
+      "round": 10,
+      "targetId": "bot_duelist_0",
+      "type": "damage",
+    },
+    {
+      "actorId": "bot_duelist_0",
+      "round": 10,
+      "targetId": undefined,
+      "type": "death",
+    },
+    {
+      "actorId": "system",
+      "round": 10,
       "targetId": undefined,
       "type": "battle_end",
     },
@@ -622,7 +718,7 @@ exports[`Deterministic Battles Snapshot Tests Edge Case Scenarios should handle 
     "playerUnits": [
       {
         "alive": true,
-        "currentHp": 70,
+        "currentHp": 36,
         "instanceId": "player_rogue_0",
         "position": {
           "x": 2,
@@ -630,8 +726,8 @@ exports[`Deterministic Battles Snapshot Tests Edge Case Scenarios should handle 
         },
       },
       {
-        "alive": true,
-        "currentHp": 11,
+        "alive": false,
+        "currentHp": 0,
         "instanceId": "player_assassin_1",
         "position": {
           "x": 3,
@@ -641,7 +737,7 @@ exports[`Deterministic Battles Snapshot Tests Edge Case Scenarios should handle 
     ],
   },
   "seed": 12345,
-  "totalRounds": 6,
+  "totalRounds": 10,
   "winner": "player",
 }
 `;
@@ -1192,7 +1288,7 @@ exports[`Deterministic Battles Snapshot Tests Edge Case Scenarios should handle 
 
 exports[`Deterministic Battles Snapshot Tests Edge Case Scenarios should handle single unit vs single unit (duel) 1`] = `
 {
-  "eventCount": 51,
+  "eventCount": 53,
   "eventSequence": [
     {
       "actorId": "system",
@@ -1249,6 +1345,12 @@ exports[`Deterministic Battles Snapshot Tests Edge Case Scenarios should handle 
       "type": "attack",
     },
     {
+      "actorId": "player_guardian_0",
+      "round": 2,
+      "targetId": "bot_assassin_0",
+      "type": "damage",
+    },
+    {
       "actorId": "system",
       "round": 3,
       "targetId": undefined,
@@ -1271,6 +1373,12 @@ exports[`Deterministic Battles Snapshot Tests Edge Case Scenarios should handle 
       "round": 3,
       "targetId": "bot_assassin_0",
       "type": "attack",
+    },
+    {
+      "actorId": "player_guardian_0",
+      "round": 3,
+      "targetId": "bot_assassin_0",
+      "type": "damage",
     },
     {
       "actorId": "system",
@@ -1505,7 +1613,7 @@ exports[`Deterministic Battles Snapshot Tests Edge Case Scenarios should handle 
     "botUnits": [
       {
         "alive": true,
-        "currentHp": 25,
+        "currentHp": 13,
         "instanceId": "bot_assassin_0",
         "position": {
           "x": 3,
@@ -3108,12 +3216,6 @@ exports[`Deterministic Battles Snapshot Tests Large Team Battles should match sn
       "type": "attack",
     },
     {
-      "actorId": "bot_priest_6",
-      "round": 12,
-      "targetId": "player_rogue_3",
-      "type": "damage",
-    },
-    {
       "actorId": "player_knight_0",
       "round": 12,
       "targetId": undefined,
@@ -3130,12 +3232,6 @@ exports[`Deterministic Battles Snapshot Tests Large Team Battles should match sn
       "round": 12,
       "targetId": "player_rogue_3",
       "type": "attack",
-    },
-    {
-      "actorId": "bot_guardian_1",
-      "round": 12,
-      "targetId": "player_rogue_3",
-      "type": "damage",
     },
     {
       "actorId": "system",
@@ -3277,6 +3373,18 @@ exports[`Deterministic Battles Snapshot Tests Large Team Battles should match sn
     },
     {
       "actorId": "bot_bard_7",
+      "round": 14,
+      "targetId": "player_rogue_3",
+      "type": "damage",
+    },
+    {
+      "actorId": "bot_berserker_2",
+      "round": 14,
+      "targetId": "player_rogue_3",
+      "type": "attack",
+    },
+    {
+      "actorId": "bot_berserker_2",
       "round": 14,
       "targetId": "player_rogue_3",
       "type": "damage",
@@ -4401,12 +4509,6 @@ exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should 
       "type": "attack",
     },
     {
-      "actorId": "bot_guardian_0",
-      "round": 6,
-      "targetId": "player_knight_0",
-      "type": "damage",
-    },
-    {
       "actorId": "system",
       "round": 7,
       "targetId": undefined,
@@ -4489,6 +4591,12 @@ exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should 
       "round": 9,
       "targetId": "player_knight_0",
       "type": "attack",
+    },
+    {
+      "actorId": "bot_crossbowman_1",
+      "round": 9,
+      "targetId": "player_knight_0",
+      "type": "damage",
     },
     {
       "actorId": "player_knight_0",
@@ -4594,467 +4702,6 @@ exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should 
 `;
 
 exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should produce deterministic result for seed_1000 1`] = `
-{
-  "eventCount": 65,
-  "eventSequence": [
-    {
-      "actorId": "system",
-      "round": 0,
-      "targetId": undefined,
-      "type": "round_start",
-    },
-    {
-      "actorId": "system",
-      "round": 1,
-      "targetId": undefined,
-      "type": "round_start",
-    },
-    {
-      "actorId": "player_archer_1",
-      "round": 1,
-      "targetId": undefined,
-      "type": "move",
-    },
-    {
-      "actorId": "player_mage_2",
-      "round": 1,
-      "targetId": undefined,
-      "type": "move",
-    },
-    {
-      "actorId": "bot_crossbowman_1",
-      "round": 1,
-      "targetId": undefined,
-      "type": "move",
-    },
-    {
-      "actorId": "bot_crossbowman_1",
-      "round": 1,
-      "targetId": "player_mage_2",
-      "type": "attack",
-    },
-    {
-      "actorId": "bot_crossbowman_1",
-      "round": 1,
-      "targetId": "player_mage_2",
-      "type": "damage",
-    },
-    {
-      "actorId": "bot_warlock_2",
-      "round": 1,
-      "targetId": undefined,
-      "type": "move",
-    },
-    {
-      "actorId": "bot_warlock_2",
-      "round": 1,
-      "targetId": "player_mage_2",
-      "type": "attack",
-    },
-    {
-      "actorId": "bot_warlock_2",
-      "round": 1,
-      "targetId": "player_mage_2",
-      "type": "damage",
-    },
-    {
-      "actorId": "player_knight_0",
-      "round": 1,
-      "targetId": "player_knight_0",
-      "type": "ability",
-    },
-    {
-      "actorId": "bot_guardian_0",
-      "round": 1,
-      "targetId": "bot_guardian_0",
-      "type": "ability",
-    },
-    {
-      "actorId": "system",
-      "round": 2,
-      "targetId": undefined,
-      "type": "round_start",
-    },
-    {
-      "actorId": "player_archer_1",
-      "round": 2,
-      "targetId": undefined,
-      "type": "ability",
-    },
-    {
-      "actorId": "player_mage_2",
-      "round": 2,
-      "targetId": "bot_warlock_2",
-      "type": "ability",
-    },
-    {
-      "actorId": "bot_crossbowman_1",
-      "round": 2,
-      "targetId": "player_mage_2",
-      "type": "ability",
-    },
-    {
-      "actorId": "player_knight_0",
-      "round": 2,
-      "targetId": undefined,
-      "type": "move",
-    },
-    {
-      "actorId": "bot_guardian_0",
-      "round": 2,
-      "targetId": undefined,
-      "type": "move",
-    },
-    {
-      "actorId": "system",
-      "round": 3,
-      "targetId": undefined,
-      "type": "round_start",
-    },
-    {
-      "actorId": "player_archer_1",
-      "round": 3,
-      "targetId": undefined,
-      "type": "move",
-    },
-    {
-      "actorId": "player_archer_1",
-      "round": 3,
-      "targetId": "bot_guardian_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "player_archer_1",
-      "round": 3,
-      "targetId": "bot_guardian_0",
-      "type": "damage",
-    },
-    {
-      "actorId": "bot_crossbowman_1",
-      "round": 3,
-      "targetId": "player_archer_1",
-      "type": "attack",
-    },
-    {
-      "actorId": "bot_crossbowman_1",
-      "round": 3,
-      "targetId": "player_archer_1",
-      "type": "damage",
-    },
-    {
-      "actorId": "player_knight_0",
-      "round": 3,
-      "targetId": undefined,
-      "type": "move",
-    },
-    {
-      "actorId": "bot_guardian_0",
-      "round": 3,
-      "targetId": undefined,
-      "type": "move",
-    },
-    {
-      "actorId": "system",
-      "round": 4,
-      "targetId": undefined,
-      "type": "round_start",
-    },
-    {
-      "actorId": "player_archer_1",
-      "round": 4,
-      "targetId": "bot_guardian_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "player_archer_1",
-      "round": 4,
-      "targetId": "bot_guardian_0",
-      "type": "damage",
-    },
-    {
-      "actorId": "bot_crossbowman_1",
-      "round": 4,
-      "targetId": "player_archer_1",
-      "type": "ability",
-    },
-    {
-      "actorId": "player_knight_0",
-      "round": 4,
-      "targetId": "player_knight_0",
-      "type": "ability",
-    },
-    {
-      "actorId": "bot_guardian_0",
-      "round": 4,
-      "targetId": undefined,
-      "type": "move",
-    },
-    {
-      "actorId": "system",
-      "round": 5,
-      "targetId": undefined,
-      "type": "round_start",
-    },
-    {
-      "actorId": "bot_crossbowman_1",
-      "round": 5,
-      "targetId": undefined,
-      "type": "move",
-    },
-    {
-      "actorId": "bot_crossbowman_1",
-      "round": 5,
-      "targetId": "player_knight_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "bot_crossbowman_1",
-      "round": 5,
-      "targetId": "player_knight_0",
-      "type": "damage",
-    },
-    {
-      "actorId": "player_knight_0",
-      "round": 5,
-      "targetId": undefined,
-      "type": "move",
-    },
-    {
-      "actorId": "bot_guardian_0",
-      "round": 5,
-      "targetId": "bot_guardian_0",
-      "type": "ability",
-    },
-    {
-      "actorId": "system",
-      "round": 6,
-      "targetId": undefined,
-      "type": "round_start",
-    },
-    {
-      "actorId": "bot_crossbowman_1",
-      "round": 6,
-      "targetId": "player_knight_0",
-      "type": "ability",
-    },
-    {
-      "actorId": "player_knight_0",
-      "round": 6,
-      "targetId": undefined,
-      "type": "move",
-    },
-    {
-      "actorId": "player_knight_0",
-      "round": 6,
-      "targetId": "bot_guardian_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "player_knight_0",
-      "round": 6,
-      "targetId": "bot_guardian_0",
-      "type": "damage",
-    },
-    {
-      "actorId": "bot_guardian_0",
-      "round": 6,
-      "targetId": "player_knight_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "system",
-      "round": 7,
-      "targetId": undefined,
-      "type": "round_start",
-    },
-    {
-      "actorId": "bot_crossbowman_1",
-      "round": 7,
-      "targetId": "player_knight_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "bot_crossbowman_1",
-      "round": 7,
-      "targetId": "player_knight_0",
-      "type": "damage",
-    },
-    {
-      "actorId": "player_knight_0",
-      "round": 7,
-      "targetId": "player_knight_0",
-      "type": "ability",
-    },
-    {
-      "actorId": "bot_guardian_0",
-      "round": 7,
-      "targetId": "player_knight_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "bot_guardian_0",
-      "round": 7,
-      "targetId": "player_knight_0",
-      "type": "damage",
-    },
-    {
-      "actorId": "system",
-      "round": 8,
-      "targetId": undefined,
-      "type": "round_start",
-    },
-    {
-      "actorId": "bot_crossbowman_1",
-      "round": 8,
-      "targetId": "player_knight_0",
-      "type": "ability",
-    },
-    {
-      "actorId": "player_knight_0",
-      "round": 8,
-      "targetId": "bot_guardian_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "player_knight_0",
-      "round": 8,
-      "targetId": "bot_guardian_0",
-      "type": "damage",
-    },
-    {
-      "actorId": "bot_guardian_0",
-      "round": 8,
-      "targetId": "player_knight_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "bot_guardian_0",
-      "round": 8,
-      "targetId": "player_knight_0",
-      "type": "damage",
-    },
-    {
-      "actorId": "system",
-      "round": 9,
-      "targetId": undefined,
-      "type": "round_start",
-    },
-    {
-      "actorId": "bot_crossbowman_1",
-      "round": 9,
-      "targetId": "player_knight_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "bot_crossbowman_1",
-      "round": 9,
-      "targetId": "player_knight_0",
-      "type": "damage",
-    },
-    {
-      "actorId": "player_knight_0",
-      "round": 9,
-      "targetId": "bot_guardian_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "player_knight_0",
-      "round": 9,
-      "targetId": "bot_guardian_0",
-      "type": "damage",
-    },
-    {
-      "actorId": "bot_guardian_0",
-      "round": 9,
-      "targetId": "bot_guardian_0",
-      "type": "ability",
-    },
-    {
-      "actorId": "system",
-      "round": 10,
-      "targetId": undefined,
-      "type": "round_start",
-    },
-    {
-      "actorId": "bot_crossbowman_1",
-      "round": 10,
-      "targetId": "player_knight_0",
-      "type": "ability",
-    },
-    {
-      "actorId": "system",
-      "round": 10,
-      "targetId": undefined,
-      "type": "battle_end",
-    },
-  ],
-  "finalState": {
-    "botUnits": [
-      {
-        "alive": true,
-        "currentHp": 135,
-        "instanceId": "bot_guardian_0",
-        "position": {
-          "x": 1,
-          "y": 6,
-        },
-      },
-      {
-        "alive": true,
-        "currentHp": 47,
-        "instanceId": "bot_crossbowman_1",
-        "position": {
-          "x": 2,
-          "y": 6,
-        },
-      },
-      {
-        "alive": false,
-        "currentHp": 0,
-        "instanceId": "bot_warlock_2",
-        "position": {
-          "x": 5,
-          "y": 6,
-        },
-      },
-    ],
-    "playerUnits": [
-      {
-        "alive": false,
-        "currentHp": 0,
-        "instanceId": "player_knight_0",
-        "position": {
-          "x": 0,
-          "y": 6,
-        },
-      },
-      {
-        "alive": false,
-        "currentHp": 0,
-        "instanceId": "player_archer_1",
-        "position": {
-          "x": 1,
-          "y": 4,
-        },
-      },
-      {
-        "alive": false,
-        "currentHp": 0,
-        "instanceId": "player_mage_2",
-        "position": {
-          "x": 5,
-          "y": 3,
-        },
-      },
-    ],
-  },
-  "seed": 1000,
-  "totalRounds": 10,
-  "winner": "bot",
-}
-`;
-
-exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should produce deterministic result for seed_5000 1`] = `
 {
   "eventCount": 66,
   "eventSequence": [
@@ -5345,6 +4992,467 @@ exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should 
       "round": 7,
       "targetId": "player_knight_0",
       "type": "damage",
+    },
+    {
+      "actorId": "player_knight_0",
+      "round": 7,
+      "targetId": "player_knight_0",
+      "type": "ability",
+    },
+    {
+      "actorId": "bot_guardian_0",
+      "round": 7,
+      "targetId": "player_knight_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "bot_guardian_0",
+      "round": 7,
+      "targetId": "player_knight_0",
+      "type": "damage",
+    },
+    {
+      "actorId": "system",
+      "round": 8,
+      "targetId": undefined,
+      "type": "round_start",
+    },
+    {
+      "actorId": "bot_crossbowman_1",
+      "round": 8,
+      "targetId": "player_knight_0",
+      "type": "ability",
+    },
+    {
+      "actorId": "player_knight_0",
+      "round": 8,
+      "targetId": "bot_guardian_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "player_knight_0",
+      "round": 8,
+      "targetId": "bot_guardian_0",
+      "type": "damage",
+    },
+    {
+      "actorId": "bot_guardian_0",
+      "round": 8,
+      "targetId": "player_knight_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "bot_guardian_0",
+      "round": 8,
+      "targetId": "player_knight_0",
+      "type": "damage",
+    },
+    {
+      "actorId": "system",
+      "round": 9,
+      "targetId": undefined,
+      "type": "round_start",
+    },
+    {
+      "actorId": "bot_crossbowman_1",
+      "round": 9,
+      "targetId": "player_knight_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "bot_crossbowman_1",
+      "round": 9,
+      "targetId": "player_knight_0",
+      "type": "damage",
+    },
+    {
+      "actorId": "player_knight_0",
+      "round": 9,
+      "targetId": "bot_guardian_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "player_knight_0",
+      "round": 9,
+      "targetId": "bot_guardian_0",
+      "type": "damage",
+    },
+    {
+      "actorId": "bot_guardian_0",
+      "round": 9,
+      "targetId": "bot_guardian_0",
+      "type": "ability",
+    },
+    {
+      "actorId": "system",
+      "round": 10,
+      "targetId": undefined,
+      "type": "round_start",
+    },
+    {
+      "actorId": "bot_crossbowman_1",
+      "round": 10,
+      "targetId": "player_knight_0",
+      "type": "ability",
+    },
+    {
+      "actorId": "system",
+      "round": 10,
+      "targetId": undefined,
+      "type": "battle_end",
+    },
+  ],
+  "finalState": {
+    "botUnits": [
+      {
+        "alive": true,
+        "currentHp": 135,
+        "instanceId": "bot_guardian_0",
+        "position": {
+          "x": 1,
+          "y": 6,
+        },
+      },
+      {
+        "alive": true,
+        "currentHp": 47,
+        "instanceId": "bot_crossbowman_1",
+        "position": {
+          "x": 2,
+          "y": 6,
+        },
+      },
+      {
+        "alive": false,
+        "currentHp": 0,
+        "instanceId": "bot_warlock_2",
+        "position": {
+          "x": 5,
+          "y": 6,
+        },
+      },
+    ],
+    "playerUnits": [
+      {
+        "alive": false,
+        "currentHp": 0,
+        "instanceId": "player_knight_0",
+        "position": {
+          "x": 0,
+          "y": 6,
+        },
+      },
+      {
+        "alive": false,
+        "currentHp": 0,
+        "instanceId": "player_archer_1",
+        "position": {
+          "x": 1,
+          "y": 4,
+        },
+      },
+      {
+        "alive": false,
+        "currentHp": 0,
+        "instanceId": "player_mage_2",
+        "position": {
+          "x": 5,
+          "y": 3,
+        },
+      },
+    ],
+  },
+  "seed": 1000,
+  "totalRounds": 10,
+  "winner": "bot",
+}
+`;
+
+exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should produce deterministic result for seed_5000 1`] = `
+{
+  "eventCount": 65,
+  "eventSequence": [
+    {
+      "actorId": "system",
+      "round": 0,
+      "targetId": undefined,
+      "type": "round_start",
+    },
+    {
+      "actorId": "system",
+      "round": 1,
+      "targetId": undefined,
+      "type": "round_start",
+    },
+    {
+      "actorId": "player_archer_1",
+      "round": 1,
+      "targetId": undefined,
+      "type": "move",
+    },
+    {
+      "actorId": "player_mage_2",
+      "round": 1,
+      "targetId": undefined,
+      "type": "move",
+    },
+    {
+      "actorId": "bot_crossbowman_1",
+      "round": 1,
+      "targetId": undefined,
+      "type": "move",
+    },
+    {
+      "actorId": "bot_crossbowman_1",
+      "round": 1,
+      "targetId": "player_mage_2",
+      "type": "attack",
+    },
+    {
+      "actorId": "bot_crossbowman_1",
+      "round": 1,
+      "targetId": "player_mage_2",
+      "type": "damage",
+    },
+    {
+      "actorId": "bot_warlock_2",
+      "round": 1,
+      "targetId": undefined,
+      "type": "move",
+    },
+    {
+      "actorId": "bot_warlock_2",
+      "round": 1,
+      "targetId": "player_mage_2",
+      "type": "attack",
+    },
+    {
+      "actorId": "bot_warlock_2",
+      "round": 1,
+      "targetId": "player_mage_2",
+      "type": "damage",
+    },
+    {
+      "actorId": "player_knight_0",
+      "round": 1,
+      "targetId": "player_knight_0",
+      "type": "ability",
+    },
+    {
+      "actorId": "bot_guardian_0",
+      "round": 1,
+      "targetId": "bot_guardian_0",
+      "type": "ability",
+    },
+    {
+      "actorId": "system",
+      "round": 2,
+      "targetId": undefined,
+      "type": "round_start",
+    },
+    {
+      "actorId": "player_archer_1",
+      "round": 2,
+      "targetId": undefined,
+      "type": "ability",
+    },
+    {
+      "actorId": "player_mage_2",
+      "round": 2,
+      "targetId": "bot_warlock_2",
+      "type": "ability",
+    },
+    {
+      "actorId": "bot_crossbowman_1",
+      "round": 2,
+      "targetId": "player_mage_2",
+      "type": "ability",
+    },
+    {
+      "actorId": "player_knight_0",
+      "round": 2,
+      "targetId": undefined,
+      "type": "move",
+    },
+    {
+      "actorId": "bot_guardian_0",
+      "round": 2,
+      "targetId": undefined,
+      "type": "move",
+    },
+    {
+      "actorId": "system",
+      "round": 3,
+      "targetId": undefined,
+      "type": "round_start",
+    },
+    {
+      "actorId": "player_archer_1",
+      "round": 3,
+      "targetId": undefined,
+      "type": "move",
+    },
+    {
+      "actorId": "player_archer_1",
+      "round": 3,
+      "targetId": "bot_guardian_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "player_archer_1",
+      "round": 3,
+      "targetId": "bot_guardian_0",
+      "type": "damage",
+    },
+    {
+      "actorId": "bot_crossbowman_1",
+      "round": 3,
+      "targetId": "player_archer_1",
+      "type": "attack",
+    },
+    {
+      "actorId": "bot_crossbowman_1",
+      "round": 3,
+      "targetId": "player_archer_1",
+      "type": "damage",
+    },
+    {
+      "actorId": "player_knight_0",
+      "round": 3,
+      "targetId": undefined,
+      "type": "move",
+    },
+    {
+      "actorId": "bot_guardian_0",
+      "round": 3,
+      "targetId": undefined,
+      "type": "move",
+    },
+    {
+      "actorId": "system",
+      "round": 4,
+      "targetId": undefined,
+      "type": "round_start",
+    },
+    {
+      "actorId": "player_archer_1",
+      "round": 4,
+      "targetId": "bot_guardian_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "player_archer_1",
+      "round": 4,
+      "targetId": "bot_guardian_0",
+      "type": "damage",
+    },
+    {
+      "actorId": "bot_crossbowman_1",
+      "round": 4,
+      "targetId": "player_archer_1",
+      "type": "ability",
+    },
+    {
+      "actorId": "player_knight_0",
+      "round": 4,
+      "targetId": "player_knight_0",
+      "type": "ability",
+    },
+    {
+      "actorId": "bot_guardian_0",
+      "round": 4,
+      "targetId": undefined,
+      "type": "move",
+    },
+    {
+      "actorId": "system",
+      "round": 5,
+      "targetId": undefined,
+      "type": "round_start",
+    },
+    {
+      "actorId": "bot_crossbowman_1",
+      "round": 5,
+      "targetId": undefined,
+      "type": "move",
+    },
+    {
+      "actorId": "bot_crossbowman_1",
+      "round": 5,
+      "targetId": "player_knight_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "bot_crossbowman_1",
+      "round": 5,
+      "targetId": "player_knight_0",
+      "type": "damage",
+    },
+    {
+      "actorId": "player_knight_0",
+      "round": 5,
+      "targetId": undefined,
+      "type": "move",
+    },
+    {
+      "actorId": "bot_guardian_0",
+      "round": 5,
+      "targetId": "bot_guardian_0",
+      "type": "ability",
+    },
+    {
+      "actorId": "system",
+      "round": 6,
+      "targetId": undefined,
+      "type": "round_start",
+    },
+    {
+      "actorId": "bot_crossbowman_1",
+      "round": 6,
+      "targetId": "player_knight_0",
+      "type": "ability",
+    },
+    {
+      "actorId": "player_knight_0",
+      "round": 6,
+      "targetId": undefined,
+      "type": "move",
+    },
+    {
+      "actorId": "player_knight_0",
+      "round": 6,
+      "targetId": "bot_guardian_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "player_knight_0",
+      "round": 6,
+      "targetId": "bot_guardian_0",
+      "type": "damage",
+    },
+    {
+      "actorId": "bot_guardian_0",
+      "round": 6,
+      "targetId": "player_knight_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "bot_guardian_0",
+      "round": 6,
+      "targetId": "player_knight_0",
+      "type": "damage",
+    },
+    {
+      "actorId": "system",
+      "round": 7,
+      "targetId": undefined,
+      "type": "round_start",
+    },
+    {
+      "actorId": "bot_crossbowman_1",
+      "round": 7,
+      "targetId": "player_knight_0",
+      "type": "attack",
     },
     {
       "actorId": "player_knight_0",
@@ -6275,6 +6383,12 @@ exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should 
       "type": "attack",
     },
     {
+      "actorId": "bot_crossbowman_1",
+      "round": 7,
+      "targetId": "player_knight_0",
+      "type": "damage",
+    },
+    {
       "actorId": "player_knight_0",
       "round": 7,
       "targetId": "player_knight_0",
@@ -6321,12 +6435,6 @@ exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should 
       "round": 8,
       "targetId": "player_knight_0",
       "type": "attack",
-    },
-    {
-      "actorId": "bot_guardian_0",
-      "round": 8,
-      "targetId": "player_knight_0",
-      "type": "damage",
     },
     {
       "actorId": "system",
@@ -6451,7 +6559,7 @@ exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should 
 
 exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should produce deterministic result for seed_99999 1`] = `
 {
-  "eventCount": 64,
+  "eventCount": 66,
   "eventSequence": [
     {
       "actorId": "system",
@@ -6718,6 +6826,12 @@ exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should 
       "type": "attack",
     },
     {
+      "actorId": "bot_guardian_0",
+      "round": 6,
+      "targetId": "player_knight_0",
+      "type": "damage",
+    },
+    {
       "actorId": "system",
       "round": 7,
       "targetId": undefined,
@@ -6746,6 +6860,12 @@ exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should 
       "round": 7,
       "targetId": "player_knight_0",
       "type": "attack",
+    },
+    {
+      "actorId": "bot_guardian_0",
+      "round": 7,
+      "targetId": "player_knight_0",
+      "type": "damage",
     },
     {
       "actorId": "system",
@@ -7133,7 +7253,7 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
 
 exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios should match snapshot for all_ranged_battle 1`] = `
 {
-  "eventCount": 51,
+  "eventCount": 47,
   "eventSequence": [
     {
       "actorId": "system",
@@ -7376,6 +7496,12 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "attack",
     },
     {
+      "actorId": "bot_crossbowman_1",
+      "round": 4,
+      "targetId": "player_archer_0",
+      "type": "damage",
+    },
+    {
       "actorId": "system",
       "round": 5,
       "targetId": undefined,
@@ -7407,37 +7533,7 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     },
     {
       "actorId": "system",
-      "round": 6,
-      "targetId": undefined,
-      "type": "round_start",
-    },
-    {
-      "actorId": "player_archer_0",
-      "round": 6,
-      "targetId": "bot_crossbowman_1",
-      "type": "ability",
-    },
-    {
-      "actorId": "bot_crossbowman_1",
-      "round": 6,
-      "targetId": "player_archer_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "bot_crossbowman_1",
-      "round": 6,
-      "targetId": "player_archer_0",
-      "type": "damage",
-    },
-    {
-      "actorId": "player_archer_0",
-      "round": 6,
-      "targetId": undefined,
-      "type": "death",
-    },
-    {
-      "actorId": "system",
-      "round": 6,
+      "round": 5,
       "targetId": undefined,
       "type": "battle_end",
     },
@@ -7455,7 +7551,7 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       },
       {
         "alive": true,
-        "currentHp": 32,
+        "currentHp": 50,
         "instanceId": "bot_crossbowman_1",
         "position": {
           "x": 3,
@@ -7503,14 +7599,14 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     ],
   },
   "seed": 12345,
-  "totalRounds": 6,
+  "totalRounds": 5,
   "winner": "bot",
 }
 `;
 
 exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios should match snapshot for all_tanks_battle 1`] = `
 {
-  "eventCount": 464,
+  "eventCount": 433,
   "eventSequence": [
     {
       "actorId": "system",
@@ -9649,6 +9745,12 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "attack",
     },
     {
+      "actorId": "player_berserker_2",
+      "round": 35,
+      "targetId": "bot_knight_0",
+      "type": "damage",
+    },
+    {
       "actorId": "player_knight_0",
       "round": 35,
       "targetId": "bot_knight_0",
@@ -9781,18 +9883,18 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "attack",
     },
     {
+      "actorId": "player_knight_0",
+      "round": 39,
+      "targetId": "bot_knight_0",
+      "type": "damage",
+    },
+    {
       "actorId": "bot_knight_0",
       "round": 39,
       "targetId": "player_knight_0",
       "type": "attack",
     },
     {
-      "actorId": "bot_knight_0",
-      "round": 39,
-      "targetId": "player_knight_0",
-      "type": "damage",
-    },
-    {
       "actorId": "system",
       "round": 40,
       "targetId": undefined,
@@ -9863,6 +9965,12 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "round": 42,
       "targetId": "player_knight_0",
       "type": "attack",
+    },
+    {
+      "actorId": "bot_knight_0",
+      "round": 42,
+      "targetId": "player_knight_0",
+      "type": "damage",
     },
     {
       "actorId": "system",
@@ -10089,210 +10197,12 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     {
       "actorId": "bot_knight_0",
       "round": 51,
-      "targetId": "player_knight_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "bot_knight_0",
-      "round": 51,
-      "targetId": "player_knight_0",
-      "type": "damage",
-    },
-    {
-      "actorId": "system",
-      "round": 52,
-      "targetId": undefined,
-      "type": "round_start",
-    },
-    {
-      "actorId": "player_knight_0",
-      "round": 52,
-      "targetId": "player_knight_0",
-      "type": "ability",
-    },
-    {
-      "actorId": "bot_knight_0",
-      "round": 52,
-      "targetId": "bot_knight_0",
-      "type": "ability",
-    },
-    {
-      "actorId": "system",
-      "round": 53,
-      "targetId": undefined,
-      "type": "round_start",
-    },
-    {
-      "actorId": "player_knight_0",
-      "round": 53,
-      "targetId": "bot_knight_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "player_knight_0",
-      "round": 53,
-      "targetId": "bot_knight_0",
-      "type": "damage",
-    },
-    {
-      "actorId": "bot_knight_0",
-      "round": 53,
-      "targetId": "player_knight_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "bot_knight_0",
-      "round": 53,
-      "targetId": "player_knight_0",
-      "type": "damage",
-    },
-    {
-      "actorId": "system",
-      "round": 54,
-      "targetId": undefined,
-      "type": "round_start",
-    },
-    {
-      "actorId": "player_knight_0",
-      "round": 54,
-      "targetId": "bot_knight_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "player_knight_0",
-      "round": 54,
-      "targetId": "bot_knight_0",
-      "type": "damage",
-    },
-    {
-      "actorId": "bot_knight_0",
-      "round": 54,
-      "targetId": "player_knight_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "bot_knight_0",
-      "round": 54,
-      "targetId": "player_knight_0",
-      "type": "damage",
-    },
-    {
-      "actorId": "system",
-      "round": 55,
-      "targetId": undefined,
-      "type": "round_start",
-    },
-    {
-      "actorId": "player_knight_0",
-      "round": 55,
-      "targetId": "player_knight_0",
-      "type": "ability",
-    },
-    {
-      "actorId": "bot_knight_0",
-      "round": 55,
-      "targetId": "bot_knight_0",
-      "type": "ability",
-    },
-    {
-      "actorId": "system",
-      "round": 56,
-      "targetId": undefined,
-      "type": "round_start",
-    },
-    {
-      "actorId": "player_knight_0",
-      "round": 56,
-      "targetId": "bot_knight_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "player_knight_0",
-      "round": 56,
-      "targetId": "bot_knight_0",
-      "type": "damage",
-    },
-    {
-      "actorId": "bot_knight_0",
-      "round": 56,
-      "targetId": "player_knight_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "bot_knight_0",
-      "round": 56,
-      "targetId": "player_knight_0",
-      "type": "damage",
-    },
-    {
-      "actorId": "system",
-      "round": 57,
-      "targetId": undefined,
-      "type": "round_start",
-    },
-    {
-      "actorId": "player_knight_0",
-      "round": 57,
-      "targetId": "bot_knight_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "bot_knight_0",
-      "round": 57,
-      "targetId": "player_knight_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "bot_knight_0",
-      "round": 57,
-      "targetId": "player_knight_0",
-      "type": "damage",
-    },
-    {
-      "actorId": "system",
-      "round": 58,
-      "targetId": undefined,
-      "type": "round_start",
-    },
-    {
-      "actorId": "player_knight_0",
-      "round": 58,
-      "targetId": "player_knight_0",
-      "type": "ability",
-    },
-    {
-      "actorId": "bot_knight_0",
-      "round": 58,
-      "targetId": "bot_knight_0",
-      "type": "ability",
-    },
-    {
-      "actorId": "system",
-      "round": 59,
-      "targetId": undefined,
-      "type": "round_start",
-    },
-    {
-      "actorId": "player_knight_0",
-      "round": 59,
-      "targetId": "bot_knight_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "player_knight_0",
-      "round": 59,
-      "targetId": "bot_knight_0",
-      "type": "damage",
-    },
-    {
-      "actorId": "bot_knight_0",
-      "round": 59,
       "targetId": undefined,
       "type": "death",
     },
     {
       "actorId": "system",
-      "round": 59,
+      "round": 51,
       "targetId": undefined,
       "type": "battle_end",
     },
@@ -10330,7 +10240,7 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     "playerUnits": [
       {
         "alive": true,
-        "currentHp": 48,
+        "currentHp": 68,
         "instanceId": "player_knight_0",
         "position": {
           "x": 3,
@@ -10358,14 +10268,14 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     ],
   },
   "seed": 12345,
-  "totalRounds": 59,
+  "totalRounds": 51,
   "winner": "player",
 }
 `;
 
 exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios should match snapshot for high_initiative_battle 1`] = `
 {
-  "eventCount": 79,
+  "eventCount": 77,
   "eventSequence": [
     {
       "actorId": "system",
@@ -10422,6 +10332,12 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "attack",
     },
     {
+      "actorId": "bot_rogue_1",
+      "round": 1,
+      "targetId": "player_assassin_0",
+      "type": "damage",
+    },
+    {
       "actorId": "player_duelist_2",
       "round": 1,
       "targetId": undefined,
@@ -10458,6 +10374,18 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "attack",
     },
     {
+      "actorId": "bot_assassin_0",
+      "round": 2,
+      "targetId": "player_assassin_0",
+      "type": "damage",
+    },
+    {
+      "actorId": "player_assassin_0",
+      "round": 2,
+      "targetId": undefined,
+      "type": "death",
+    },
+    {
       "actorId": "player_rogue_1",
       "round": 2,
       "targetId": undefined,
@@ -10470,21 +10398,15 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "attack",
     },
     {
-      "actorId": "player_rogue_1",
-      "round": 2,
-      "targetId": "bot_assassin_0",
-      "type": "damage",
-    },
-    {
       "actorId": "bot_rogue_1",
       "round": 2,
-      "targetId": "player_assassin_0",
+      "targetId": "player_rogue_1",
       "type": "attack",
     },
     {
       "actorId": "bot_rogue_1",
       "round": 2,
-      "targetId": "player_assassin_0",
+      "targetId": "player_rogue_1",
       "type": "damage",
     },
     {
@@ -10506,13 +10428,43 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "round_start",
     },
     {
-      "actorId": "player_assassin_0",
+      "actorId": "bot_assassin_0",
+      "round": 3,
+      "targetId": "player_rogue_1",
+      "type": "attack",
+    },
+    {
+      "actorId": "player_rogue_1",
       "round": 3,
       "targetId": "bot_assassin_0",
       "type": "attack",
     },
     {
-      "actorId": "player_assassin_0",
+      "actorId": "player_rogue_1",
+      "round": 3,
+      "targetId": "bot_assassin_0",
+      "type": "damage",
+    },
+    {
+      "actorId": "bot_rogue_1",
+      "round": 3,
+      "targetId": "player_rogue_1",
+      "type": "attack",
+    },
+    {
+      "actorId": "player_duelist_2",
+      "round": 3,
+      "targetId": undefined,
+      "type": "move",
+    },
+    {
+      "actorId": "player_duelist_2",
+      "round": 3,
+      "targetId": "bot_assassin_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "player_duelist_2",
       "round": 3,
       "targetId": "bot_assassin_0",
       "type": "damage",
@@ -10524,54 +10476,6 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "death",
     },
     {
-      "actorId": "player_rogue_1",
-      "round": 3,
-      "targetId": undefined,
-      "type": "move",
-    },
-    {
-      "actorId": "player_rogue_1",
-      "round": 3,
-      "targetId": "bot_rogue_1",
-      "type": "attack",
-    },
-    {
-      "actorId": "bot_rogue_1",
-      "round": 3,
-      "targetId": "player_assassin_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "bot_rogue_1",
-      "round": 3,
-      "targetId": "player_assassin_0",
-      "type": "damage",
-    },
-    {
-      "actorId": "player_assassin_0",
-      "round": 3,
-      "targetId": undefined,
-      "type": "death",
-    },
-    {
-      "actorId": "player_duelist_2",
-      "round": 3,
-      "targetId": undefined,
-      "type": "move",
-    },
-    {
-      "actorId": "player_duelist_2",
-      "round": 3,
-      "targetId": "bot_rogue_1",
-      "type": "attack",
-    },
-    {
-      "actorId": "player_duelist_2",
-      "round": 3,
-      "targetId": "bot_rogue_1",
-      "type": "damage",
-    },
-    {
       "actorId": "bot_duelist_2",
       "round": 3,
       "targetId": undefined,
@@ -10614,6 +10518,12 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "attack",
     },
     {
+      "actorId": "bot_rogue_1",
+      "round": 4,
+      "targetId": "player_rogue_1",
+      "type": "damage",
+    },
+    {
       "actorId": "player_duelist_2",
       "round": 4,
       "targetId": "bot_rogue_1",
@@ -10636,6 +10546,12 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "round": 4,
       "targetId": "player_rogue_1",
       "type": "damage",
+    },
+    {
+      "actorId": "player_rogue_1",
+      "round": 4,
+      "targetId": undefined,
+      "type": "death",
     },
     {
       "actorId": "system",
@@ -10644,100 +10560,82 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "round_start",
     },
     {
-      "actorId": "player_rogue_1",
-      "round": 5,
-      "targetId": "bot_rogue_1",
-      "type": "attack",
-    },
-    {
       "actorId": "bot_rogue_1",
       "round": 5,
-      "targetId": "player_rogue_1",
-      "type": "attack",
-    },
-    {
-      "actorId": "bot_rogue_1",
-      "round": 5,
-      "targetId": "player_rogue_1",
-      "type": "damage",
-    },
-    {
-      "actorId": "player_duelist_2",
-      "round": 5,
-      "targetId": "bot_rogue_1",
-      "type": "attack",
-    },
-    {
-      "actorId": "bot_duelist_2",
-      "round": 5,
-      "targetId": "player_rogue_1",
-      "type": "attack",
-    },
-    {
-      "actorId": "bot_duelist_2",
-      "round": 5,
-      "targetId": "player_rogue_1",
-      "type": "damage",
-    },
-    {
-      "actorId": "player_rogue_1",
-      "round": 5,
-      "targetId": undefined,
-      "type": "death",
-    },
-    {
-      "actorId": "system",
-      "round": 6,
-      "targetId": undefined,
-      "type": "round_start",
-    },
-    {
-      "actorId": "bot_rogue_1",
-      "round": 6,
       "targetId": "player_duelist_2",
       "type": "attack",
     },
     {
-      "actorId": "bot_rogue_1",
-      "round": 6,
-      "targetId": "player_duelist_2",
-      "type": "damage",
-    },
-    {
       "actorId": "player_duelist_2",
-      "round": 6,
+      "round": 5,
       "targetId": "bot_rogue_1",
       "type": "attack",
     },
     {
       "actorId": "player_duelist_2",
-      "round": 6,
+      "round": 5,
       "targetId": "bot_rogue_1",
       "type": "damage",
     },
     {
-      "actorId": "bot_rogue_1",
-      "round": 6,
-      "targetId": undefined,
-      "type": "death",
-    },
-    {
       "actorId": "bot_duelist_2",
-      "round": 6,
+      "round": 5,
       "targetId": undefined,
       "type": "move",
     },
     {
       "actorId": "bot_duelist_2",
-      "round": 6,
+      "round": 5,
       "targetId": "player_duelist_2",
       "type": "attack",
     },
     {
       "actorId": "bot_duelist_2",
+      "round": 5,
+      "targetId": "player_duelist_2",
+      "type": "damage",
+    },
+    {
+      "actorId": "system",
+      "round": 6,
+      "targetId": undefined,
+      "type": "round_start",
+    },
+    {
+      "actorId": "bot_rogue_1",
+      "round": 6,
+      "targetId": "player_duelist_2",
+      "type": "attack",
+    },
+    {
+      "actorId": "bot_rogue_1",
       "round": 6,
       "targetId": "player_duelist_2",
       "type": "damage",
+    },
+    {
+      "actorId": "player_duelist_2",
+      "round": 6,
+      "targetId": "bot_rogue_1",
+      "type": "attack",
+    },
+    {
+      "actorId": "player_duelist_2",
+      "round": 6,
+      "targetId": "bot_rogue_1",
+      "type": "damage",
+    },
+    {
+      "actorId": "bot_rogue_1",
+      "round": 6,
+      "targetId": undefined,
+      "type": "death",
+    },
+    {
+      "actorId": "bot_duelist_2",
+      "round": 6,
+      "targetId": "player_duelist_2",
+      "type": "attack",
     },
     {
       "actorId": "system",
@@ -10867,8 +10765,8 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
         "currentHp": 32,
         "instanceId": "bot_duelist_2",
         "position": {
-          "x": 2,
-          "y": 5,
+          "x": 1,
+          "y": 6,
         },
       },
     ],
@@ -10887,8 +10785,8 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
         "currentHp": 0,
         "instanceId": "player_rogue_1",
         "position": {
-          "x": 2,
-          "y": 6,
+          "x": 1,
+          "y": 5,
         },
       },
       {
@@ -10896,8 +10794,8 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
         "currentHp": 0,
         "instanceId": "player_duelist_2",
         "position": {
-          "x": 3,
-          "y": 5,
+          "x": 2,
+          "y": 6,
         },
       },
     ],
@@ -10910,7 +10808,7 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
 
 exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios should match snapshot for melee_rush_battle 1`] = `
 {
-  "eventCount": 145,
+  "eventCount": 137,
   "eventSequence": [
     {
       "actorId": "system",
@@ -11111,6 +11009,12 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "attack",
     },
     {
+      "actorId": "bot_duelist_1",
+      "round": 3,
+      "targetId": "player_rogue_1",
+      "type": "damage",
+    },
+    {
       "actorId": "player_berserker_2",
       "round": 3,
       "targetId": undefined,
@@ -11273,91 +11177,79 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "attack",
     },
     {
-      "actorId": "bot_duelist_1",
-      "round": 5,
-      "targetId": "player_rogue_1",
-      "type": "attack",
-    },
-    {
-      "actorId": "bot_duelist_1",
-      "round": 5,
-      "targetId": "player_rogue_1",
-      "type": "damage",
-    },
-    {
-      "actorId": "player_berserker_2",
-      "round": 5,
-      "targetId": "bot_guardian_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "player_berserker_2",
-      "round": 5,
-      "targetId": "bot_guardian_0",
-      "type": "damage",
-    },
-    {
-      "actorId": "bot_berserker_2",
-      "round": 5,
-      "targetId": "player_berserker_2",
-      "type": "attack",
-    },
-    {
-      "actorId": "bot_berserker_2",
-      "round": 5,
-      "targetId": "player_berserker_2",
-      "type": "damage",
-    },
-    {
-      "actorId": "player_knight_0",
-      "round": 5,
-      "targetId": undefined,
-      "type": "move",
-    },
-    {
-      "actorId": "bot_guardian_0",
-      "round": 5,
-      "targetId": "bot_guardian_0",
-      "type": "ability",
-    },
-    {
-      "actorId": "system",
-      "round": 6,
-      "targetId": undefined,
-      "type": "round_start",
-    },
-    {
-      "actorId": "player_rogue_1",
-      "round": 6,
-      "targetId": "bot_guardian_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "player_rogue_1",
-      "round": 6,
-      "targetId": "bot_guardian_0",
-      "type": "damage",
-    },
-    {
       "actorId": "bot_rogue_3",
-      "round": 6,
-      "targetId": "player_rogue_1",
-      "type": "attack",
-    },
-    {
-      "actorId": "bot_rogue_3",
-      "round": 6,
+      "round": 5,
       "targetId": "player_rogue_1",
       "type": "damage",
     },
     {
       "actorId": "player_rogue_1",
-      "round": 6,
+      "round": 5,
       "targetId": undefined,
       "type": "death",
     },
     {
       "actorId": "bot_duelist_1",
+      "round": 5,
+      "targetId": "player_berserker_2",
+      "type": "attack",
+    },
+    {
+      "actorId": "bot_duelist_1",
+      "round": 5,
+      "targetId": "player_berserker_2",
+      "type": "damage",
+    },
+    {
+      "actorId": "player_berserker_2",
+      "round": 5,
+      "targetId": "bot_guardian_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "player_berserker_2",
+      "round": 5,
+      "targetId": "bot_guardian_0",
+      "type": "damage",
+    },
+    {
+      "actorId": "bot_berserker_2",
+      "round": 5,
+      "targetId": "player_berserker_2",
+      "type": "attack",
+    },
+    {
+      "actorId": "bot_berserker_2",
+      "round": 5,
+      "targetId": "player_berserker_2",
+      "type": "damage",
+    },
+    {
+      "actorId": "player_knight_0",
+      "round": 5,
+      "targetId": undefined,
+      "type": "move",
+    },
+    {
+      "actorId": "bot_guardian_0",
+      "round": 5,
+      "targetId": "bot_guardian_0",
+      "type": "ability",
+    },
+    {
+      "actorId": "system",
+      "round": 6,
+      "targetId": undefined,
+      "type": "round_start",
+    },
+    {
+      "actorId": "bot_rogue_3",
+      "round": 6,
+      "targetId": undefined,
+      "type": "move",
+    },
+    {
+      "actorId": "bot_duelist_1",
       "round": 6,
       "targetId": "player_berserker_2",
       "type": "attack",
@@ -11453,48 +11345,66 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "damage",
     },
     {
-      "actorId": "player_knight_0",
-      "round": 7,
-      "targetId": "player_knight_0",
-      "type": "ability",
-    },
-    {
-      "actorId": "bot_guardian_0",
-      "round": 7,
-      "targetId": "player_berserker_2",
-      "type": "attack",
-    },
-    {
-      "actorId": "bot_guardian_0",
-      "round": 7,
-      "targetId": "player_berserker_2",
-      "type": "damage",
-    },
-    {
-      "actorId": "system",
-      "round": 8,
-      "targetId": undefined,
-      "type": "round_start",
-    },
-    {
-      "actorId": "bot_duelist_1",
-      "round": 8,
-      "targetId": "player_berserker_2",
-      "type": "attack",
-    },
-    {
-      "actorId": "bot_duelist_1",
-      "round": 8,
-      "targetId": "player_berserker_2",
-      "type": "damage",
-    },
-    {
       "actorId": "player_berserker_2",
-      "round": 8,
+      "round": 7,
       "targetId": undefined,
       "type": "death",
     },
     {
+      "actorId": "player_knight_0",
+      "round": 7,
+      "targetId": "player_knight_0",
+      "type": "ability",
+    },
+    {
+      "actorId": "bot_guardian_0",
+      "round": 7,
+      "targetId": undefined,
+      "type": "move",
+    },
+    {
+      "actorId": "bot_guardian_0",
+      "round": 7,
+      "targetId": "player_knight_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "bot_guardian_0",
+      "round": 7,
+      "targetId": "player_knight_0",
+      "type": "damage",
+    },
+    {
+      "actorId": "system",
+      "round": 8,
+      "targetId": undefined,
+      "type": "round_start",
+    },
+    {
+      "actorId": "bot_rogue_3",
+      "round": 8,
+      "targetId": undefined,
+      "type": "move",
+    },
+    {
+      "actorId": "bot_rogue_3",
+      "round": 8,
+      "targetId": "player_knight_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "bot_rogue_3",
+      "round": 8,
+      "targetId": "player_knight_0",
+      "type": "damage",
+    },
+    {
+      "actorId": "bot_duelist_1",
+      "round": 8,
+      "targetId": undefined,
+      "type": "move",
+    },
+    {
       "actorId": "bot_berserker_2",
       "round": 8,
       "targetId": undefined,
@@ -11515,12 +11425,6 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     {
       "actorId": "player_knight_0",
       "round": 8,
-      "targetId": undefined,
-      "type": "move",
-    },
-    {
-      "actorId": "player_knight_0",
-      "round": 8,
       "targetId": "bot_guardian_0",
       "type": "attack",
     },
@@ -11535,12 +11439,6 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "round": 8,
       "targetId": "player_knight_0",
       "type": "attack",
-    },
-    {
-      "actorId": "bot_guardian_0",
-      "round": 8,
-      "targetId": "player_knight_0",
-      "type": "damage",
     },
     {
       "actorId": "system",
@@ -11551,12 +11449,6 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     {
       "actorId": "bot_rogue_3",
       "round": 9,
-      "targetId": undefined,
-      "type": "move",
-    },
-    {
-      "actorId": "bot_rogue_3",
-      "round": 9,
       "targetId": "player_knight_0",
       "type": "attack",
     },
@@ -11567,19 +11459,13 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "damage",
     },
     {
-      "actorId": "bot_duelist_1",
-      "round": 9,
-      "targetId": undefined,
-      "type": "move",
-    },
-    {
-      "actorId": "bot_duelist_1",
+      "actorId": "bot_berserker_2",
       "round": 9,
       "targetId": "player_knight_0",
       "type": "attack",
     },
     {
-      "actorId": "bot_duelist_1",
+      "actorId": "bot_berserker_2",
       "round": 9,
       "targetId": "player_knight_0",
       "type": "damage",
@@ -11621,13 +11507,13 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "damage",
     },
     {
-      "actorId": "bot_duelist_1",
+      "actorId": "bot_berserker_2",
       "round": 10,
       "targetId": "player_knight_0",
       "type": "attack",
     },
     {
-      "actorId": "bot_duelist_1",
+      "actorId": "bot_berserker_2",
       "round": 10,
       "targetId": "player_knight_0",
       "type": "damage",
@@ -11669,13 +11555,13 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "damage",
     },
     {
-      "actorId": "bot_duelist_1",
+      "actorId": "bot_berserker_2",
       "round": 11,
       "targetId": "player_knight_0",
       "type": "attack",
     },
     {
-      "actorId": "bot_duelist_1",
+      "actorId": "bot_berserker_2",
       "round": 11,
       "targetId": "player_knight_0",
       "type": "damage",
@@ -11723,13 +11609,13 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "damage",
     },
     {
-      "actorId": "bot_duelist_1",
+      "actorId": "bot_berserker_2",
       "round": 12,
       "targetId": "player_knight_0",
       "type": "attack",
     },
     {
-      "actorId": "bot_duelist_1",
+      "actorId": "bot_berserker_2",
       "round": 12,
       "targetId": "player_knight_0",
       "type": "damage",
@@ -11737,48 +11623,12 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     {
       "actorId": "player_knight_0",
       "round": 12,
-      "targetId": "bot_guardian_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "player_knight_0",
-      "round": 12,
-      "targetId": "bot_guardian_0",
-      "type": "damage",
-    },
-    {
-      "actorId": "bot_guardian_0",
-      "round": 12,
-      "targetId": "player_knight_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "system",
-      "round": 13,
-      "targetId": undefined,
-      "type": "round_start",
-    },
-    {
-      "actorId": "bot_rogue_3",
-      "round": 13,
-      "targetId": "player_knight_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "bot_rogue_3",
-      "round": 13,
-      "targetId": "player_knight_0",
-      "type": "damage",
-    },
-    {
-      "actorId": "player_knight_0",
-      "round": 13,
       "targetId": undefined,
       "type": "death",
     },
     {
       "actorId": "system",
-      "round": 13,
+      "round": 12,
       "targetId": undefined,
       "type": "battle_end",
     },
@@ -11787,10 +11637,10 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     "botUnits": [
       {
         "alive": true,
-        "currentHp": 98,
+        "currentHp": 105,
         "instanceId": "bot_guardian_0",
         "position": {
-          "x": 1,
+          "x": 0,
           "y": 8,
         },
       },
@@ -11799,8 +11649,8 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
         "currentHp": 80,
         "instanceId": "bot_duelist_1",
         "position": {
-          "x": 0,
-          "y": 7,
+          "x": 1,
+          "y": 5,
         },
       },
       {
@@ -11817,8 +11667,8 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
         "currentHp": 70,
         "instanceId": "bot_rogue_3",
         "position": {
-          "x": 0,
-          "y": 9,
+          "x": 1,
+          "y": 7,
         },
       },
     ],
@@ -11829,7 +11679,7 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
         "instanceId": "player_knight_0",
         "position": {
           "x": 0,
-          "y": 8,
+          "y": 7,
         },
       },
       {
@@ -11862,14 +11712,14 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     ],
   },
   "seed": 12345,
-  "totalRounds": 13,
+  "totalRounds": 12,
   "winner": "bot",
 }
 `;
 
 exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios should match snapshot for support_heavy_battle 1`] = `
 {
-  "eventCount": 992,
+  "eventCount": 990,
   "eventSequence": [
     {
       "actorId": "system",
@@ -12112,6 +11962,12 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "attack",
     },
     {
+      "actorId": "bot_guardian_0",
+      "round": 4,
+      "targetId": "player_bard_2",
+      "type": "damage",
+    },
+    {
       "actorId": "system",
       "round": 5,
       "targetId": undefined,
@@ -12244,6 +12100,12 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "attack",
     },
     {
+      "actorId": "bot_guardian_0",
+      "round": 6,
+      "targetId": "player_bard_2",
+      "type": "damage",
+    },
+    {
       "actorId": "system",
       "round": 7,
       "targetId": undefined,
@@ -12276,14 +12138,8 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     {
       "actorId": "player_priest_1",
       "round": 7,
-      "targetId": "bot_guardian_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "player_priest_1",
-      "round": 7,
-      "targetId": "bot_guardian_0",
-      "type": "damage",
+      "targetId": "player_bard_2",
+      "type": "ability",
     },
     {
       "actorId": "bot_priest_1",
@@ -12308,6 +12164,12 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "round": 7,
       "targetId": "player_bard_2",
       "type": "attack",
+    },
+    {
+      "actorId": "bot_guardian_0",
+      "round": 7,
+      "targetId": "player_bard_2",
+      "type": "damage",
     },
     {
       "actorId": "system",
@@ -12486,8 +12348,14 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     {
       "actorId": "player_priest_1",
       "round": 10,
-      "targetId": "player_bard_2",
-      "type": "ability",
+      "targetId": "bot_guardian_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "player_priest_1",
+      "round": 10,
+      "targetId": "bot_guardian_0",
+      "type": "damage",
     },
     {
       "actorId": "bot_priest_1",
@@ -12552,14 +12420,8 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     {
       "actorId": "player_priest_1",
       "round": 11,
-      "targetId": "bot_guardian_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "player_priest_1",
-      "round": 11,
-      "targetId": "bot_guardian_0",
-      "type": "damage",
+      "targetId": "player_bard_2",
+      "type": "ability",
     },
     {
       "actorId": "bot_priest_1",
@@ -12630,8 +12492,14 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     {
       "actorId": "player_priest_1",
       "round": 12,
-      "targetId": "player_bard_2",
-      "type": "ability",
+      "targetId": "bot_guardian_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "player_priest_1",
+      "round": 12,
+      "targetId": "bot_guardian_0",
+      "type": "damage",
     },
     {
       "actorId": "bot_priest_1",
@@ -12690,14 +12558,8 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     {
       "actorId": "player_priest_1",
       "round": 13,
-      "targetId": "bot_guardian_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "player_priest_1",
-      "round": 13,
-      "targetId": "bot_guardian_0",
-      "type": "damage",
+      "targetId": "player_bard_2",
+      "type": "ability",
     },
     {
       "actorId": "bot_priest_1",
@@ -12756,8 +12618,14 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     {
       "actorId": "player_priest_1",
       "round": 14,
-      "targetId": "player_priest_1",
-      "type": "ability",
+      "targetId": "bot_guardian_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "player_priest_1",
+      "round": 14,
+      "targetId": "bot_guardian_0",
+      "type": "damage",
     },
     {
       "actorId": "bot_priest_1",
@@ -12828,14 +12696,8 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     {
       "actorId": "player_priest_1",
       "round": 15,
-      "targetId": "bot_guardian_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "player_priest_1",
-      "round": 15,
-      "targetId": "bot_guardian_0",
-      "type": "damage",
+      "targetId": "player_priest_1",
+      "type": "ability",
     },
     {
       "actorId": "bot_priest_1",
@@ -12899,6 +12761,42 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     },
     {
       "actorId": "bot_bard_2",
+      "round": 16,
+      "targetId": "player_bard_2",
+      "type": "damage",
+    },
+    {
+      "actorId": "player_priest_1",
+      "round": 16,
+      "targetId": "bot_guardian_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "player_priest_1",
+      "round": 16,
+      "targetId": "bot_guardian_0",
+      "type": "damage",
+    },
+    {
+      "actorId": "bot_priest_1",
+      "round": 16,
+      "targetId": "player_priest_1",
+      "type": "attack",
+    },
+    {
+      "actorId": "player_knight_0",
+      "round": 16,
+      "targetId": "player_knight_0",
+      "type": "ability",
+    },
+    {
+      "actorId": "bot_guardian_0",
+      "round": 16,
+      "targetId": "player_bard_2",
+      "type": "attack",
+    },
+    {
+      "actorId": "bot_guardian_0",
       "round": 16,
       "targetId": "player_bard_2",
       "type": "damage",
@@ -12910,48 +12808,6 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "death",
     },
     {
-      "actorId": "player_priest_1",
-      "round": 16,
-      "targetId": "bot_guardian_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "player_priest_1",
-      "round": 16,
-      "targetId": "bot_guardian_0",
-      "type": "damage",
-    },
-    {
-      "actorId": "bot_priest_1",
-      "round": 16,
-      "targetId": "player_priest_1",
-      "type": "attack",
-    },
-    {
-      "actorId": "bot_priest_1",
-      "round": 16,
-      "targetId": "player_priest_1",
-      "type": "damage",
-    },
-    {
-      "actorId": "player_knight_0",
-      "round": 16,
-      "targetId": "player_knight_0",
-      "type": "ability",
-    },
-    {
-      "actorId": "bot_guardian_0",
-      "round": 16,
-      "targetId": "player_knight_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "bot_guardian_0",
-      "round": 16,
-      "targetId": "player_knight_0",
-      "type": "damage",
-    },
-    {
       "actorId": "system",
       "round": 17,
       "targetId": undefined,
@@ -12966,8 +12822,14 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     {
       "actorId": "player_priest_1",
       "round": 17,
-      "targetId": "player_priest_1",
-      "type": "ability",
+      "targetId": "bot_guardian_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "player_priest_1",
+      "round": 17,
+      "targetId": "bot_guardian_0",
+      "type": "damage",
     },
     {
       "actorId": "bot_priest_1",
@@ -13020,14 +12882,8 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     {
       "actorId": "player_priest_1",
       "round": 18,
-      "targetId": "bot_guardian_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "player_priest_1",
-      "round": 18,
-      "targetId": "bot_guardian_0",
-      "type": "damage",
+      "targetId": "player_priest_1",
+      "type": "ability",
     },
     {
       "actorId": "bot_priest_1",
@@ -13118,12 +12974,6 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "round": 19,
       "targetId": "player_knight_0",
       "type": "attack",
-    },
-    {
-      "actorId": "bot_guardian_0",
-      "round": 19,
-      "targetId": "player_knight_0",
-      "type": "damage",
     },
     {
       "actorId": "system",
@@ -13136,12 +12986,6 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "round": 20,
       "targetId": "player_knight_0",
       "type": "attack",
-    },
-    {
-      "actorId": "bot_bard_2",
-      "round": 20,
-      "targetId": "player_knight_0",
-      "type": "damage",
     },
     {
       "actorId": "player_priest_1",
@@ -13266,8 +13110,14 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     {
       "actorId": "player_priest_1",
       "round": 22,
-      "targetId": "player_priest_1",
-      "type": "ability",
+      "targetId": "bot_guardian_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "player_priest_1",
+      "round": 22,
+      "targetId": "bot_guardian_0",
+      "type": "damage",
     },
     {
       "actorId": "bot_priest_1",
@@ -13312,22 +13162,10 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "attack",
     },
     {
-      "actorId": "bot_bard_2",
-      "round": 23,
-      "targetId": "player_knight_0",
-      "type": "damage",
-    },
-    {
       "actorId": "player_priest_1",
       "round": 23,
-      "targetId": "bot_guardian_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "player_priest_1",
-      "round": 23,
-      "targetId": "bot_guardian_0",
-      "type": "damage",
+      "targetId": "player_priest_1",
+      "type": "ability",
     },
     {
       "actorId": "bot_priest_1",
@@ -13424,12 +13262,6 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "round": 24,
       "targetId": "player_knight_0",
       "type": "attack",
-    },
-    {
-      "actorId": "bot_guardian_0",
-      "round": 24,
-      "targetId": "player_knight_0",
-      "type": "damage",
     },
     {
       "actorId": "system",
@@ -13566,8 +13398,14 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     {
       "actorId": "player_priest_1",
       "round": 27,
-      "targetId": "player_priest_1",
-      "type": "ability",
+      "targetId": "bot_guardian_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "player_priest_1",
+      "round": 27,
+      "targetId": "bot_guardian_0",
+      "type": "damage",
     },
     {
       "actorId": "bot_priest_1",
@@ -13626,14 +13464,8 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     {
       "actorId": "player_priest_1",
       "round": 28,
-      "targetId": "bot_guardian_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "player_priest_1",
-      "round": 28,
-      "targetId": "bot_guardian_0",
-      "type": "damage",
+      "targetId": "player_priest_1",
+      "type": "ability",
     },
     {
       "actorId": "bot_priest_1",
@@ -13642,6 +13474,12 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "attack",
     },
     {
+      "actorId": "bot_priest_1",
+      "round": 28,
+      "targetId": "player_priest_1",
+      "type": "damage",
+    },
+    {
       "actorId": "player_knight_0",
       "round": 28,
       "targetId": "player_knight_0",
@@ -13774,12 +13612,6 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "attack",
     },
     {
-      "actorId": "bot_guardian_0",
-      "round": 30,
-      "targetId": "player_knight_0",
-      "type": "damage",
-    },
-    {
       "actorId": "system",
       "round": 31,
       "targetId": undefined,
@@ -13894,6 +13726,12 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "attack",
     },
     {
+      "actorId": "bot_guardian_0",
+      "round": 32,
+      "targetId": "player_knight_0",
+      "type": "damage",
+    },
+    {
       "actorId": "system",
       "round": 33,
       "targetId": undefined,
@@ -14066,6 +13904,12 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "round": 35,
       "targetId": "player_knight_0",
       "type": "attack",
+    },
+    {
+      "actorId": "bot_guardian_0",
+      "round": 35,
+      "targetId": "player_knight_0",
+      "type": "damage",
     },
     {
       "actorId": "system",
@@ -14278,6 +14122,12 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "attack",
     },
     {
+      "actorId": "bot_priest_1",
+      "round": 39,
+      "targetId": "player_priest_1",
+      "type": "damage",
+    },
+    {
       "actorId": "player_knight_0",
       "round": 39,
       "targetId": "bot_guardian_0",
@@ -14376,8 +14226,14 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     {
       "actorId": "player_priest_1",
       "round": 41,
-      "targetId": "player_knight_0",
-      "type": "ability",
+      "targetId": "bot_guardian_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "player_priest_1",
+      "round": 41,
+      "targetId": "bot_guardian_0",
+      "type": "damage",
     },
     {
       "actorId": "bot_priest_1",
@@ -14430,14 +14286,8 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     {
       "actorId": "player_priest_1",
       "round": 42,
-      "targetId": "bot_guardian_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "player_priest_1",
-      "round": 42,
-      "targetId": "bot_guardian_0",
-      "type": "damage",
+      "targetId": "player_priest_1",
+      "type": "ability",
     },
     {
       "actorId": "bot_priest_1",
@@ -14496,8 +14346,14 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     {
       "actorId": "player_priest_1",
       "round": 43,
-      "targetId": "player_priest_1",
-      "type": "ability",
+      "targetId": "bot_guardian_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "player_priest_1",
+      "round": 43,
+      "targetId": "bot_guardian_0",
+      "type": "damage",
     },
     {
       "actorId": "bot_priest_1",
@@ -14550,14 +14406,8 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     {
       "actorId": "player_priest_1",
       "round": 44,
-      "targetId": "bot_guardian_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "player_priest_1",
-      "round": 44,
-      "targetId": "bot_guardian_0",
-      "type": "damage",
+      "targetId": "player_knight_0",
+      "type": "ability",
     },
     {
       "actorId": "bot_priest_1",
@@ -14686,12 +14536,6 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "attack",
     },
     {
-      "actorId": "bot_priest_1",
-      "round": 46,
-      "targetId": "player_priest_1",
-      "type": "damage",
-    },
-    {
       "actorId": "player_knight_0",
       "round": 46,
       "targetId": "player_knight_0",
@@ -14722,12 +14566,6 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "attack",
     },
     {
-      "actorId": "bot_bard_2",
-      "round": 47,
-      "targetId": "player_knight_0",
-      "type": "damage",
-    },
-    {
       "actorId": "player_priest_1",
       "round": 47,
       "targetId": "bot_guardian_0",
@@ -14830,6 +14668,12 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "attack",
     },
     {
+      "actorId": "bot_guardian_0",
+      "round": 48,
+      "targetId": "player_knight_0",
+      "type": "damage",
+    },
+    {
       "actorId": "system",
       "round": 49,
       "targetId": undefined,
@@ -14936,12 +14780,6 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "round": 50,
       "targetId": "player_knight_0",
       "type": "attack",
-    },
-    {
-      "actorId": "bot_guardian_0",
-      "round": 50,
-      "targetId": "player_knight_0",
-      "type": "damage",
     },
     {
       "actorId": "system",
@@ -15146,6 +14984,12 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "round": 54,
       "targetId": "player_priest_1",
       "type": "attack",
+    },
+    {
+      "actorId": "bot_priest_1",
+      "round": 54,
+      "targetId": "player_priest_1",
+      "type": "damage",
     },
     {
       "actorId": "player_knight_0",
@@ -15252,8 +15096,14 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     {
       "actorId": "player_priest_1",
       "round": 56,
-      "targetId": "player_knight_0",
-      "type": "ability",
+      "targetId": "bot_guardian_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "player_priest_1",
+      "round": 56,
+      "targetId": "bot_guardian_0",
+      "type": "damage",
     },
     {
       "actorId": "bot_priest_1",
@@ -15366,14 +15216,8 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     {
       "actorId": "player_priest_1",
       "round": 58,
-      "targetId": "bot_guardian_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "player_priest_1",
-      "round": 58,
-      "targetId": "bot_guardian_0",
-      "type": "damage",
+      "targetId": "player_priest_1",
+      "type": "ability",
     },
     {
       "actorId": "bot_priest_1",
@@ -15418,10 +15262,22 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "attack",
     },
     {
+      "actorId": "bot_bard_2",
+      "round": 59,
+      "targetId": "player_knight_0",
+      "type": "damage",
+    },
+    {
       "actorId": "player_priest_1",
       "round": 59,
-      "targetId": "player_priest_1",
-      "type": "ability",
+      "targetId": "bot_guardian_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "player_priest_1",
+      "round": 59,
+      "targetId": "bot_guardian_0",
+      "type": "damage",
     },
     {
       "actorId": "bot_priest_1",
@@ -15480,20 +15336,20 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     {
       "actorId": "player_priest_1",
       "round": 60,
-      "targetId": "bot_guardian_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "player_priest_1",
-      "round": 60,
-      "targetId": "bot_guardian_0",
-      "type": "damage",
+      "targetId": "player_knight_0",
+      "type": "ability",
     },
     {
       "actorId": "bot_priest_1",
       "round": 60,
       "targetId": "player_priest_1",
       "type": "attack",
+    },
+    {
+      "actorId": "bot_priest_1",
+      "round": 60,
+      "targetId": "player_priest_1",
+      "type": "damage",
     },
     {
       "actorId": "player_knight_0",
@@ -15654,14 +15510,8 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     {
       "actorId": "player_priest_1",
       "round": 63,
-      "targetId": "bot_guardian_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "player_priest_1",
-      "round": 63,
-      "targetId": "bot_guardian_0",
-      "type": "damage",
+      "targetId": "player_priest_1",
+      "type": "ability",
     },
     {
       "actorId": "bot_priest_1",
@@ -15670,6 +15520,12 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "attack",
     },
     {
+      "actorId": "bot_priest_1",
+      "round": 63,
+      "targetId": "player_priest_1",
+      "type": "damage",
+    },
+    {
       "actorId": "player_knight_0",
       "round": 63,
       "targetId": "bot_guardian_0",
@@ -15686,12 +15542,6 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "round": 63,
       "targetId": "player_knight_0",
       "type": "attack",
-    },
-    {
-      "actorId": "bot_guardian_0",
-      "round": 63,
-      "targetId": "player_knight_0",
-      "type": "damage",
     },
     {
       "actorId": "system",
@@ -15828,8 +15678,14 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     {
       "actorId": "player_priest_1",
       "round": 66,
-      "targetId": "player_priest_1",
-      "type": "ability",
+      "targetId": "bot_guardian_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "player_priest_1",
+      "round": 66,
+      "targetId": "bot_guardian_0",
+      "type": "damage",
     },
     {
       "actorId": "bot_priest_1",
@@ -15948,7 +15804,7 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     {
       "actorId": "player_priest_1",
       "round": 68,
-      "targetId": "player_knight_0",
+      "targetId": "player_priest_1",
       "type": "ability",
     },
     {
@@ -16052,12 +15908,6 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "round": 70,
       "targetId": "player_knight_0",
       "type": "attack",
-    },
-    {
-      "actorId": "bot_bard_2",
-      "round": 70,
-      "targetId": "player_knight_0",
-      "type": "damage",
     },
     {
       "actorId": "player_priest_1",
@@ -16122,8 +15972,14 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     {
       "actorId": "player_priest_1",
       "round": 71,
-      "targetId": "player_priest_1",
-      "type": "ability",
+      "targetId": "bot_guardian_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "player_priest_1",
+      "round": 71,
+      "targetId": "bot_guardian_0",
+      "type": "damage",
     },
     {
       "actorId": "bot_priest_1",
@@ -16182,14 +16038,8 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     {
       "actorId": "player_priest_1",
       "round": 72,
-      "targetId": "bot_guardian_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "player_priest_1",
-      "round": 72,
-      "targetId": "bot_guardian_0",
-      "type": "damage",
+      "targetId": "player_knight_0",
+      "type": "ability",
     },
     {
       "actorId": "bot_priest_1",
@@ -16282,22 +16132,10 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "attack",
     },
     {
-      "actorId": "bot_bard_2",
-      "round": 74,
-      "targetId": "player_knight_0",
-      "type": "damage",
-    },
-    {
       "actorId": "player_priest_1",
       "round": 74,
-      "targetId": "bot_guardian_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "player_priest_1",
-      "round": 74,
-      "targetId": "bot_guardian_0",
-      "type": "damage",
+      "targetId": "player_priest_1",
+      "type": "ability",
     },
     {
       "actorId": "bot_priest_1",
@@ -16476,8 +16314,14 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     {
       "actorId": "player_priest_1",
       "round": 77,
-      "targetId": "player_priest_1",
-      "type": "ability",
+      "targetId": "bot_guardian_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "player_priest_1",
+      "round": 77,
+      "targetId": "bot_guardian_0",
+      "type": "damage",
     },
     {
       "actorId": "bot_priest_1",
@@ -16486,6 +16330,12 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "attack",
     },
     {
+      "actorId": "bot_priest_1",
+      "round": 77,
+      "targetId": "player_priest_1",
+      "type": "damage",
+    },
+    {
       "actorId": "player_knight_0",
       "round": 77,
       "targetId": "bot_guardian_0",
@@ -16590,14 +16440,8 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     {
       "actorId": "player_priest_1",
       "round": 79,
-      "targetId": "bot_guardian_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "player_priest_1",
-      "round": 79,
-      "targetId": "bot_guardian_0",
-      "type": "damage",
+      "targetId": "player_priest_1",
+      "type": "ability",
     },
     {
       "actorId": "bot_priest_1",
@@ -16690,12 +16534,6 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "attack",
     },
     {
-      "actorId": "bot_guardian_0",
-      "round": 80,
-      "targetId": "player_knight_0",
-      "type": "damage",
-    },
-    {
       "actorId": "system",
       "round": 81,
       "targetId": undefined,
@@ -16710,8 +16548,14 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     {
       "actorId": "player_priest_1",
       "round": 81,
-      "targetId": "player_knight_0",
-      "type": "ability",
+      "targetId": "bot_guardian_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "player_priest_1",
+      "round": 81,
+      "targetId": "bot_guardian_0",
+      "type": "damage",
     },
     {
       "actorId": "bot_priest_1",
@@ -16796,12 +16640,6 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "round": 82,
       "targetId": "player_knight_0",
       "type": "attack",
-    },
-    {
-      "actorId": "bot_guardian_0",
-      "round": 82,
-      "targetId": "player_knight_0",
-      "type": "damage",
     },
     {
       "actorId": "system",
@@ -17014,12 +16852,6 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "attack",
     },
     {
-      "actorId": "bot_priest_1",
-      "round": 86,
-      "targetId": "player_priest_1",
-      "type": "damage",
-    },
-    {
       "actorId": "player_knight_0",
       "round": 86,
       "targetId": "bot_guardian_0",
@@ -17064,7 +16896,7 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     {
       "actorId": "player_priest_1",
       "round": 87,
-      "targetId": "player_priest_1",
+      "targetId": "player_knight_0",
       "type": "ability",
     },
     {
@@ -17140,6 +16972,12 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "attack",
     },
     {
+      "actorId": "bot_priest_1",
+      "round": 88,
+      "targetId": "player_priest_1",
+      "type": "damage",
+    },
+    {
       "actorId": "player_knight_0",
       "round": 88,
       "targetId": "player_knight_0",
@@ -17172,14 +17010,8 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     {
       "actorId": "player_priest_1",
       "round": 89,
-      "targetId": "bot_guardian_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "player_priest_1",
-      "round": 89,
-      "targetId": "bot_guardian_0",
-      "type": "damage",
+      "targetId": "player_priest_1",
+      "type": "ability",
     },
     {
       "actorId": "bot_priest_1",
@@ -17270,6 +17102,12 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "round": 90,
       "targetId": "player_knight_0",
       "type": "attack",
+    },
+    {
+      "actorId": "bot_guardian_0",
+      "round": 90,
+      "targetId": "player_knight_0",
+      "type": "damage",
     },
     {
       "actorId": "system",
@@ -17412,14 +17250,26 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     {
       "actorId": "player_priest_1",
       "round": 93,
-      "targetId": "player_priest_1",
-      "type": "ability",
+      "targetId": "bot_guardian_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "player_priest_1",
+      "round": 93,
+      "targetId": "bot_guardian_0",
+      "type": "damage",
     },
     {
       "actorId": "bot_priest_1",
       "round": 93,
-      "targetId": "bot_guardian_0",
-      "type": "ability",
+      "targetId": "player_priest_1",
+      "type": "attack",
+    },
+    {
+      "actorId": "bot_priest_1",
+      "round": 93,
+      "targetId": "player_priest_1",
+      "type": "damage",
     },
     {
       "actorId": "player_knight_0",
@@ -17460,26 +17310,14 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     {
       "actorId": "player_priest_1",
       "round": 94,
-      "targetId": "bot_guardian_0",
-      "type": "attack",
-    },
-    {
-      "actorId": "player_priest_1",
-      "round": 94,
-      "targetId": "bot_guardian_0",
-      "type": "damage",
+      "targetId": "player_priest_1",
+      "type": "ability",
     },
     {
       "actorId": "bot_priest_1",
       "round": 94,
-      "targetId": "player_priest_1",
-      "type": "attack",
-    },
-    {
-      "actorId": "bot_priest_1",
-      "round": 94,
-      "targetId": "player_priest_1",
-      "type": "damage",
+      "targetId": "bot_guardian_0",
+      "type": "ability",
     },
     {
       "actorId": "player_knight_0",
@@ -17520,8 +17358,14 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     {
       "actorId": "player_priest_1",
       "round": 95,
-      "targetId": "player_knight_0",
-      "type": "ability",
+      "targetId": "bot_guardian_0",
+      "type": "attack",
+    },
+    {
+      "actorId": "player_priest_1",
+      "round": 95,
+      "targetId": "bot_guardian_0",
+      "type": "damage",
     },
     {
       "actorId": "bot_priest_1",
@@ -17654,12 +17498,6 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "round": 97,
       "targetId": "player_priest_1",
       "type": "attack",
-    },
-    {
-      "actorId": "bot_priest_1",
-      "round": 97,
-      "targetId": "player_priest_1",
-      "type": "damage",
     },
     {
       "actorId": "player_knight_0",
@@ -17752,16 +17590,16 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "attack",
     },
     {
-      "actorId": "bot_bard_2",
+      "actorId": "player_priest_1",
       "round": 99,
-      "targetId": "player_knight_0",
-      "type": "damage",
+      "targetId": "bot_guardian_0",
+      "type": "attack",
     },
     {
       "actorId": "player_priest_1",
       "round": 99,
-      "targetId": "player_priest_1",
-      "type": "ability",
+      "targetId": "bot_guardian_0",
+      "type": "damage",
     },
     {
       "actorId": "bot_priest_1",
@@ -17857,7 +17695,7 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     "playerUnits": [
       {
         "alive": true,
-        "currentHp": 74,
+        "currentHp": 59,
         "instanceId": "player_knight_0",
         "position": {
           "x": 2,
@@ -17866,7 +17704,7 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       },
       {
         "alive": true,
-        "currentHp": 47,
+        "currentHp": 29,
         "instanceId": "player_priest_1",
         "position": {
           "x": 1,

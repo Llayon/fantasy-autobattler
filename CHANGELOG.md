@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Core 2.0: Mechanics System** — Modular combat mechanics with feature flags
+  - `core/mechanics/config/` — Types, defaults, presets, validation
+  - `core/mechanics/tier0/` — Facing (directional combat N/S/E/W)
+  - `core/mechanics/tier1/` — Resolve (morale), Engagement (ZoC), Flanking (+15%/+30% damage)
+  - `core/mechanics/tier2/` — Riposte (counter-attack), Intercept (movement blocking), Aura (area effects)
+  - `core/mechanics/tier3/` — Charge (momentum), Overwatch (vigilance), Phalanx (formation), LoS (line of sight), Ammunition
+  - `core/mechanics/tier4/` — Contagion (status spread), Armor Shred (armor degradation)
+  - `MechanicsProcessor` factory with phase hooks integration
+  - Three presets: `MVP_PRESET`, `TACTICAL_PRESET`, `ROGUELIKE_PRESET`
+  - Automatic dependency resolution for mechanics
+  - 2650+ tests including integration, snapshot, and benchmark tests
 - Core library extraction (`backend/src/core/`) — game-agnostic battle engine
   - `core/grid/` — Grid utilities, A* pathfinding with configurable dimensions
   - `core/battle/` — Damage calculations, turn order, targeting strategies

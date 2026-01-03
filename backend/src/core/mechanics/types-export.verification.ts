@@ -68,7 +68,7 @@ import type { AuraProcessor, Aura, AuraType } from './index';
 import type { ChargeProcessor } from './index';
 import type { OverwatchProcessor } from './index';
 import type { PhalanxProcessor } from './index';
-import type { LoSProcessor, FireType } from './index';
+import type { LoSProcessor, FireMode } from './index';
 import type { AmmoProcessor } from './index';
 
 // ═══════════════════════════════════════════════════════════════
@@ -182,7 +182,7 @@ const _verifyFacingDirection: FacingDirection = 'N';
 const _verifyAttackArc: AttackArc = 'front';
 const _verifyInterceptType: InterceptType = 'hard';
 const _verifyAuraType: AuraType = 'static';
-const _verifyFireType: FireType = 'direct';
+const _verifyFireMode: FireMode = 'direct';
 const _verifyContagionType: ContagionType = 'fire';
 const _verifyResolveState: MechanicsResolveState = 'active';
 const _verifyBattleActionType: BattleActionType = 'attack';
@@ -378,7 +378,7 @@ export {
   _verifyAttackArc,
   _verifyInterceptType,
   _verifyAuraType,
-  _verifyFireType,
+  _verifyFireMode,
   _verifyContagionType,
   _verifyResolveState,
   _verifyBattleActionType,

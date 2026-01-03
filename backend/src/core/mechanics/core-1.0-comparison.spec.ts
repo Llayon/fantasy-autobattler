@@ -326,10 +326,9 @@ describe('Core 1.0 vs MVP Preset Comparison', () => {
         // Verify MVP processor has no active mechanics
         expect(Object.keys(mvpProcessor.processors).length).toBe(0);
 
-        // Run simulation again (simulating MVP preset behavior)
-        // Note: Currently simulateBattle doesn't accept processor parameter,
-        // so we verify that running without processor produces identical results
-        const mvpResult = simulateBattle(playerTeam, enemyTeam, scenario.seed);
+        // Run simulation again with MVP preset processor
+        // MVP preset has no active mechanics, so results should be identical
+        const mvpResult = simulateBattle(playerTeam, enemyTeam, scenario.seed, mvpProcessor);
 
         // Compare results in detail
         const comparison = compareBattleResults(core10Result, mvpResult);
@@ -399,9 +398,8 @@ describe('Core 1.0 vs MVP Preset Comparison', () => {
         const mvpProcessor = createMechanicsProcessor(MVP_PRESET);
         expect(Object.keys(mvpProcessor.processors).length).toBe(0);
 
-        // Run MVP simulation (currently same as Core 1.0 since processor not integrated)
-        // When processor integration is complete, this will use the processor
-        const mvpResult = simulateBattle(playerTeam, enemyTeam, scenario.seed);
+        // Run MVP simulation with processor
+        const mvpResult = simulateBattle(playerTeam, enemyTeam, scenario.seed, mvpProcessor);
 
         // Verify event count is identical
         expect(core10Result.events.length).toBe(mvpResult.events.length);
@@ -523,9 +521,8 @@ describe('Core 1.0 vs MVP Preset Comparison', () => {
         const mvpProcessor = createMechanicsProcessor(MVP_PRESET);
         expect(Object.keys(mvpProcessor.processors).length).toBe(0);
 
-        // Run MVP simulation (currently same as Core 1.0 since processor not integrated)
-        // When processor integration is complete, this will use the processor
-        const mvpResult = simulateBattle(playerTeam, enemyTeam, scenario.seed);
+        // Run MVP simulation with processor
+        const mvpResult = simulateBattle(playerTeam, enemyTeam, scenario.seed, mvpProcessor);
 
         // Verify player unit count is identical
         expect(core10Result.finalState.playerUnits.length).toBe(
