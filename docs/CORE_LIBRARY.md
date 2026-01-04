@@ -1,6 +1,6 @@
 # Core Library Documentation
 
-> **Status:** Active development — Core 1.0 and Core 3.0 complete.
+> **Status:** Active development — Core 1.0, Core 2.0, and Core 3.0 complete.
 
 ## Overview
 
@@ -11,7 +11,7 @@ The core library (`backend/src/core/` and `frontend/src/core/`) contains game-ag
 | Version | Name | Status | Description |
 |---------|------|--------|-------------|
 | Core 1.0 | Extraction | ✅ Complete | Grid, Battle, Targeting, Turn-order |
-| Core 2.0 | Mechanics | ⬜ Planned | Combat mechanics (Resolve, Flanking) |
+| Core 2.0 | Mechanics | ✅ Complete | Combat mechanics (14 modular systems) |
 | Core 3.0 | Progression | ✅ Complete | Deck, Draft, Upgrade, Economy, Run, Snapshot |
 
 ## Backend Core Modules
@@ -20,12 +20,19 @@ The core library (`backend/src/core/` and `frontend/src/core/`) contains game-ag
 backend/src/core/
 ├── grid/           # Grid utilities, A* pathfinding
 ├── battle/         # Damage, turn order, targeting
+├── mechanics/      # 🆕 Core 2.0 - Modular combat mechanics
+│   ├── config/     # Types, defaults, presets, validation
+│   ├── tier0/      # Facing (directional combat)
+│   ├── tier1/      # Resolve, Engagement, Flanking
+│   ├── tier2/      # Riposte, Intercept, Aura
+│   ├── tier3/      # Charge, Overwatch, Phalanx, LoS, Ammo
+│   └── tier4/      # Contagion, Armor Shred
 ├── abilities/      # Ability execution, status effects
 ├── types/          # Core type definitions
 ├── utils/          # Seeded random, helpers
 ├── events/         # Event system for battle logging
 ├── constants/      # Default configuration values
-└── progression/    # 🆕 Core 3.0 - Progression systems
+└── progression/    # Core 3.0 - Progression systems
     ├── deck/       # Card collection management
     ├── hand/       # Hand management with overflow
     ├── draft/      # Pick/ban card drafting
@@ -77,6 +84,58 @@ import { isValidPosition } from '../battle/grid';
 
 // New (recommended)
 import { isValidPosition } from '@core/grid';
+```
+
+---
+
+## Core 2.0: Mechanics System
+
+Modular battle mechanics with feature flags. All mechanics are optional and can be enabled/disabled independently while maintaining full backward compatibility with Core 1.0.
+
+> **Full documentation:** See `backend/src/core/mechanics/README.md` and `backend/src/core/README.md`
+
+### Presets
+
+| Preset | Description | Mechanics Enabled |
+|--------|-------------|-------------------|
+| `MVP_PRESET` | All disabled | None (Core 1.0 behavior) |
+| `TACTICAL_PRESET` | Tier 0-2 | facing, flanking, resolve, engagement, riposte, intercept |
+| `ROGUELIKE_PRESET` | All enabled | All 14 mechanics |
+
+### Mechanics by Tier
+
+| Tier | Mechanics | Description |
+|------|-----------|-------------|
+| 0 | Facing | Directional combat (N/S/E/W), attack arcs |
+| 1 | Resolve, Engagement, Flanking | Morale, ZoC, damage bonuses |
+| 2 | Riposte, Intercept, Aura | Counter-attacks, movement blocking, area effects |
+| 3 | Charge, Overwatch, Phalanx, LoS, Ammo | Momentum, vigilance, formations, ranged |
+| 4 | Contagion, Armor Shred | Status spread, armor degradation |
+
+### Quick Example
+
+```typescript
+import {
+  createMechanicsProcessor,
+  MVP_PRESET,
+  ROGUELIKE_PRESET,
+} from '@core/mechanics';
+import { simulateBattle } from '../battle/battle.simulator';
+
+// MVP mode (identical to Core 1.0)
+const mvpProcessor = createMechanicsProcessor(MVP_PRESET);
+const result1 = simulateBattle(playerTeam, enemyTeam, seed, mvpProcessor);
+
+// Roguelike mode (all mechanics)
+const roguelikeProcessor = createMechanicsProcessor(ROGUELIKE_PRESET);
+const result2 = simulateBattle(playerTeam, enemyTeam, seed, roguelikeProcessor);
+
+// Custom configuration (dependencies auto-resolved)
+const customProcessor = createMechanicsProcessor({
+  facing: true,
+  flanking: true,
+  resolve: { maxResolve: 100, baseRegeneration: 5 },
+});
 ```
 
 ---

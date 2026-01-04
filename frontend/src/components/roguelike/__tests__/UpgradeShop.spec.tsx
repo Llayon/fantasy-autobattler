@@ -172,7 +172,10 @@ describe('UpgradeShop', () => {
 
       // Find and click the upgrade button for Footman
       const upgradeButtons = screen.getAllByRole('button', { name: /Upgrade/i });
-      fireEvent.click(upgradeButtons[0]);
+      const firstButton = upgradeButtons[0];
+      if (firstButton) {
+        fireEvent.click(firstButton);
+      }
       expect(onUpgrade).toHaveBeenCalledWith('card-1');
     });
 
@@ -189,7 +192,10 @@ describe('UpgradeShop', () => {
       );
 
       const upgradeButtons = screen.getAllByRole('button', { name: /Upgrade/i });
-      fireEvent.click(upgradeButtons[0]);
+      const firstButton = upgradeButtons[0];
+      if (firstButton) {
+        fireEvent.click(firstButton);
+      }
       expect(onUpgrade).not.toHaveBeenCalled();
     });
 

@@ -49,6 +49,45 @@ export interface DamageUnit {
   currentHp: number;
   /** Maximum hit points */
   maxHp: number;
+  /**
+   * Accumulated armor shred from physical attacks.
+   * Reduces effective armor when present.
+   * Part of Core 2.0 mechanics system.
+   */
+  armorShred?: number;
+}
+
+// =============================================================================
+// EFFECTIVE ARMOR CALCULATION
+// =============================================================================
+
+/**
+ * Calculate effective armor after applying armor shred.
+ * Effective armor = base armor - armor shred (minimum 0).
+ *
+ * This function is used by damage calculations to account for
+ * armor degradation from the Core 2.0 armor shred mechanic.
+ *
+ * @param unit - The unit to calculate effective armor for
+ * @returns Effective armor value (minimum 0)
+ * @example
+ * const knight = { stats: { armor: 10 }, armorShred: 3 };
+ * const effectiveArmor = getEffectiveArmor(knight);
+ * // Returns: 7 (10 - 3)
+ *
+ * @example
+ * // Without armor shred (backward compatible)
+ * const warrior = { stats: { armor: 8 } };
+ * const effectiveArmor = getEffectiveArmor(warrior);
+ * // Returns: 8 (no shred applied)
+ */
+export function getEffectiveArmor(unit: DamageUnit): number {
+  const baseArmor = unit.stats.armor;
+  const shred = unit.armorShred ?? 0;
+
+  // Formula: effectiveArmor = max(0, baseArmor - armorShred)
+  // Armor shred reduces effective armor but cannot make it negative
+  return Math.max(0, baseArmor - shred);
 }
 
 // =============================================================================
@@ -56,29 +95,116 @@ export interface DamageUnit {
 // =============================================================================
 
 /**
+ * Options for physical damage calculation.
+ * Supports Core 2.0 mechanics like flanking modifiers and charge momentum.
+ */
+export interface PhysicalDamageOptions {
+  /**
+   * Flanking damage modifier from Core 2.0 mechanics.
+   * Applied as a multiplier to the final damage.
+   * - 1.0 = front attack (no bonus)
+   * - 1.3 = flank attack (+30% damage)
+   * - 1.5 = rear attack (+50% damage)
+   */
+  flankingModifier?: number;
+
+  /**
+   * Charge momentum bonus from Core 2.0 mechanics.
+   * Applied as an additive multiplier to the final damage.
+   * - 0.0 = no charge bonus
+   * - 0.2 = +20% damage (1 cell moved)
+   * - 1.0 = +100% damage (max momentum)
+   *
+   * Formula: damage * (1 + momentumBonus)
+   * Momentum is calculated as: min(maxMomentum, distance * momentumPerCell)
+   * Default: 0.2 per cell, max 1.0 (100%)
+   */
+  momentumBonus?: number;
+}
+
+/**
  * Calculate physical damage dealt by attacker to target.
- * Physical damage is reduced by target's armor but has a minimum of 1.
- * Formula: max(minDamage, (ATK - armor) * atkCount)
+ * Physical damage is reduced by target's effective armor but has a minimum of 1.
+ * Effective armor accounts for armor shred from Core 2.0 mechanics.
+ * Supports optional flanking modifier and charge momentum bonus from Core 2.0 mechanics.
+ * 
+ * Formula: max(minDamage, floor((ATK - effectiveArmor) * atkCount * flankingModifier * (1 + momentumBonus)))
  *
  * @param attacker - The unit dealing damage
  * @param target - The unit receiving damage
  * @param config - Battle configuration (defaults to standard config)
+ * @param options - Optional damage calculation options (flanking modifier, momentum bonus, etc.)
  * @returns Calculated physical damage value (minimum 1)
  * @example
  * const warrior = { stats: { atk: 15, atkCount: 1, armor: 0, dodge: 0 }, currentHp: 100, maxHp: 100 };
  * const knight = { stats: { atk: 10, atkCount: 1, armor: 8, dodge: 0 }, currentHp: 100, maxHp: 100 };
  * const damage = calculatePhysicalDamage(warrior, knight);
  * // Returns: max(1, (15 - 8) * 1) = 7
+ *
+ * @example
+ * // With armor shred (Core 2.0)
+ * const knight = { stats: { armor: 10 }, armorShred: 4 };
+ * // Effective armor = 10 - 4 = 6
+ * const damage = calculatePhysicalDamage(attacker, knight);
+ *
+ * @example
+ * // With flanking modifier (Core 2.0)
+ * const damage = calculatePhysicalDamage(attacker, target, config, { flankingModifier: 1.3 });
+ * // Damage is multiplied by 1.3 for flank attack
+ *
+ * @example
+ * // With rear attack (Core 2.0)
+ * const damage = calculatePhysicalDamage(attacker, target, config, { flankingModifier: 1.5 });
+ * // Damage is multiplied by 1.5 for rear attack
+ *
+ * @example
+ * // With charge momentum bonus (Core 2.0)
+ * const damage = calculatePhysicalDamage(attacker, target, config, { momentumBonus: 0.6 });
+ * // Damage is multiplied by 1.6 for charge with 60% momentum
+ *
+ * @example
+ * // With combined flanking and charge (Core 2.0)
+ * const damage = calculatePhysicalDamage(attacker, target, config, { flankingModifier: 1.3, momentumBonus: 0.4 });
+ * // Damage is multiplied by 1.3 * 1.4 = 1.82 for flank charge attack
  */
 export function calculatePhysicalDamage(
   attacker: DamageUnit,
   target: DamageUnit,
-  config: BattleConfig = DEFAULT_BATTLE_CONFIG
+  config: BattleConfig = DEFAULT_BATTLE_CONFIG,
+  options?: PhysicalDamageOptions
 ): number {
-  const baseDamage = attacker.stats.atk - target.stats.armor;
-  const totalDamage = baseDamage * attacker.stats.atkCount;
+  // Step 1: Calculate effective armor (accounts for armor shred from Core 2.0)
+  // Formula: effectiveArmor = max(0, baseArmor - armorShred)
+  const effectiveArmor = getEffectiveArmor(target);
 
-  // Ensure minimum damage per config
+  // Step 2: Calculate base damage after armor reduction
+  // Formula: baseDamage = ATK - effectiveArmor
+  const baseDamage = attacker.stats.atk - effectiveArmor;
+
+  // Step 3: Apply attack count multiplier
+  // Formula: totalDamage = baseDamage * atkCount
+  let totalDamage = baseDamage * attacker.stats.atkCount;
+
+  // Step 4: Apply flanking modifier if provided (Core 2.0 mechanics)
+  // Formula: totalDamage = floor(totalDamage * flankingModifier)
+  // - Front: 1.0 (no bonus)
+  // - Flank: 1.15 (+15% damage)
+  // - Rear: 1.3 (+30% damage)
+  if (options?.flankingModifier !== undefined && options.flankingModifier !== 1.0) {
+    totalDamage = Math.floor(totalDamage * options.flankingModifier);
+  }
+
+  // Step 5: Apply charge momentum bonus if provided (Core 2.0 mechanics)
+  // Formula: totalDamage = floor(totalDamage * (1 + momentumBonus))
+  // Momentum is calculated as: min(maxMomentum, distance * momentumPerCell)
+  // Default: 0.2 per cell, max 1.0 (100%)
+  if (options?.momentumBonus !== undefined && options.momentumBonus > 0) {
+    totalDamage = Math.floor(totalDamage * (1 + options.momentumBonus));
+  }
+
+  // Step 6: Ensure minimum damage per config
+  // Formula: finalDamage = max(minDamage, totalDamage)
+  // Default minDamage = 1 (attacks always deal at least 1 damage)
   return Math.max(config.minDamage, totalDamage);
 }
 
@@ -97,7 +223,9 @@ export function calculatePhysicalDamage(
  * // Returns: 20 * 1 = 20 (armor ignored)
  */
 export function calculateMagicDamage(attacker: DamageUnit, _target: DamageUnit): number {
-  // Magic damage ignores armor completely
+  // Magic damage formula: damage = ATK * atkCount
+  // Magic damage ignores armor completely, making it effective against heavily armored units
+  // but typically has lower base values or cooldowns to balance
   return attacker.stats.atk * attacker.stats.atkCount;
 }
 
@@ -115,10 +243,12 @@ export function calculateMagicDamage(attacker: DamageUnit, _target: DamageUnit):
  * // Returns: true or false based on seeded random roll
  */
 export function rollDodge(target: DamageUnit, seed: number): boolean {
-  // Generate deterministic random number [0, 1)
+  // Generate deterministic random number [0, 1) using seeded PRNG
   const roll = seededRandom(seed);
 
-  // Convert dodge percentage to decimal and compare
+  // Dodge formula: dodged = roll < (dodge / 100)
+  // Convert dodge percentage (0-100) to decimal (0-1) for comparison
+  // Example: 25% dodge means dodged if roll < 0.25
   const dodgeChance = target.stats.dodge / 100;
 
   return roll < dodgeChance;
@@ -140,8 +270,15 @@ export function applyDamage(
   target: DamageUnit,
   damage: number
 ): { newHp: number; killed: boolean; overkill: number } {
+  // HP reduction formula: newHp = max(0, currentHp - damage)
+  // HP cannot go below 0
   const newHp = Math.max(0, target.currentHp - damage);
+
+  // Death check: unit is killed when HP reaches exactly 0
   const killed = newHp === 0;
+
+  // Overkill calculation: excess damage beyond what was needed to kill
+  // Formula: overkill = damage > currentHp ? damage - currentHp : 0
   const overkill = damage > target.currentHp ? damage - target.currentHp : 0;
 
   return {
@@ -168,8 +305,15 @@ export function applyHealing(
   target: DamageUnit,
   healAmount: number
 ): { newHp: number; overheal: number } {
+  // Calculate potential HP after healing
   const potentialHp = target.currentHp + healAmount;
+
+  // Healing formula: newHp = min(maxHp, currentHp + healAmount)
+  // HP cannot exceed maxHp (no overhealing)
   const newHp = Math.min(target.maxHp, potentialHp);
+
+  // Overheal calculation: excess healing beyond maxHp
+  // Formula: overheal = potentialHp > maxHp ? potentialHp - maxHp : 0
   const overheal = potentialHp > target.maxHp ? potentialHp - target.maxHp : 0;
 
   return {
@@ -183,23 +327,67 @@ export function applyHealing(
 // =============================================================================
 
 /**
+ * Options for resolving a physical attack.
+ * Supports Core 2.0 mechanics like flanking modifiers and charge momentum.
+ */
+export interface ResolvePhysicalAttackOptions {
+  /**
+   * Flanking damage modifier from Core 2.0 mechanics.
+   * Applied as a multiplier to the final damage.
+   * - 1.0 = front attack (no bonus)
+   * - 1.3 = flank attack (+30% damage)
+   * - 1.5 = rear attack (+50% damage)
+   */
+  flankingModifier?: number;
+
+  /**
+   * Charge momentum bonus from Core 2.0 mechanics.
+   * Applied as an additive multiplier to the final damage.
+   * - 0.0 = no charge bonus
+   * - 0.2 = +20% damage (1 cell moved)
+   * - 1.0 = +100% damage (max momentum)
+   *
+   * Formula: damage * (1 + momentumBonus)
+   */
+  momentumBonus?: number;
+}
+
+/**
  * Resolve a complete physical attack between two units.
  * Handles damage calculation, dodge rolls, and damage application.
+ * Supports optional flanking modifier and charge momentum bonus from Core 2.0 mechanics.
  *
  * @param attacker - The unit performing the attack
  * @param target - The unit being attacked
  * @param seed - Seed for deterministic dodge calculation
  * @param config - Battle configuration
+ * @param options - Optional attack resolution options (flanking modifier, momentum bonus, etc.)
  * @returns Complete attack result with damage and status changes
  * @example
  * const result = resolvePhysicalAttack(warrior, rogue, 12345);
  * // Returns: { damage: 13, dodged: false, killed: false, newHp: 37, overkill: 0 }
+ *
+ * @example
+ * // With flanking modifier (Core 2.0)
+ * const result = resolvePhysicalAttack(warrior, rogue, 12345, config, { flankingModifier: 1.3 });
+ * // Damage is multiplied by 1.3 for flank attack
+ *
+ * @example
+ * // With charge momentum bonus (Core 2.0)
+ * const result = resolvePhysicalAttack(cavalry, infantry, 12345, config, { momentumBonus: 0.6 });
+ * // Damage is multiplied by 1.6 for charge with 60% momentum
+ *
+ * @example
+ * // With combined flanking and charge (Core 2.0)
+ * const result = resolvePhysicalAttack(cavalry, infantry, 12345, config, { flankingModifier: 1.3, momentumBonus: 0.4 });
+ * // Damage is multiplied by 1.3 * 1.4 = 1.82 for flank charge attack
  */
 export function resolvePhysicalAttack(
   attacker: DamageUnit,
   target: DamageUnit,
   seed: number,
-  config: BattleConfig = DEFAULT_BATTLE_CONFIG
+  config: BattleConfig = DEFAULT_BATTLE_CONFIG,
+  options?: ResolvePhysicalAttackOptions
 ): {
   damage: number;
   dodged: boolean;
@@ -220,8 +408,19 @@ export function resolvePhysicalAttack(
     };
   }
 
-  // Calculate and apply damage
-  const damage = calculatePhysicalDamage(attacker, target, config);
+  // Calculate and apply damage with optional flanking modifier and momentum bonus
+  // Build options object only with defined values to satisfy exactOptionalPropertyTypes
+  let damageOptions: PhysicalDamageOptions | undefined;
+  if (options?.flankingModifier !== undefined || options?.momentumBonus !== undefined) {
+    damageOptions = {};
+    if (options?.flankingModifier !== undefined) {
+      damageOptions.flankingModifier = options.flankingModifier;
+    }
+    if (options?.momentumBonus !== undefined) {
+      damageOptions.momentumBonus = options.momentumBonus;
+    }
+  }
+  const damage = calculatePhysicalDamage(attacker, target, config, damageOptions);
   const damageResult = applyDamage(target, damage);
 
   return {
@@ -268,22 +467,41 @@ export function resolveMagicAttack(
 /**
  * Calculate effective damage reduction from armor.
  * Used for UI display and damage preview calculations.
+ * Accounts for armor shred when present (Core 2.0).
  *
- * @param armor - Armor value of the defending unit
+ * @param armor - Base armor value of the defending unit
  * @param incomingDamage - Raw damage before armor reduction
  * @param config - Battle configuration
+ * @param armorShred - Optional armor shred amount (Core 2.0)
  * @returns Object with reduced damage and damage blocked
  * @example
  * const result = calculateArmorReduction(5, 12);
  * // Returns: { reducedDamage: 7, damageBlocked: 5 }
+ *
+ * @example
+ * // With armor shred
+ * const result = calculateArmorReduction(10, 15, DEFAULT_BATTLE_CONFIG, 4);
+ * // Effective armor = 10 - 4 = 6
+ * // Returns: { reducedDamage: 9, damageBlocked: 6 }
  */
 export function calculateArmorReduction(
   armor: number,
   incomingDamage: number,
-  config: BattleConfig = DEFAULT_BATTLE_CONFIG
+  config: BattleConfig = DEFAULT_BATTLE_CONFIG,
+  armorShred: number = 0
 ): { reducedDamage: number; damageBlocked: number } {
-  const damageBlocked = Math.min(armor, incomingDamage - config.minDamage);
-  const reducedDamage = Math.max(config.minDamage, incomingDamage - armor);
+  // Step 1: Calculate effective armor after shred
+  // Formula: effectiveArmor = max(0, armor - armorShred)
+  const effectiveArmor = Math.max(0, armor - armorShred);
+
+  // Step 2: Calculate damage blocked by armor
+  // Formula: damageBlocked = min(effectiveArmor, incomingDamage - minDamage)
+  // Cannot block more than would reduce damage below minimum
+  const damageBlocked = Math.min(effectiveArmor, incomingDamage - config.minDamage);
+
+  // Step 3: Calculate reduced damage after armor
+  // Formula: reducedDamage = max(minDamage, incomingDamage - effectiveArmor)
+  const reducedDamage = Math.max(config.minDamage, incomingDamage - effectiveArmor);
 
   return {
     reducedDamage,

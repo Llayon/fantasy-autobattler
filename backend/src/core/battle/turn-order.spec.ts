@@ -10,7 +10,9 @@ import {
   buildTurnQueue,
   getNextUnit,
   removeDeadUnits,
+  removeInactiveUnits,
   hasLivingUnits,
+  hasActiveUnits,
   getLivingUnitsByTeam,
   countLivingUnitsByTeam,
   findUnitById,
@@ -19,7 +21,10 @@ import {
   isTurnQueueSorted,
   advanceToNextTurn,
   shouldStartNewRound,
+  canUnitAct,
   TurnOrderUnit,
+  ResolveState,
+  VigilanceState,
 } from './turn-order';
 
 describe('Turn Order System (Core)', () => {
@@ -30,18 +35,29 @@ describe('Turn Order System (Core)', () => {
     speed: number,
     team: 'player' | 'bot' = 'player',
     alive: boolean = true,
-    currentHp: number = 100
-  ): TurnOrderUnit => ({
-    id,
-    instanceId: `${id}_1`,
-    alive,
-    currentHp,
-    stats: {
-      initiative,
-      speed,
-    },
-    team,
-  });
+    currentHp: number = 100,
+    resolveState?: ResolveState,
+    vigilanceState?: VigilanceState
+  ): TurnOrderUnit => {
+    const unit: TurnOrderUnit = {
+      id,
+      instanceId: `${id}_1`,
+      alive,
+      currentHp,
+      stats: {
+        initiative,
+        speed,
+      },
+      team,
+    };
+    if (resolveState !== undefined) {
+      unit.resolveState = resolveState;
+    }
+    if (vigilanceState !== undefined) {
+      unit.vigilanceState = vigilanceState;
+    }
+    return unit;
+  };
 
   describe('buildTurnQueue', () => {
     it('should sort by initiative descending (primary)', () => {
@@ -491,6 +507,558 @@ describe('Turn Order System (Core)', () => {
 
       // Should be alphabetical order
       expect(results[0]).toEqual(['unit_a', 'unit_m', 'unit_z']);
+    });
+  });
+
+  // =============================================================================
+  // RESOLVE STATE TESTS
+  // =============================================================================
+
+  describe('canUnitAct', () => {
+    it('should return true for alive unit without resolve state', () => {
+      const unit = createMockUnit('unit1', 9, 4, 'player', true);
+      expect(canUnitAct(unit)).toBe(true);
+    });
+
+    it('should return true for alive unit with STEADY resolve', () => {
+      const unit = createMockUnit('unit1', 9, 4, 'player', true, 100, ResolveState.STEADY);
+      expect(canUnitAct(unit)).toBe(true);
+    });
+
+    it('should return true for alive unit with WAVERING resolve', () => {
+      const unit = createMockUnit('unit1', 9, 4, 'player', true, 100, ResolveState.WAVERING);
+      expect(canUnitAct(unit)).toBe(true);
+    });
+
+    it('should return false for alive unit with ROUTING resolve', () => {
+      const unit = createMockUnit('unit1', 9, 4, 'player', true, 100, ResolveState.ROUTING);
+      expect(canUnitAct(unit)).toBe(false);
+    });
+
+    it('should return false for dead unit', () => {
+      const unit = createMockUnit('unit1', 9, 4, 'player', false);
+      expect(canUnitAct(unit)).toBe(false);
+    });
+
+    it('should return false for dead unit even with STEADY resolve', () => {
+      const unit = createMockUnit('unit1', 9, 4, 'player', false, 0, ResolveState.STEADY);
+      expect(canUnitAct(unit)).toBe(false);
+    });
+  });
+
+  describe('buildTurnQueue with resolve state', () => {
+    it('should exclude routing units from queue', () => {
+      const units = [
+        createMockUnit('steady', 9, 4, 'player', true, 100, ResolveState.STEADY),
+        createMockUnit('routing', 8, 3, 'player', true, 100, ResolveState.ROUTING),
+        createMockUnit('wavering', 6, 2, 'player', true, 100, ResolveState.WAVERING),
+      ];
+
+      const queue = buildTurnQueue(units);
+
+      expect(queue.map((u) => u.id)).toEqual(['steady', 'wavering']);
+      expect(queue.every((u) => u.resolveState !== ResolveState.ROUTING)).toBe(true);
+    });
+
+    it('should include units without resolve state', () => {
+      const units = [
+        createMockUnit('no_resolve', 9, 4, 'player', true),
+        createMockUnit('routing', 8, 3, 'player', true, 100, ResolveState.ROUTING),
+        createMockUnit('steady', 6, 2, 'player', true, 100, ResolveState.STEADY),
+      ];
+
+      const queue = buildTurnQueue(units);
+
+      expect(queue.map((u) => u.id)).toEqual(['no_resolve', 'steady']);
+    });
+
+    it('should return empty queue when all units are routing', () => {
+      const units = [
+        createMockUnit('routing1', 9, 4, 'player', true, 100, ResolveState.ROUTING),
+        createMockUnit('routing2', 6, 2, 'player', true, 100, ResolveState.ROUTING),
+      ];
+
+      const queue = buildTurnQueue(units);
+
+      expect(queue).toEqual([]);
+    });
+  });
+
+  describe('getNextUnit with resolve state', () => {
+    it('should skip routing units and return first active unit', () => {
+      const units = [
+        createMockUnit('routing1', 9, 4, 'player', true, 100, ResolveState.ROUTING),
+        createMockUnit('routing2', 8, 3, 'player', true, 100, ResolveState.ROUTING),
+        createMockUnit('active', 6, 2, 'player', true, 100, ResolveState.STEADY),
+      ];
+
+      const next = getNextUnit(units);
+
+      expect(next?.id).toBe('active');
+    });
+
+    it('should return null when all units are routing', () => {
+      const units = [
+        createMockUnit('routing1', 9, 4, 'player', true, 100, ResolveState.ROUTING),
+        createMockUnit('routing2', 6, 2, 'player', true, 100, ResolveState.ROUTING),
+      ];
+
+      const next = getNextUnit(units);
+
+      expect(next).toBeNull();
+    });
+  });
+
+  describe('removeInactiveUnits', () => {
+    it('should remove dead units', () => {
+      const units = [
+        createMockUnit('alive', 9, 4, 'player', true),
+        createMockUnit('dead', 6, 2, 'player', false),
+      ];
+
+      const cleaned = removeInactiveUnits(units);
+
+      expect(cleaned.map((u) => u.id)).toEqual(['alive']);
+    });
+
+    it('should remove routing units', () => {
+      const units = [
+        createMockUnit('steady', 9, 4, 'player', true, 100, ResolveState.STEADY),
+        createMockUnit('routing', 6, 2, 'player', true, 100, ResolveState.ROUTING),
+      ];
+
+      const cleaned = removeInactiveUnits(units);
+
+      expect(cleaned.map((u) => u.id)).toEqual(['steady']);
+    });
+
+    it('should keep wavering units', () => {
+      const units = [
+        createMockUnit('steady', 9, 4, 'player', true, 100, ResolveState.STEADY),
+        createMockUnit('wavering', 6, 2, 'player', true, 100, ResolveState.WAVERING),
+      ];
+
+      const cleaned = removeInactiveUnits(units);
+
+      expect(cleaned.map((u) => u.id)).toEqual(['steady', 'wavering']);
+    });
+  });
+
+  describe('hasActiveUnits', () => {
+    it('should return true when active units exist', () => {
+      const units = [
+        createMockUnit('routing', 9, 4, 'player', true, 100, ResolveState.ROUTING),
+        createMockUnit('active', 6, 2, 'player', true, 100, ResolveState.STEADY),
+      ];
+
+      expect(hasActiveUnits(units)).toBe(true);
+    });
+
+    it('should return false when all units are routing', () => {
+      const units = [
+        createMockUnit('routing1', 9, 4, 'player', true, 100, ResolveState.ROUTING),
+        createMockUnit('routing2', 6, 2, 'player', true, 100, ResolveState.ROUTING),
+      ];
+
+      expect(hasActiveUnits(units)).toBe(false);
+    });
+
+    it('should return false when all units are dead', () => {
+      const units = [
+        createMockUnit('dead1', 9, 4, 'player', false),
+        createMockUnit('dead2', 6, 2, 'player', false),
+      ];
+
+      expect(hasActiveUnits(units)).toBe(false);
+    });
+
+    it('should return true for units without resolve state', () => {
+      const units = [createMockUnit('no_resolve', 9, 4, 'player', true)];
+
+      expect(hasActiveUnits(units)).toBe(true);
+    });
+  });
+
+  describe('getTurnOrderPreview with resolve state', () => {
+    it('should exclude routing units from preview', () => {
+      const units = [
+        createMockUnit('first', 9, 4, 'player', true, 100, ResolveState.STEADY),
+        createMockUnit('routing', 8, 3, 'player', true, 100, ResolveState.ROUTING),
+        createMockUnit('second', 6, 2, 'player', true, 100, ResolveState.WAVERING),
+      ];
+
+      const preview = getTurnOrderPreview(units, 4);
+
+      expect(preview).toEqual(['first_1', 'second_1', 'first_1', 'second_1']);
+    });
+  });
+
+  describe('validateTurnQueue with resolve state', () => {
+    it('should warn about routing units in queue', () => {
+      const units = [
+        createMockUnit('steady', 9, 4, 'player', true, 100, ResolveState.STEADY),
+        createMockUnit('routing', 6, 2, 'player', true, 100, ResolveState.ROUTING),
+      ];
+
+      const validation = validateTurnQueue(units);
+
+      expect(validation.valid).toBe(true); // Still valid, just a warning
+      expect(validation.warnings).toContain('Unit routing_1 is routing and should skip turns');
+    });
+  });
+
+  describe('isTurnQueueSorted with resolve state', () => {
+    it('should ignore routing units when checking sort order', () => {
+      const units = [
+        createMockUnit('high', 9, 4, 'player', true, 100, ResolveState.STEADY),
+        createMockUnit('routing', 8, 3, 'player', true, 100, ResolveState.ROUTING), // Routing, ignored
+        createMockUnit('low', 6, 2, 'player', true, 100, ResolveState.STEADY),
+      ];
+
+      expect(isTurnQueueSorted(units)).toBe(true);
+    });
+  });
+
+  describe('advanceToNextTurn with resolve state', () => {
+    it('should rebuild queue when only routing units remain', () => {
+      const currentQueue = [
+        createMockUnit('current', 9, 4, 'player', true, 100, ResolveState.STEADY),
+        createMockUnit('routing', 6, 2, 'player', true, 100, ResolveState.ROUTING),
+      ];
+
+      const allUnits = [
+        createMockUnit('unit1', 9, 4, 'player', true, 100, ResolveState.STEADY),
+        createMockUnit('unit2', 6, 2, 'player', true, 100, ResolveState.STEADY),
+      ];
+
+      const newQueue = advanceToNextTurn(currentQueue, allUnits);
+
+      // Should rebuild from all units since only routing unit remains
+      expect(newQueue.map((u) => u.id)).toEqual(['unit1', 'unit2']);
+    });
+  });
+
+  describe('shouldStartNewRound with resolve state', () => {
+    it('should return true when only routing units remain in queue', () => {
+      const queue = [createMockUnit('routing', 6, 2, 'player', true, 100, ResolveState.ROUTING)];
+      const allUnits = [
+        createMockUnit('unit1', 9, 4, 'player', true, 100, ResolveState.STEADY),
+        createMockUnit('routing', 6, 2, 'player', true, 100, ResolveState.ROUTING),
+      ];
+
+      expect(shouldStartNewRound(queue, allUnits)).toBe(true);
+    });
+
+    it('should return false when active units remain in queue', () => {
+      const queue = [createMockUnit('active', 6, 2, 'player', true, 100, ResolveState.STEADY)];
+      const allUnits = [
+        createMockUnit('unit1', 9, 4, 'player', true, 100, ResolveState.STEADY),
+        createMockUnit('active', 6, 2, 'player', true, 100, ResolveState.STEADY),
+      ];
+
+      expect(shouldStartNewRound(queue, allUnits)).toBe(false);
+    });
+
+    it('should return false when all units are routing', () => {
+      const emptyQueue: TurnOrderUnit[] = [];
+      const allUnits = [
+        createMockUnit('routing1', 9, 4, 'player', true, 100, ResolveState.ROUTING),
+        createMockUnit('routing2', 6, 2, 'player', true, 100, ResolveState.ROUTING),
+      ];
+
+      expect(shouldStartNewRound(emptyQueue, allUnits)).toBe(false);
+    });
+  });
+
+  // =============================================================================
+  // VIGILANCE STATE TESTS
+  // =============================================================================
+
+  describe('canUnitAct with vigilance state', () => {
+    it('should return true for alive unit without vigilance state', () => {
+      const unit = createMockUnit('unit1', 9, 4, 'player', true);
+      expect(canUnitAct(unit)).toBe(true);
+    });
+
+    it('should return true for alive unit with NORMAL vigilance', () => {
+      const unit = createMockUnit('unit1', 9, 4, 'player', true, 100, undefined, VigilanceState.NORMAL);
+      expect(canUnitAct(unit)).toBe(true);
+    });
+
+    it('should return false for alive unit with VIGILANT state', () => {
+      const unit = createMockUnit('unit1', 9, 4, 'player', true, 100, undefined, VigilanceState.VIGILANT);
+      expect(canUnitAct(unit)).toBe(false);
+    });
+
+    it('should return false for dead unit even with NORMAL vigilance', () => {
+      const unit = createMockUnit('unit1', 9, 4, 'player', false, 0, undefined, VigilanceState.NORMAL);
+      expect(canUnitAct(unit)).toBe(false);
+    });
+
+    it('should return false when both routing and vigilant', () => {
+      const unit = createMockUnit('unit1', 9, 4, 'player', true, 100, ResolveState.ROUTING, VigilanceState.VIGILANT);
+      expect(canUnitAct(unit)).toBe(false);
+    });
+
+    it('should return false when vigilant even with STEADY resolve', () => {
+      const unit = createMockUnit('unit1', 9, 4, 'player', true, 100, ResolveState.STEADY, VigilanceState.VIGILANT);
+      expect(canUnitAct(unit)).toBe(false);
+    });
+  });
+
+  describe('buildTurnQueue with vigilance state', () => {
+    it('should exclude vigilant units from queue', () => {
+      const units = [
+        createMockUnit('normal', 9, 4, 'player', true, 100, undefined, VigilanceState.NORMAL),
+        createMockUnit('vigilant', 8, 3, 'player', true, 100, undefined, VigilanceState.VIGILANT),
+        createMockUnit('no_state', 6, 2, 'player', true),
+      ];
+
+      const queue = buildTurnQueue(units);
+
+      expect(queue.map((u) => u.id)).toEqual(['normal', 'no_state']);
+      expect(queue.every((u) => u.vigilanceState !== VigilanceState.VIGILANT)).toBe(true);
+    });
+
+    it('should include units without vigilance state', () => {
+      const units = [
+        createMockUnit('no_vigilance', 9, 4, 'player', true),
+        createMockUnit('vigilant', 8, 3, 'player', true, 100, undefined, VigilanceState.VIGILANT),
+        createMockUnit('normal', 6, 2, 'player', true, 100, undefined, VigilanceState.NORMAL),
+      ];
+
+      const queue = buildTurnQueue(units);
+
+      expect(queue.map((u) => u.id)).toEqual(['no_vigilance', 'normal']);
+    });
+
+    it('should return empty queue when all units are vigilant', () => {
+      const units = [
+        createMockUnit('vigilant1', 9, 4, 'player', true, 100, undefined, VigilanceState.VIGILANT),
+        createMockUnit('vigilant2', 6, 2, 'player', true, 100, undefined, VigilanceState.VIGILANT),
+      ];
+
+      const queue = buildTurnQueue(units);
+
+      expect(queue).toEqual([]);
+    });
+
+    it('should exclude both routing and vigilant units', () => {
+      const units = [
+        createMockUnit('active', 9, 4, 'player', true, 100, ResolveState.STEADY, VigilanceState.NORMAL),
+        createMockUnit('routing', 8, 3, 'player', true, 100, ResolveState.ROUTING),
+        createMockUnit('vigilant', 7, 2, 'player', true, 100, undefined, VigilanceState.VIGILANT),
+        createMockUnit('normal', 6, 2, 'player', true),
+      ];
+
+      const queue = buildTurnQueue(units);
+
+      expect(queue.map((u) => u.id)).toEqual(['active', 'normal']);
+    });
+  });
+
+  describe('getNextUnit with vigilance state', () => {
+    it('should skip vigilant units and return first active unit', () => {
+      const units = [
+        createMockUnit('vigilant1', 9, 4, 'player', true, 100, undefined, VigilanceState.VIGILANT),
+        createMockUnit('vigilant2', 8, 3, 'player', true, 100, undefined, VigilanceState.VIGILANT),
+        createMockUnit('active', 6, 2, 'player', true, 100, undefined, VigilanceState.NORMAL),
+      ];
+
+      const next = getNextUnit(units);
+
+      expect(next?.id).toBe('active');
+    });
+
+    it('should return null when all units are vigilant', () => {
+      const units = [
+        createMockUnit('vigilant1', 9, 4, 'player', true, 100, undefined, VigilanceState.VIGILANT),
+        createMockUnit('vigilant2', 6, 2, 'player', true, 100, undefined, VigilanceState.VIGILANT),
+      ];
+
+      const next = getNextUnit(units);
+
+      expect(next).toBeNull();
+    });
+  });
+
+  describe('removeInactiveUnits with vigilance state', () => {
+    it('should remove vigilant units', () => {
+      const units = [
+        createMockUnit('normal', 9, 4, 'player', true, 100, undefined, VigilanceState.NORMAL),
+        createMockUnit('vigilant', 6, 2, 'player', true, 100, undefined, VigilanceState.VIGILANT),
+      ];
+
+      const cleaned = removeInactiveUnits(units);
+
+      expect(cleaned.map((u) => u.id)).toEqual(['normal']);
+    });
+
+    it('should keep units without vigilance state', () => {
+      const units = [
+        createMockUnit('no_state', 9, 4, 'player', true),
+        createMockUnit('vigilant', 6, 2, 'player', true, 100, undefined, VigilanceState.VIGILANT),
+      ];
+
+      const cleaned = removeInactiveUnits(units);
+
+      expect(cleaned.map((u) => u.id)).toEqual(['no_state']);
+    });
+  });
+
+  describe('hasActiveUnits with vigilance state', () => {
+    it('should return true when non-vigilant units exist', () => {
+      const units = [
+        createMockUnit('vigilant', 9, 4, 'player', true, 100, undefined, VigilanceState.VIGILANT),
+        createMockUnit('active', 6, 2, 'player', true, 100, undefined, VigilanceState.NORMAL),
+      ];
+
+      expect(hasActiveUnits(units)).toBe(true);
+    });
+
+    it('should return false when all units are vigilant', () => {
+      const units = [
+        createMockUnit('vigilant1', 9, 4, 'player', true, 100, undefined, VigilanceState.VIGILANT),
+        createMockUnit('vigilant2', 6, 2, 'player', true, 100, undefined, VigilanceState.VIGILANT),
+      ];
+
+      expect(hasActiveUnits(units)).toBe(false);
+    });
+
+    it('should return true for units without vigilance state', () => {
+      const units = [createMockUnit('no_state', 9, 4, 'player', true)];
+
+      expect(hasActiveUnits(units)).toBe(true);
+    });
+  });
+
+  describe('getTurnOrderPreview with vigilance state', () => {
+    it('should exclude vigilant units from preview', () => {
+      const units = [
+        createMockUnit('first', 9, 4, 'player', true, 100, undefined, VigilanceState.NORMAL),
+        createMockUnit('vigilant', 8, 3, 'player', true, 100, undefined, VigilanceState.VIGILANT),
+        createMockUnit('second', 6, 2, 'player', true),
+      ];
+
+      const preview = getTurnOrderPreview(units, 4);
+
+      expect(preview).toEqual(['first_1', 'second_1', 'first_1', 'second_1']);
+    });
+  });
+
+  describe('validateTurnQueue with vigilance state', () => {
+    it('should warn about vigilant units in queue', () => {
+      const units = [
+        createMockUnit('normal', 9, 4, 'player', true, 100, undefined, VigilanceState.NORMAL),
+        createMockUnit('vigilant', 6, 2, 'player', true, 100, undefined, VigilanceState.VIGILANT),
+      ];
+
+      const validation = validateTurnQueue(units);
+
+      expect(validation.valid).toBe(true); // Still valid, just a warning
+      expect(validation.warnings).toContain('Unit vigilant_1 is vigilant and should skip normal turns');
+    });
+  });
+
+  describe('isTurnQueueSorted with vigilance state', () => {
+    it('should ignore vigilant units when checking sort order', () => {
+      const units = [
+        createMockUnit('high', 9, 4, 'player', true, 100, undefined, VigilanceState.NORMAL),
+        createMockUnit('vigilant', 8, 3, 'player', true, 100, undefined, VigilanceState.VIGILANT), // Vigilant, ignored
+        createMockUnit('low', 6, 2, 'player', true),
+      ];
+
+      expect(isTurnQueueSorted(units)).toBe(true);
+    });
+  });
+
+  describe('advanceToNextTurn with vigilance state', () => {
+    it('should rebuild queue when only vigilant units remain', () => {
+      const currentQueue = [
+        createMockUnit('current', 9, 4, 'player', true, 100, undefined, VigilanceState.NORMAL),
+        createMockUnit('vigilant', 6, 2, 'player', true, 100, undefined, VigilanceState.VIGILANT),
+      ];
+
+      const allUnits = [
+        createMockUnit('unit1', 9, 4, 'player', true, 100, undefined, VigilanceState.NORMAL),
+        createMockUnit('unit2', 6, 2, 'player', true),
+      ];
+
+      const newQueue = advanceToNextTurn(currentQueue, allUnits);
+
+      // Should rebuild from all units since only vigilant unit remains
+      expect(newQueue.map((u) => u.id)).toEqual(['unit1', 'unit2']);
+    });
+  });
+
+  describe('shouldStartNewRound with vigilance state', () => {
+    it('should return true when only vigilant units remain in queue', () => {
+      const queue = [createMockUnit('vigilant', 6, 2, 'player', true, 100, undefined, VigilanceState.VIGILANT)];
+      const allUnits = [
+        createMockUnit('unit1', 9, 4, 'player', true, 100, undefined, VigilanceState.NORMAL),
+        createMockUnit('vigilant', 6, 2, 'player', true, 100, undefined, VigilanceState.VIGILANT),
+      ];
+
+      expect(shouldStartNewRound(queue, allUnits)).toBe(true);
+    });
+
+    it('should return false when non-vigilant units remain in queue', () => {
+      const queue = [createMockUnit('active', 6, 2, 'player', true, 100, undefined, VigilanceState.NORMAL)];
+      const allUnits = [
+        createMockUnit('unit1', 9, 4, 'player', true),
+        createMockUnit('active', 6, 2, 'player', true, 100, undefined, VigilanceState.NORMAL),
+      ];
+
+      expect(shouldStartNewRound(queue, allUnits)).toBe(false);
+    });
+
+    it('should return false when all units are vigilant', () => {
+      const emptyQueue: TurnOrderUnit[] = [];
+      const allUnits = [
+        createMockUnit('vigilant1', 9, 4, 'player', true, 100, undefined, VigilanceState.VIGILANT),
+        createMockUnit('vigilant2', 6, 2, 'player', true, 100, undefined, VigilanceState.VIGILANT),
+      ];
+
+      expect(shouldStartNewRound(emptyQueue, allUnits)).toBe(false);
+    });
+  });
+
+  // =============================================================================
+  // COMBINED RESOLVE AND VIGILANCE STATE TESTS
+  // =============================================================================
+
+  describe('combined resolve and vigilance states', () => {
+    it('should exclude units that are both routing and vigilant', () => {
+      const units = [
+        createMockUnit('active', 9, 4, 'player', true, 100, ResolveState.STEADY, VigilanceState.NORMAL),
+        createMockUnit('routing_vigilant', 8, 3, 'player', true, 100, ResolveState.ROUTING, VigilanceState.VIGILANT),
+        createMockUnit('routing_only', 7, 2, 'player', true, 100, ResolveState.ROUTING),
+        createMockUnit('vigilant_only', 6, 2, 'player', true, 100, undefined, VigilanceState.VIGILANT),
+      ];
+
+      const queue = buildTurnQueue(units);
+
+      expect(queue.map((u) => u.id)).toEqual(['active']);
+    });
+
+    it('should handle mixed states correctly in hasActiveUnits', () => {
+      const units = [
+        createMockUnit('routing', 9, 4, 'player', true, 100, ResolveState.ROUTING),
+        createMockUnit('vigilant', 8, 3, 'player', true, 100, undefined, VigilanceState.VIGILANT),
+        createMockUnit('dead', 7, 2, 'player', false),
+      ];
+
+      expect(hasActiveUnits(units)).toBe(false);
+    });
+
+    it('should return true for hasActiveUnits when at least one unit can act', () => {
+      const units = [
+        createMockUnit('routing', 9, 4, 'player', true, 100, ResolveState.ROUTING),
+        createMockUnit('vigilant', 8, 3, 'player', true, 100, undefined, VigilanceState.VIGILANT),
+        createMockUnit('active', 6, 2, 'player', true),
+      ];
+
+      expect(hasActiveUnits(units)).toBe(true);
     });
   });
 });

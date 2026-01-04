@@ -30,3 +30,6 @@ export * from './events';
 
 // Progression systems (Core 3.0)
 export * from './progression';
+
+// Mechanics systems (Core 2.0)
+export * from './mechanics';

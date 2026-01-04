@@ -70,6 +70,14 @@ backend/src/
 │   │   ├── damage.ts        # calculatePhysicalDamage, rollDodge, applyDamage
 │   │   ├── turn-order.ts    # buildTurnQueue, getNextUnit, removeDeadUnits
 │   │   └── targeting.ts     # selectTarget, findNearestEnemy, findWeakestEnemy
+│   ├── mechanics/           # 🆕 Core 2.0 - Modular combat mechanics
+│   │   ├── config/          # Types, defaults, presets, validation
+│   │   ├── tier0/           # Facing (directional combat)
+│   │   ├── tier1/           # Resolve, Engagement, Flanking
+│   │   ├── tier2/           # Riposte, Intercept, Aura
+│   │   ├── tier3/           # Charge, Overwatch, Phalanx, LoS, Ammo
+│   │   ├── tier4/           # Contagion, Armor Shred
+│   │   └── processor.ts     # MechanicsProcessor factory
 │   ├── types/               # Core type definitions
 │   │   ├── grid.types.ts    # Position, GridCell, Grid
 │   │   ├── battle.types.ts  # BattleUnit, BattleResult, TeamType

@@ -105,7 +105,7 @@ export class RoguelikeSnapshotEntity {
    * Used for matchmaking to ensure fair budget matching.
    * Budget is determined by round, so matching by round ensures equal budgets.
    */
-  @Column({ type: 'int' })
+  @Column({ type: 'int', default: 1 })
   round!: number;
 
   /**
