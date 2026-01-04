@@ -535,14 +535,17 @@ export const useRunStore = create<RunStore>((set, get) => ({
       const result = await api.placeUnit(currentRun.id, instanceId, position);
       
       // Update with server response (authoritative)
-      set({
-        currentRun: {
-          ...get().currentRun!,
-          hand: result.hand,
-          field: result.field,
-          gold: result.gold,
-        },
-      });
+      const currentRunAfterPlace = get().currentRun;
+      if (currentRunAfterPlace) {
+        set({
+          currentRun: {
+            ...currentRunAfterPlace,
+            hand: result.hand,
+            field: result.field,
+            gold: result.gold,
+          },
+        });
+      }
       
       return true;
     } catch (error) {
@@ -551,15 +554,20 @@ export const useRunStore = create<RunStore>((set, get) => ({
         ? error.message 
         : 'Не удалось разместить юнита';
       
-      set({ 
-        currentRun: {
-          ...get().currentRun!,
-          hand: originalHand,
-          field: originalField,
-          gold: originalGold,
-        },
-        error: errorMessage,
-      });
+      const currentRunOnError = get().currentRun;
+      if (currentRunOnError) {
+        set({ 
+          currentRun: {
+            ...currentRunOnError,
+            hand: originalHand,
+            field: originalField,
+            gold: originalGold,
+          },
+          error: errorMessage,
+        });
+      } else {
+        set({ error: errorMessage });
+      }
       return false;
     }
   },
@@ -603,12 +611,15 @@ export const useRunStore = create<RunStore>((set, get) => ({
       const result = await api.repositionUnit(currentRun.id, instanceId, position);
       
       // Update with server response (in case of any discrepancies)
-      set({
-        currentRun: {
-          ...get().currentRun!,
-          field: result.field,
-        },
-      });
+      const currentRunAfterReposition = get().currentRun;
+      if (currentRunAfterReposition) {
+        set({
+          currentRun: {
+            ...currentRunAfterReposition,
+            field: result.field,
+          },
+        });
+      }
       
       return true;
     } catch (error) {
@@ -617,13 +628,18 @@ export const useRunStore = create<RunStore>((set, get) => ({
         ? error.message 
         : 'Не удалось переместить юнита';
       
-      set({ 
-        currentRun: {
-          ...get().currentRun!,
-          field: originalField,
-        },
-        error: errorMessage,
-      });
+      const currentRunOnError = get().currentRun;
+      if (currentRunOnError) {
+        set({ 
+          currentRun: {
+            ...currentRunOnError,
+            field: originalField,
+          },
+          error: errorMessage,
+        });
+      } else {
+        set({ error: errorMessage });
+      }
       return false;
     }
   },
@@ -682,14 +698,17 @@ export const useRunStore = create<RunStore>((set, get) => ({
       const result = await api.removeFromField(currentRun.id, instanceId);
       
       // Update with server response (authoritative)
-      set({
-        currentRun: {
-          ...get().currentRun!,
-          hand: result.hand,
-          field: result.field,
-          gold: result.gold,
-        },
-      });
+      const currentRunAfterRemove = get().currentRun;
+      if (currentRunAfterRemove) {
+        set({
+          currentRun: {
+            ...currentRunAfterRemove,
+            hand: result.hand,
+            field: result.field,
+            gold: result.gold,
+          },
+        });
+      }
       
       return true;
     } catch (error) {
@@ -698,15 +717,20 @@ export const useRunStore = create<RunStore>((set, get) => ({
         ? error.message 
         : 'Не удалось убрать юнита с поля';
       
-      set({ 
-        currentRun: {
-          ...get().currentRun!,
-          hand: originalHand,
-          field: originalField,
-          gold: originalGold,
-        },
-        error: errorMessage,
-      });
+      const currentRunOnError = get().currentRun;
+      if (currentRunOnError) {
+        set({ 
+          currentRun: {
+            ...currentRunOnError,
+            hand: originalHand,
+            field: originalField,
+            gold: originalGold,
+          },
+          error: errorMessage,
+        });
+      } else {
+        set({ error: errorMessage });
+      }
       return false;
     }
   },
@@ -775,13 +799,16 @@ export const useRunStore = create<RunStore>((set, get) => ({
       const result = await api.upgradeRoguelikeUnit(currentRun.id, instanceId);
       
       // Update with server response (authoritative)
-      set({
-        currentRun: {
-          ...get().currentRun!,
-          field: result.field,
-          gold: result.gold,
-        },
-      });
+      const currentRunAfterUpgrade = get().currentRun;
+      if (currentRunAfterUpgrade) {
+        set({
+          currentRun: {
+            ...currentRunAfterUpgrade,
+            field: result.field,
+            gold: result.gold,
+          },
+        });
+      }
       
       return true;
     } catch (error) {
@@ -790,14 +817,19 @@ export const useRunStore = create<RunStore>((set, get) => ({
         ? error.message 
         : 'Не удалось улучшить юнита';
       
-      set({ 
-        currentRun: {
-          ...get().currentRun!,
-          field: originalField,
-          gold: originalGold,
-        },
-        error: errorMessage,
-      });
+      const currentRunOnError = get().currentRun;
+      if (currentRunOnError) {
+        set({ 
+          currentRun: {
+            ...currentRunOnError,
+            field: originalField,
+            gold: originalGold,
+          },
+          error: errorMessage,
+        });
+      } else {
+        set({ error: errorMessage });
+      }
       return false;
     }
   },

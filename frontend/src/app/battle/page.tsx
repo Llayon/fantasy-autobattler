@@ -30,6 +30,7 @@ import {
   selectActiveTeam,
   selectTeams
 } from '@/store/teamStore';
+import { TeamResponse } from '@/types/game';
 
 // =============================================================================
 // TYPES
@@ -336,7 +337,7 @@ function BotSection({
   loading,
   onStartBotBattle
 }: {
-  activeTeam: any;
+  activeTeam: TeamResponse | null;
   loading: boolean;
   onStartBotBattle: (difficulty: 'easy' | 'medium' | 'hard') => void;
 }) {

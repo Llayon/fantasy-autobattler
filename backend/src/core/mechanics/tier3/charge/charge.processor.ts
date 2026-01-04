@@ -426,7 +426,7 @@ export function createChargeProcessor(config: ChargeConfig): ChargeProcessor {
      */
     resetCharge(unit: BattleUnit & UnitWithCharge): BattleUnit & UnitWithCharge {
       // Create a new object without chargeStartPosition to properly reset
-      const { chargeStartPosition, ...rest } = unit;
+      const { chargeStartPosition: _chargeStartPosition, ...rest } = unit;
       return {
         ...rest,
         momentum: 0,

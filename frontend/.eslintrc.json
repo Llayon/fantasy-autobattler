@@ -13,5 +13,16 @@
     "prefer-const": "error",
     "react/no-unescaped-entities": "off",
     "react-hooks/exhaustive-deps": "warn"
-  }
+  },
+  "overrides": [
+    {
+      "files": ["**/test-*/**/*", "**/test-*/page.tsx", "src/scripts/**/*.js"],
+      "rules": {
+        "no-console": "off",
+        "@typescript-eslint/no-explicit-any": "off",
+        "@next/next/no-img-element": "off",
+        "react-hooks/exhaustive-deps": "off"
+      }
+    }
+  ]
 }

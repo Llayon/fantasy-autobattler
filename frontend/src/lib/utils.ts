@@ -78,7 +78,8 @@ export function truncate(text: string, maxLength: number): string {
  * @example
  * const debouncedSearch = debounce(search, 300);
  */
-export function debounce<T extends (...args: any[]) => any>(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function debounce<T extends (...args: any[]) => unknown>(
   func: T,
   wait: number
 ): (...args: Parameters<T>) => void {

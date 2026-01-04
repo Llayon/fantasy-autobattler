@@ -270,7 +270,7 @@ export function createAuraProcessor(
      */
     applyStaticAuras(state: BattleState): BattleState {
       // First, clear all existing aura buffs
-      let updatedUnits = state.units.map((unit) => {
+      const updatedUnits = state.units.map((unit) => {
         const unitWithAura = unit as BattleUnit & UnitWithAura;
         return {
           ...unitWithAura,

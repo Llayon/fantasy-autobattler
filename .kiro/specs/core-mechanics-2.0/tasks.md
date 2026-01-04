@@ -1103,7 +1103,9 @@
 - [x] Create `backend/src/core/mechanics/README.md`
 - [x] Document all mechanics with examples
 - [x] Document presets and when to use them
-- [x] Document migration from core 1.0
+- [x] Document migration from core 1.0CI Pipeline / Backend Lint (pull_request)
+
+Failing after 23s
 
 ### Task 47: Update project documentation
 - [x] Update `docs/CORE_LIBRARY.md` with mechanics section
@@ -1115,7 +1117,10 @@
 - [x] Run full test suite (`npm test`) — 2650 tests passing (83 suites)
 - [x] Verify no circular dependencies — TypeScript compilation passes
 - [x] Verify all exports work — All presets and processor creation verified
+
+
 - [x] Verify TypeScript compilation — `tsc --noEmit` passes
+
 - [ ] Create PR for review
 
 ---
@@ -1170,4 +1175,4 @@ Phase 7 (Testing & Docs)
 - [x] README with usage examples
 
 **Note**: ROGUELIKE preset has ~55-93% overhead (expected with 14 mechanics enabled).
-This is acceptable as it's an opt-in advanced mode.
+This is acceptable as it's an opt-in advanced m

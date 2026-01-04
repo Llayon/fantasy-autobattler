@@ -9,6 +9,7 @@
 
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api';
 import { usePlayerStore, selectPlayer } from '@/store/playerStore';
@@ -283,11 +284,13 @@ function PlayerProfile({ className = '' }: { className?: string }) {
       className={`flex items-center gap-2 text-gray-300 hover:text-white transition-colors ${className}`}
       title="Перейти в профиль"
     >
-      <img 
+      <Image 
         src={avatarUrl} 
         alt={`Аватар ${player.name}`}
+        width={32}
+        height={32}
         className="w-8 h-8 rounded-full border-2 border-gray-600 hover:border-gray-400 transition-colors"
-        loading="lazy"
+        unoptimized
       />
       <span className="hidden lg:inline font-medium">{player.name}</span>
     </Link>
