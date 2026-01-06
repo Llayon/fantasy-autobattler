@@ -105,9 +105,28 @@ function toCoreBattleState(state: BattleStateWithAbilities): CoreBattleState<Cor
  * Apply core battle state changes back to game-specific state.
  * Merges unit changes from mechanics processor back into game state.
  * 
- * @param gameState - Original game-specific state
- * @param coreState - Updated core state from mechanics processor
- * @returns Updated game-specific state
+ * CRITICAL: This function preserves HP and alive status from gameState to prevent
+ * the mechanics processor from "undoing" damage or reviving dead units.
+ * 
+ * HP preservation logic:
+ * - Uses Math.min(gameState.currentHp, coreState.currentHp) to ensure damage is never undone
+ * - If coreState doesn't have HP info, uses gameState HP
+ * 
+ * Alive status logic:
+ * - Unit is dead if gameState marks it dead (gameUnit.alive === false)
+ * - Unit is dead if coreState marks it dead (coreUnit.alive === false)
+ * - Unit is dead if effective HP <= 0
+ * - All three conditions must be true for unit to be alive
+ * 
+ * @param gameState - Original game-specific state with current HP and alive status
+ * @param coreState - Updated core state from mechanics processor (may have stale HP/alive)
+ * @returns Updated game-specific state with preserved HP and alive status
+ * 
+ * @example
+ * // After mechanics phase, merge state back
+ * const result = processor.process('attack', coreState, context);
+ * const updatedState = fromCoreBattleState(gameState, result.state);
+ * // updatedState preserves HP reductions and death status from gameState
  */
 function fromCoreBattleState(
   gameState: BattleStateWithAbilities,
