@@ -227,7 +227,8 @@ describe('MVP Preset Integration Tests', () => {
       for (const phase of phases) {
         const result = processor.process(phase, mockState, mockContext);
         // With MVP preset (no processors), state should be returned unchanged
-        expect(result).toBe(mockState);
+        expect(result.state).toBe(mockState);
+        expect(result.events).toEqual([]);
       }
     });
   });

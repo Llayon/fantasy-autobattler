@@ -14,7 +14,7 @@
  * @module core/mechanics/tier4/armor-shred
  */
 
-import type { BattlePhase, PhaseContext } from '../../processor';
+import type { BattlePhase, PhaseContext, MechanicResult } from '../../processor';
 import type { BattleState, BattleUnit } from '../../../types';
 import type { ShredConfig } from '../../config/mechanics.types';
 
@@ -432,21 +432,23 @@ export interface ArmorShredProcessor {
    * @param phase - Current battle phase
    * @param state - Current battle state
    * @param context - Phase context with active unit and action info
-   * @returns Updated battle state
+   * @returns MechanicResult with updated state and generated events
    *
    * @example
-   * const newState = processor.apply('attack', state, {
+   * const result = processor.apply('attack', state, {
    *   activeUnit: attacker,
    *   target: defender,
    *   action: { type: 'attack', targetId: defender.id },
    *   seed: 12345,
    * });
+   * // result.state - updated battle state
+   * // result.events - armor shred events for battle log
    */
   apply(
     phase: BattlePhase,
     state: BattleState,
     context: PhaseContext,
-  ): BattleState;
+  ): BattleState | MechanicResult;
 }
 
 // ═══════════════════════════════════════════════════════════════

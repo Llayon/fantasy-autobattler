@@ -31,7 +31,18 @@ export type BattleEventType =
   | 'status_tick'
   | 'status_removed'
   | 'round_start'
-  | 'battle_end';
+  | 'battle_end'
+  // Mechanics 2.0 events
+  | 'mechanic_facing'
+  | 'mechanic_armor_shred'
+  | 'mechanic_flanking'
+  | 'mechanic_charge'
+  | 'mechanic_riposte'
+  | 'mechanic_resolve'
+  | 'mechanic_routing'
+  | 'mechanic_phalanx'
+  | 'mechanic_overwatch'
+  | 'mechanic_contagion';
 
 // =============================================================================
 // BASE EVENT INTERFACE
@@ -216,6 +227,170 @@ export interface BattleEndEvent extends BaseBattleEvent {
   winner: BattleWinner;
   /** Total rounds fought */
   totalRounds: number;
+}
+
+// =============================================================================
+// MECHANICS 2.0 EVENT TYPES
+// =============================================================================
+
+/**
+ * Facing mechanic event.
+ * Records when a unit changes facing direction.
+ */
+export interface FacingEvent extends BaseBattleEvent {
+  type: 'mechanic_facing';
+  /** Unit that changed facing */
+  targetId: string;
+  /** Previous facing direction */
+  previousFacing: 'N' | 'S' | 'E' | 'W';
+  /** New facing direction */
+  newFacing: 'N' | 'S' | 'E' | 'W';
+  /** Reason for facing change */
+  reason: 'attack' | 'move' | 'ability';
+}
+
+/**
+ * Armor Shred mechanic event.
+ * Records when armor is shredded from a target.
+ */
+export interface ArmorShredEvent extends BaseBattleEvent {
+  type: 'mechanic_armor_shred';
+  /** Target unit ID */
+  targetId: string;
+  /** Amount of armor shredded this attack */
+  shredApplied: number;
+  /** Total accumulated shred on target */
+  totalShred: number;
+  /** Target's base armor */
+  baseArmor: number;
+  /** Target's effective armor after shred */
+  effectiveArmor: number;
+  /** Whether shred was capped */
+  wasCapped: boolean;
+}
+
+/**
+ * Flanking mechanic event.
+ * Records when a flanking attack occurs.
+ */
+export interface FlankingEvent extends BaseBattleEvent {
+  type: 'mechanic_flanking';
+  /** Target unit ID */
+  targetId: string;
+  /** Attack arc (front, flank, rear) */
+  arc: 'front' | 'flank' | 'rear';
+  /** Damage modifier applied */
+  damageModifier: number;
+  /** Resolve damage dealt (if any) */
+  resolveDamage?: number;
+  /** Whether riposte was disabled */
+  riposteDisabled: boolean;
+}
+
+/**
+ * Charge mechanic event.
+ * Records when a charge attack occurs.
+ */
+export interface ChargeEvent extends BaseBattleEvent {
+  type: 'mechanic_charge';
+  /** Target unit ID */
+  targetId: string;
+  /** Distance charged */
+  chargeDistance: number;
+  /** Momentum accumulated */
+  momentum: number;
+  /** Damage bonus from charge */
+  damageBonus: number;
+  /** Whether charge was countered by spear wall */
+  countered: boolean;
+  /** Counter damage received (if countered) */
+  counterDamage?: number;
+}
+
+/**
+ * Riposte mechanic event.
+ * Records when a riposte counter-attack occurs.
+ */
+export interface RiposteEvent extends BaseBattleEvent {
+  type: 'mechanic_riposte';
+  /** Original attacker ID (now target of riposte) */
+  targetId: string;
+  /** Riposte damage dealt */
+  damage: number;
+  /** Remaining riposte charges */
+  chargesRemaining: number;
+}
+
+/**
+ * Resolve mechanic event.
+ * Records resolve changes (damage, regen, break).
+ */
+export interface ResolveEvent extends BaseBattleEvent {
+  type: 'mechanic_resolve';
+  /** Unit whose resolve changed */
+  targetId: string;
+  /** Type of resolve change */
+  changeType: 'damage' | 'regen' | 'break' | 'retreat';
+  /** Amount of resolve change */
+  amount: number;
+  /** New resolve value */
+  newResolve: number;
+  /** Source of resolve change (flanking, ability, etc.) */
+  source?: string;
+}
+
+/**
+ * Phalanx mechanic event.
+ * Records phalanx formation changes.
+ */
+export interface PhalanxEvent extends BaseBattleEvent {
+  type: 'mechanic_phalanx';
+  /** Unit in phalanx */
+  targetId: string;
+  /** Whether unit entered or left phalanx */
+  action: 'formed' | 'broken';
+  /** Number of adjacent allies */
+  adjacentAllies: number;
+  /** Armor bonus from phalanx */
+  armorBonus: number;
+  /** Resolve bonus from phalanx */
+  resolveBonus: number;
+}
+
+/**
+ * Overwatch mechanic event.
+ * Records overwatch shots.
+ */
+export interface OverwatchEvent extends BaseBattleEvent {
+  type: 'mechanic_overwatch';
+  /** Target unit ID */
+  targetId: string;
+  /** Whether shot hit */
+  hit: boolean;
+  /** Damage dealt (if hit) */
+  damage?: number;
+  /** Remaining overwatch shots */
+  shotsRemaining: number;
+}
+
+/**
+ * Contagion mechanic event.
+ * Records effect spread between units.
+ */
+export interface ContagionEvent extends BaseBattleEvent {
+  type: 'mechanic_contagion';
+  /** Source unit ID (spreading from) */
+  sourceId: string;
+  /** Target unit ID (spreading to) */
+  targetId: string;
+  /** Effect type that spread */
+  effectType: string;
+  /** Whether spread was successful */
+  success: boolean;
+  /** Spread chance that was rolled */
+  spreadChance: number;
+  /** Whether phalanx bonus was applied */
+  phalanxBonus: boolean;
 }
 
 // =============================================================================

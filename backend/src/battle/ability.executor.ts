@@ -375,6 +375,7 @@ export function applyEffect(
 
 /**
  * Apply damage effect to target.
+ * Does not damage dead units.
  */
 function applyDamageEffect(
   effect: DamageEffect,
@@ -382,6 +383,18 @@ function applyDamageEffect(
   caster: BattleUnitWithAbilities,
   _seed: number
 ): EffectResult {
+  // Cannot damage dead units
+  if (!target.alive) {
+    return {
+      success: false,
+      effectType: 'damage',
+      targetId: target.instanceId,
+      damage: 0,
+      killed: false,
+      resisted: true,
+    };
+  }
+  
   // Calculate base damage
   let damage = effect.value;
   
@@ -411,12 +424,24 @@ function applyDamageEffect(
 
 /**
  * Apply heal effect to target.
+ * Does not heal dead units.
  */
 function applyHealEffect(
   effect: HealEffect,
   target: BattleUnitWithAbilities,
   caster: BattleUnitWithAbilities
 ): EffectResult {
+  // Cannot heal dead units
+  if (!target.alive) {
+    return {
+      success: false,
+      effectType: 'heal',
+      targetId: target.instanceId,
+      healing: 0,
+      resisted: true,
+    };
+  }
+  
   // Calculate heal amount
   let healing = effect.value;
   

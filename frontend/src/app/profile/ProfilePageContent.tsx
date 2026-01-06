@@ -917,7 +917,100 @@ function WinRateChart({ battles }: { battles: RecentBattleResult[] }) {
  * Settings card component with UI preferences.
  */
 function SettingsCard() {
-  const { showDebugInfo, toggleDebugInfo, showAdvancedStats, toggleAdvancedStats, animationSpeed, setAnimationSpeed } = useUIStore();
+  const { 
+    showDebugInfo, 
+    toggleDebugInfo, 
+    showAdvancedStats, 
+    toggleAdvancedStats, 
+    animationSpeed, 
+    setAnimationSpeed,
+    mechanics,
+    setMechanicsPreset,
+    toggleMechanic,
+    getMechanicsToggles,
+  } = useUIStore();
+
+  const [showMechanicsDetails, setShowMechanicsDetails] = useState(false);
+  const currentToggles = getMechanicsToggles();
+
+  // Mechanics preset info
+  const presetInfo = {
+    mvp: { 
+      name: 'MVP (Классика)', 
+      description: 'Базовые механики без дополнительных систем',
+      emoji: '🎮',
+      color: 'text-gray-400',
+    },
+    tactical: { 
+      name: 'Тактический', 
+      description: 'Направление, фланги, рипост, перехват',
+      emoji: '⚔️',
+      color: 'text-blue-400',
+    },
+    roguelike: { 
+      name: 'Roguelike', 
+      description: 'Все 14 механик включены',
+      emoji: '🎲',
+      color: 'text-purple-400',
+    },
+    custom: { 
+      name: 'Пользовательский', 
+      description: 'Настройте механики вручную',
+      emoji: '⚙️',
+      color: 'text-yellow-400',
+    },
+  };
+
+  // Mechanics categories for display
+  const mechanicsCategories = [
+    {
+      tier: 'Tier 0',
+      name: 'Базовые',
+      mechanics: [
+        { key: 'facing' as const, name: 'Направление', description: 'Юниты имеют направление взгляда' },
+      ],
+    },
+    {
+      tier: 'Tier 1',
+      name: 'Основные',
+      mechanics: [
+        { key: 'resolve' as const, name: 'Мораль', description: 'Система морали и отступления' },
+        { key: 'engagement' as const, name: 'Зона контроля', description: 'Ближний бой блокирует движение' },
+        { key: 'flanking' as const, name: 'Фланги', description: 'Бонус урона с флангов и тыла' },
+      ],
+    },
+    {
+      tier: 'Tier 2',
+      name: 'Продвинутые',
+      mechanics: [
+        { key: 'riposte' as const, name: 'Рипост', description: 'Контратака при атаке спереди' },
+        { key: 'intercept' as const, name: 'Перехват', description: 'Блокировка проходящих врагов' },
+        { key: 'aura' as const, name: 'Ауры', description: 'Эффекты области вокруг юнитов' },
+      ],
+    },
+    {
+      tier: 'Tier 3',
+      name: 'Специализированные',
+      mechanics: [
+        { key: 'charge' as const, name: 'Заряд', description: 'Бонус урона от разбега' },
+        { key: 'overwatch' as const, name: 'Дозор', description: 'Реакция на движение врагов' },
+        { key: 'phalanx' as const, name: 'Фаланга', description: 'Бонусы от построения' },
+        { key: 'lineOfSight' as const, name: 'Линия обзора', description: 'Блокировка стрельбы юнитами' },
+        { key: 'ammunition' as const, name: 'Боеприпасы', description: 'Ограниченные выстрелы' },
+      ],
+    },
+    {
+      tier: 'Tier 4',
+      name: 'Контр-механики',
+      mechanics: [
+        { key: 'contagion' as const, name: 'Заражение', description: 'Распространение эффектов' },
+        { key: 'armorShred' as const, name: 'Пробитие брони', description: 'Накопительное снижение брони' },
+      ],
+    },
+  ];
+
+  const enabledCount = Object.values(currentToggles).filter(Boolean).length;
+  const totalCount = Object.keys(currentToggles).length;
 
   return (
     <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
@@ -992,6 +1085,104 @@ function SettingsCard() {
             <span className="text-sm text-gray-400">4x</span>
             <span className="text-white font-medium min-w-[3rem] text-right">{animationSpeed}x</span>
           </div>
+        </div>
+
+        {/* Mechanics 2.0 Settings */}
+        <div className="p-3 bg-gray-700/50 rounded-lg">
+          <div className="mb-3">
+            <div className="font-medium text-white flex items-center gap-2">
+              🎯 Механики боя 2.0
+              <span className="text-xs px-2 py-0.5 bg-purple-600 rounded-full">
+                {enabledCount}/{totalCount}
+              </span>
+            </div>
+            <div className="text-sm text-gray-400">Выберите набор боевых механик</div>
+          </div>
+
+          {/* Preset Selection */}
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            {(Object.keys(presetInfo) as Array<keyof typeof presetInfo>).map((preset) => {
+              const info = presetInfo[preset];
+              const isSelected = mechanics.preset === preset;
+              
+              return (
+                <button
+                  key={preset}
+                  onClick={() => setMechanicsPreset(preset)}
+                  className={`
+                    p-3 rounded-lg border-2 transition-all text-left
+                    ${isSelected 
+                      ? 'border-blue-400 bg-blue-900/30' 
+                      : 'border-gray-600 bg-gray-800 hover:border-gray-500'
+                    }
+                  `}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-lg">{info.emoji}</span>
+                    <span className={`font-medium ${isSelected ? info.color : 'text-white'}`}>
+                      {info.name}
+                    </span>
+                  </div>
+                  <div className="text-xs text-gray-400">{info.description}</div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Expand/Collapse Details */}
+          <button
+            onClick={() => setShowMechanicsDetails(!showMechanicsDetails)}
+            className="w-full flex items-center justify-between p-2 text-sm text-gray-400 hover:text-white transition-colors"
+          >
+            <span>Детальные настройки</span>
+            <span className={`transform transition-transform ${showMechanicsDetails ? 'rotate-180' : ''}`}>
+              ▼
+            </span>
+          </button>
+
+          {/* Detailed Mechanics Toggles */}
+          {showMechanicsDetails && (
+            <div className="mt-3 space-y-4 border-t border-gray-600 pt-3">
+              {mechanicsCategories.map((category) => (
+                <div key={category.tier}>
+                  <div className="text-xs text-gray-500 uppercase tracking-wider mb-2">
+                    {category.tier}: {category.name}
+                  </div>
+                  <div className="space-y-2">
+                    {category.mechanics.map((mechanic) => {
+                      const isEnabled = currentToggles[mechanic.key];
+                      
+                      return (
+                        <div 
+                          key={mechanic.key}
+                          className="flex items-center justify-between p-2 bg-gray-800 rounded"
+                        >
+                          <div>
+                            <div className="text-sm text-white">{mechanic.name}</div>
+                            <div className="text-xs text-gray-500">{mechanic.description}</div>
+                          </div>
+                          <button
+                            onClick={() => toggleMechanic(mechanic.key)}
+                            className={`
+                              relative w-10 h-5 rounded-full transition-colors duration-200
+                              ${isEnabled ? 'bg-green-600' : 'bg-gray-600'}
+                            `}
+                          >
+                            <div
+                              className={`
+                                absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform duration-200
+                                ${isEnabled ? 'transform translate-x-5' : ''}
+                              `}
+                            />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -9,6 +9,23 @@ import { getUnitTemplate, UnitId } from '../unit/unit.data';
 import { generateBotTeam } from './bot-generator';
 import { GAMEPLAY_VALUES, DEPLOYMENT_ZONES, GRID_DIMENSIONS } from '../config/game.constants';
 import { Position, UnitTemplate } from '../types/game.types';
+import { 
+  createMechanicsProcessor, 
+  MechanicsProcessor,
+  MVP_PRESET,
+  TACTICAL_PRESET,
+  ROGUELIKE_PRESET,
+} from '../core/mechanics';
+import type { MechanicsConfig } from '../core/mechanics/config/mechanics.types';
+
+// =============================================================================
+// MECHANICS PRESET TYPES
+// =============================================================================
+
+/**
+ * Available mechanics preset names.
+ */
+type MechanicsPreset = 'mvp' | 'tactical' | 'roguelike' | 'custom';
 
 /**
  * Service handling battle simulation and storage.
@@ -35,15 +52,28 @@ export class BattleService {
    * @param playerId - ID of the player starting the battle
    * @param difficulty - Optional bot difficulty level (easy, medium, hard)
    * @param teamId - Optional specific team ID to use (defaults to active team)
+   * @param mechanicsPreset - Optional mechanics preset (mvp, tactical, roguelike, custom)
+   * @param mechanicsToggles - Optional custom mechanics toggles (used with 'custom' preset)
    * @returns Object containing the battle ID
    * @throws NotFoundException when player is not found
    * @throws BadRequestException when specified team is invalid
    * @example
-   * const result = await battleService.startBattle('player-123', 'hard');
+   * const result = await battleService.startBattle('player-123', 'hard', undefined, 'tactical');
    * console.log(result.battleId); // 'battle-456'
    */
-  async startBattle(playerId: string, difficulty: string = 'medium', teamId?: string) {
-    this.logger.log(`Starting battle for player ${playerId}`);
+  async startBattle(
+    playerId: string, 
+    difficulty: string = 'medium', 
+    teamId?: string,
+    mechanicsPreset?: MechanicsPreset,
+    mechanicsToggles?: Record<string, boolean>,
+  ) {
+    this.logger.log(`Starting battle for player ${playerId}`, {
+      playerId,
+      difficulty,
+      teamId,
+      mechanicsPreset: mechanicsPreset || 'mvp',
+    });
 
     const player = await this.playerRepo.findOne({ where: { id: playerId } });
 
@@ -85,9 +115,11 @@ export class BattleService {
     
     this.logger.debug(`Battle teams - Player: ${legacyPlayerTeam.join(', ')}, Bot: ${botUnitIds.join(', ')}, Difficulty: ${difficulty}`);
 
-    // Use the seed already generated for bot team creation
+    // Create mechanics processor based on preset
+    const processor = this.createMechanicsProcessor(mechanicsPreset, mechanicsToggles);
+    const mechanicsEnabled = processor !== undefined;
     
-    const result = simulateBattle(playerTeamSetup, botTeamSetup, seed);
+    const result = simulateBattle(playerTeamSetup, botTeamSetup, seed, processor);
 
     // Map winner from simulation result to new format
     let winner: 'player1' | 'player2' | 'draw' | undefined;
@@ -134,6 +166,8 @@ export class BattleService {
       winner: result.winner,
       rounds: result.metadata.totalRounds,
       durationMs: result.metadata.durationMs,
+      mechanicsEnabled,
+      mechanicsPreset: mechanicsPreset || 'mvp',
     });
 
     return { battleId: battleLog.id };
@@ -696,6 +730,98 @@ export class BattleService {
     }
     
     return Math.abs(hash);
+  }
+
+  /**
+   * Create a MechanicsProcessor based on preset and custom toggles.
+   * Returns undefined for MVP preset (no mechanics), otherwise creates processor.
+   * 
+   * @param preset - Mechanics preset name (mvp, tactical, roguelike, custom)
+   * @param customToggles - Custom mechanics toggles (used with 'custom' preset)
+   * @returns MechanicsProcessor or undefined for MVP mode
+   * @example
+   * const processor = this.createMechanicsProcessor('tactical');
+   * const result = simulateBattle(playerTeam, botTeam, seed, processor);
+   */
+  private createMechanicsProcessor(
+    preset?: MechanicsPreset,
+    customToggles?: Record<string, boolean>,
+  ): MechanicsProcessor | undefined {
+    // MVP preset or no preset = no mechanics (Core 1.0 behavior)
+    if (!preset || preset === 'mvp') {
+      this.logger.debug('Using MVP mode (no mechanics processor)');
+      return undefined;
+    }
+
+    let config: MechanicsConfig;
+
+    switch (preset) {
+      case 'tactical':
+        config = TACTICAL_PRESET;
+        this.logger.debug('Using tactical mechanics preset');
+        break;
+      
+      case 'roguelike':
+        config = ROGUELIKE_PRESET;
+        this.logger.debug('Using roguelike mechanics preset');
+        break;
+      
+      case 'custom':
+        // Build config from custom toggles
+        config = this.buildCustomMechanicsConfig(customToggles);
+        this.logger.debug('Using custom mechanics config', { 
+          enabledMechanics: Object.entries(config)
+            .filter(([, v]) => v !== false)
+            .map(([k]) => k),
+        });
+        break;
+      
+      default:
+        this.logger.warn(`Unknown mechanics preset: ${preset}, falling back to MVP`);
+        return undefined;
+    }
+
+    // Check if any mechanics are enabled
+    const hasEnabledMechanics = Object.values(config).some(v => v !== false);
+    
+    if (!hasEnabledMechanics) {
+      this.logger.debug('No mechanics enabled, skipping processor creation');
+      return undefined;
+    }
+
+    return createMechanicsProcessor(config);
+  }
+
+  /**
+   * Build MechanicsConfig from custom toggles.
+   * Converts boolean toggles to proper config format with defaults.
+   * 
+   * @param toggles - Custom mechanics toggles from frontend
+   * @returns MechanicsConfig for processor creation
+   */
+  private buildCustomMechanicsConfig(toggles?: Record<string, boolean>): MechanicsConfig {
+    if (!toggles) {
+      return MVP_PRESET;
+    }
+
+    // Start with MVP preset (all disabled) and enable based on toggles
+    // For mechanics with config objects, use ROGUELIKE_PRESET values when enabled
+    return {
+      facing: toggles['facing'] ?? false,
+      resolve: toggles['resolve'] ? ROGUELIKE_PRESET.resolve : false,
+      engagement: toggles['engagement'] ? ROGUELIKE_PRESET.engagement : false,
+      flanking: toggles['flanking'] ?? false,
+      riposte: toggles['riposte'] ? ROGUELIKE_PRESET.riposte : false,
+      intercept: toggles['intercept'] ? ROGUELIKE_PRESET.intercept : false,
+      aura: toggles['aura'] ?? false,
+      charge: toggles['charge'] ? ROGUELIKE_PRESET.charge : false,
+      overwatch: toggles['overwatch'] ?? false,
+      phalanx: toggles['phalanx'] ? ROGUELIKE_PRESET.phalanx : false,
+      lineOfSight: toggles['lineOfSight'] ? ROGUELIKE_PRESET.lineOfSight : false,
+      ammunition: toggles['ammunition'] ? ROGUELIKE_PRESET.ammunition : false,
+      contagion: toggles['contagion'] ? ROGUELIKE_PRESET.contagion : false,
+      armorShred: toggles['armorShred'] ? ROGUELIKE_PRESET.armorShred : false,
+    };
   }
 
   /**

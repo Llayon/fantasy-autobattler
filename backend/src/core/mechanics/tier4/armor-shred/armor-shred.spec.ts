@@ -9,6 +9,7 @@
 import { createShredProcessor } from './armor-shred.processor';
 import type { ShredConfig } from '../../config/mechanics.types';
 import type { BattleUnit, BattleState } from '../../../types';
+import type { MechanicResult } from '../../processor';
 import type { UnitWithArmorShred } from './armor-shred.types';
 import {
   DEFAULT_SHRED_PER_ATTACK,
@@ -20,6 +21,20 @@ import {
 // ═══════════════════════════════════════════════════════════════
 // TEST FIXTURES
 // ═══════════════════════════════════════════════════════════════
+
+/**
+ * Helper to check if result is MechanicResult.
+ */
+function isMechanicResult(result: BattleState | MechanicResult): result is MechanicResult {
+  return result !== null && typeof result === 'object' && 'state' in result;
+}
+
+/**
+ * Helper to get state from apply() result.
+ */
+function getState(result: BattleState | MechanicResult): BattleState {
+  return isMechanicResult(result) ? result.state : result;
+}
 
 /**
  * Default shred config for testing.
@@ -548,15 +563,16 @@ describe('ArmorShredProcessor', () => {
         });
         const state = createMockState([attacker, target]);
 
-        const newState = processor.apply('attack', state, {
+        const result = processor.apply('attack', state, {
           activeUnit: attacker,
           target,
           action: { type: 'attack', targetId: 'target' },
           seed: 12345,
         });
 
+        const newState = getState(result);
         const updatedTarget = newState.units.find(
-          u => u.instanceId === 'target',
+          (u: BattleUnit) => u.instanceId === 'target',
         ) as BattleUnit & UnitWithArmorShred;
         expect(updatedTarget.armorShred).toBe(1);
       });
@@ -566,13 +582,13 @@ describe('ArmorShredProcessor', () => {
         const attacker = createMockUnit({ instanceId: 'attacker' });
         const state = createMockState([attacker]);
 
-        const newState = processor.apply('attack', state, {
+        const result = processor.apply('attack', state, {
           activeUnit: attacker,
           action: { type: 'attack', targetId: 'target' },
           seed: 12345,
         });
 
-        expect(newState).toBe(state); // Unchanged
+        expect(getState(result)).toBe(state); // Unchanged
       });
 
       it('should not apply shred when action is not attack', () => {
@@ -585,14 +601,14 @@ describe('ArmorShredProcessor', () => {
         });
         const state = createMockState([attacker, target]);
 
-        const newState = processor.apply('attack', state, {
+        const result = processor.apply('attack', state, {
           activeUnit: attacker,
           target,
           action: { type: 'ability', targetId: 'target' },
           seed: 12345,
         });
 
-        expect(newState).toBe(state); // Unchanged
+        expect(getState(result)).toBe(state); // Unchanged
       });
 
       it('should not apply shred to dead units', () => {
@@ -607,14 +623,14 @@ describe('ArmorShredProcessor', () => {
         });
         const state = createMockState([attacker, target]);
 
-        const newState = processor.apply('attack', state, {
+        const result = processor.apply('attack', state, {
           activeUnit: attacker,
           target,
           action: { type: 'attack', targetId: 'target' },
           seed: 12345,
         });
 
-        expect(newState).toBe(state); // Unchanged
+        expect(getState(result)).toBe(state); // Unchanged
       });
 
       it('should not apply shred to units with zero armor', () => {
@@ -627,14 +643,14 @@ describe('ArmorShredProcessor', () => {
         });
         const state = createMockState([attacker, target]);
 
-        const newState = processor.apply('attack', state, {
+        const result = processor.apply('attack', state, {
           activeUnit: attacker,
           target,
           action: { type: 'attack', targetId: 'target' },
           seed: 12345,
         });
 
-        expect(newState).toBe(state); // Unchanged
+        expect(getState(result)).toBe(state); // Unchanged
       });
     });
 
@@ -648,13 +664,14 @@ describe('ArmorShredProcessor', () => {
         });
         const state = createMockState([unit]);
 
-        const newState = processor.apply('turn_end', state, {
+        const result = processor.apply('turn_end', state, {
           activeUnit: unit,
           seed: 12345,
         });
 
+        const newState = getState(result);
         const updatedUnit = newState.units.find(
-          u => u.instanceId === 'unit',
+          (u: BattleUnit) => u.instanceId === 'unit',
         ) as BattleUnit & UnitWithArmorShred;
         expect(updatedUnit.armorShred).toBe(2);
       });
@@ -668,12 +685,12 @@ describe('ArmorShredProcessor', () => {
         });
         const state = createMockState([unit]);
 
-        const newState = processor.apply('turn_end', state, {
+        const result = processor.apply('turn_end', state, {
           activeUnit: unit,
           seed: 12345,
         });
 
-        expect(newState).toBe(state); // Unchanged
+        expect(getState(result)).toBe(state); // Unchanged
       });
 
       it('should decay shred on all units with shred', () => {
@@ -698,19 +715,20 @@ describe('ArmorShredProcessor', () => {
         });
         const state = createMockState([unit1, unit2, unit3]);
 
-        const newState = processor.apply('turn_end', state, {
+        const result = processor.apply('turn_end', state, {
           activeUnit: unit1,
           seed: 12345,
         });
 
+        const newState = getState(result);
         const updated1 = newState.units.find(
-          u => u.id === 'unit1',
+          (u: BattleUnit) => u.id === 'unit1',
         ) as BattleUnit & UnitWithArmorShred;
         const updated2 = newState.units.find(
-          u => u.id === 'unit2',
+          (u: BattleUnit) => u.id === 'unit2',
         ) as BattleUnit & UnitWithArmorShred;
         const updated3 = newState.units.find(
-          u => u.id === 'unit3',
+          (u: BattleUnit) => u.id === 'unit3',
         ) as BattleUnit & UnitWithArmorShred;
 
         expect(updated1.armorShred).toBe(2);
@@ -725,12 +743,12 @@ describe('ArmorShredProcessor', () => {
         const unit = createMockUnit({ instanceId: 'unit' });
         const state = createMockState([unit]);
 
-        const newState = processor.apply('movement', state, {
+        const result = processor.apply('movement', state, {
           activeUnit: unit,
           seed: 12345,
         });
 
-        expect(newState).toBe(state);
+        expect(getState(result)).toBe(state);
       });
 
       it('should return unchanged state for turn_start phase', () => {
@@ -738,12 +756,12 @@ describe('ArmorShredProcessor', () => {
         const unit = createMockUnit({ instanceId: 'unit' });
         const state = createMockState([unit]);
 
-        const newState = processor.apply('turn_start', state, {
+        const result = processor.apply('turn_start', state, {
           activeUnit: unit,
           seed: 12345,
         });
 
-        expect(newState).toBe(state);
+        expect(getState(result)).toBe(state);
       });
 
       it('should return unchanged state for pre_attack phase', () => {
@@ -751,12 +769,12 @@ describe('ArmorShredProcessor', () => {
         const unit = createMockUnit({ instanceId: 'unit' });
         const state = createMockState([unit]);
 
-        const newState = processor.apply('pre_attack', state, {
+        const result = processor.apply('pre_attack', state, {
           activeUnit: unit,
           seed: 12345,
         });
 
-        expect(newState).toBe(state);
+        expect(getState(result)).toBe(state);
       });
 
       it('should return unchanged state for post_attack phase', () => {
@@ -764,12 +782,12 @@ describe('ArmorShredProcessor', () => {
         const unit = createMockUnit({ instanceId: 'unit' });
         const state = createMockState([unit]);
 
-        const newState = processor.apply('post_attack', state, {
+        const result = processor.apply('post_attack', state, {
           activeUnit: unit,
           seed: 12345,
         });
 
-        expect(newState).toBe(state);
+        expect(getState(result)).toBe(state);
       });
     });
   });

@@ -57,10 +57,19 @@ export interface UnitStats {
 /**
  * Complete unit templates database with all 15 units.
  * Stats are taken directly from GDD section 6.1.
+ * 
+ * Mechanics 2.0 Extensions (Roguelike mode):
+ * - facing: Initial direction (auto-set based on team)
+ * - resolve: Base morale (higher = more resistant)
+ * - faction: 'human' (retreat) or 'undead' (crumble)
+ * - tags: Unit classification for mechanics
+ * - ammo: Ammunition for ranged units
+ * - riposteCharges: Counter-attack charges per round
  */
 export const UNIT_TEMPLATES: Record<UnitId, UnitTemplate> = {
   // ==========================================================================
   // TANKS (3) - High HP and armor, low damage
+  // Mechanics: phalanx formation, high resolve, spear_wall for Guardian
   // ==========================================================================
   
   knight: {
@@ -75,10 +84,16 @@ export const UNIT_TEMPLATES: Record<UnitId, UnitTemplate> = {
       armor: 8,
       speed: 2,
       initiative: 4,
-      dodge: 5, // 5%
+      dodge: 5,
     },
     range: 1,
     abilities: ['shield_wall'],
+    // Mechanics 2.0
+    facing: 'S',
+    resolve: 40, // TEST: lowered from 100
+    faction: 'human',
+    tags: ['melee', 'heavy', 'phalanx'],
+    riposteCharges: 1,
   },
 
   guardian: {
@@ -93,10 +108,16 @@ export const UNIT_TEMPLATES: Record<UnitId, UnitTemplate> = {
       armor: 12,
       speed: 1,
       initiative: 3,
-      dodge: 0, // 0%
+      dodge: 0,
     },
     range: 1,
     abilities: ['taunt'],
+    // Mechanics 2.0: Spear wall counters cavalry charges
+    facing: 'S',
+    resolve: 40, // TEST: lowered from 120
+    faction: 'human',
+    tags: ['melee', 'heavy', 'phalanx', 'spear_wall'],
+    riposteCharges: 1,
   },
 
   berserker: {
@@ -111,14 +132,21 @@ export const UNIT_TEMPLATES: Record<UnitId, UnitTemplate> = {
       armor: 5,
       speed: 3,
       initiative: 6,
-      dodge: 0, // 0%
+      dodge: 0,
     },
     range: 1,
     abilities: ['rage'],
+    // Mechanics 2.0: Low resolve (rage makes them reckless), no phalanx
+    facing: 'S',
+    resolve: 40, // TEST: lowered from 60
+    faction: 'human',
+    tags: ['melee', 'charge'],
+    riposteCharges: 2, // Aggressive counter-attacks
   },
 
   // ==========================================================================
   // MELEE DPS (3) - High damage, medium survivability
+  // Mechanics: flanking bonuses, high initiative for riposte
   // ==========================================================================
 
   rogue: {
@@ -133,10 +161,16 @@ export const UNIT_TEMPLATES: Record<UnitId, UnitTemplate> = {
       armor: 3,
       speed: 4,
       initiative: 9,
-      dodge: 25, // 25%
+      dodge: 25,
     },
     range: 1,
     abilities: ['backstab'],
+    // Mechanics 2.0: Light, fast, excels at flanking
+    facing: 'S',
+    resolve: 40, // TEST: lowered from 70
+    faction: 'human',
+    tags: ['melee', 'light', 'flanker'],
+    riposteCharges: 2, // Fast reflexes
   },
 
   duelist: {
@@ -151,10 +185,16 @@ export const UNIT_TEMPLATES: Record<UnitId, UnitTemplate> = {
       armor: 4,
       speed: 3,
       initiative: 8,
-      dodge: 15, // 15%
+      dodge: 15,
     },
     range: 1,
     abilities: ['riposte'],
+    // Mechanics 2.0: Master of riposte, high initiative
+    facing: 'S',
+    resolve: 40, // TEST: lowered from 90
+    faction: 'human',
+    tags: ['melee', 'duelist'],
+    riposteCharges: 3, // Riposte specialist
   },
 
   assassin: {
@@ -169,14 +209,21 @@ export const UNIT_TEMPLATES: Record<UnitId, UnitTemplate> = {
       armor: 2,
       speed: 5,
       initiative: 10,
-      dodge: 20, // 20%
+      dodge: 20,
     },
     range: 1,
     abilities: ['execute'],
+    // Mechanics 2.0: Fastest unit, excels at rear attacks
+    facing: 'S',
+    resolve: 40, // TEST: lowered from 60
+    faction: 'human',
+    tags: ['melee', 'light', 'flanker', 'assassin'],
+    riposteCharges: 1, // Prefers offense over defense
   },
 
   // ==========================================================================
   // RANGED DPS (3) - High damage from distance
+  // Mechanics: ammunition, overwatch, engagement penalty
   // ==========================================================================
 
   archer: {
@@ -191,10 +238,17 @@ export const UNIT_TEMPLATES: Record<UnitId, UnitTemplate> = {
       armor: 2,
       speed: 3,
       initiative: 7,
-      dodge: 10, // 10%
+      dodge: 10,
     },
     range: 4,
     abilities: ['volley'],
+    // Mechanics 2.0: Standard ranged, 8 arrows
+    facing: 'S',
+    resolve: 40, // TEST: lowered from 70
+    faction: 'human',
+    tags: ['ranged', 'light'],
+    ammo: 8,
+    riposteCharges: 0, // Cannot riposte (ranged)
   },
 
   crossbowman: {
@@ -209,10 +263,17 @@ export const UNIT_TEMPLATES: Record<UnitId, UnitTemplate> = {
       armor: 3,
       speed: 2,
       initiative: 5,
-      dodge: 5, // 5%
+      dodge: 5,
     },
     range: 5,
     abilities: ['piercing_shot'],
+    // Mechanics 2.0: Slower reload, fewer bolts but more damage
+    facing: 'S',
+    resolve: 40, // TEST: lowered from 80
+    faction: 'human',
+    tags: ['ranged', 'heavy', 'armor_piercing'],
+    ammo: 6,
+    riposteCharges: 0,
   },
 
   hunter: {
@@ -227,14 +288,22 @@ export const UNIT_TEMPLATES: Record<UnitId, UnitTemplate> = {
       armor: 2,
       speed: 3,
       initiative: 6,
-      dodge: 15, // 15%
+      dodge: 15,
     },
     range: 4,
     abilities: ['trap'],
+    // Mechanics 2.0: Overwatch specialist, more ammo
+    facing: 'S',
+    resolve: 40, // TEST: lowered from 85
+    faction: 'human',
+    tags: ['ranged', 'light', 'overwatch'],
+    ammo: 10,
+    riposteCharges: 1, // Can defend in melee
   },
 
   // ==========================================================================
   // MAGES (3) - Magic damage, ignores armor
+  // Mechanics: cooldowns instead of ammo, contagion effects
   // ==========================================================================
 
   mage: {
@@ -249,10 +318,16 @@ export const UNIT_TEMPLATES: Record<UnitId, UnitTemplate> = {
       armor: 0,
       speed: 2,
       initiative: 6,
-      dodge: 0, // 0%
+      dodge: 0,
     },
     range: 3,
     abilities: ['fireball'],
+    // Mechanics 2.0: Fire mage, spreads burn (contagion)
+    facing: 'S',
+    resolve: 40, // TEST: lowered from 65
+    faction: 'human',
+    tags: ['mage', 'fire', 'aoe'],
+    riposteCharges: 0,
   },
 
   warlock: {
@@ -267,10 +342,16 @@ export const UNIT_TEMPLATES: Record<UnitId, UnitTemplate> = {
       armor: 2,
       speed: 2,
       initiative: 5,
-      dodge: 0, // 0%
+      dodge: 0,
     },
     range: 3,
     abilities: ['drain_life'],
+    // Mechanics 2.0: Curse spreader, more durable
+    facing: 'S',
+    resolve: 40, // TEST: lowered from 80
+    faction: 'human',
+    tags: ['mage', 'curse', 'lifesteal'],
+    riposteCharges: 0,
   },
 
   elementalist: {
@@ -285,14 +366,21 @@ export const UNIT_TEMPLATES: Record<UnitId, UnitTemplate> = {
       armor: 0,
       speed: 2,
       initiative: 7,
-      dodge: 0, // 0%
+      dodge: 0,
     },
     range: 4,
     abilities: ['chain_lightning'],
+    // Mechanics 2.0: Multi-element, frost effects
+    facing: 'S',
+    resolve: 40, // TEST: lowered from 60
+    faction: 'human',
+    tags: ['mage', 'frost', 'lightning', 'aoe'],
+    riposteCharges: 0,
   },
 
   // ==========================================================================
   // SUPPORT (2) - Healing and buffs
+  // Mechanics: auras, resolve boosting
   // ==========================================================================
 
   priest: {
@@ -307,10 +395,16 @@ export const UNIT_TEMPLATES: Record<UnitId, UnitTemplate> = {
       armor: 2,
       speed: 2,
       initiative: 5,
-      dodge: 5, // 5%
+      dodge: 5,
     },
     range: 2,
     abilities: ['heal'],
+    // Mechanics 2.0: Healing aura, resolve boost
+    facing: 'S',
+    resolve: 40, // TEST: lowered from 100
+    faction: 'human',
+    tags: ['support', 'healer', 'aura'],
+    riposteCharges: 0,
   },
 
   bard: {
@@ -325,14 +419,21 @@ export const UNIT_TEMPLATES: Record<UnitId, UnitTemplate> = {
       armor: 1,
       speed: 3,
       initiative: 6,
-      dodge: 10, // 10%
+      dodge: 10,
     },
     range: 2,
     abilities: ['inspire'],
+    // Mechanics 2.0: Attack buff aura, morale boost
+    facing: 'S',
+    resolve: 40, // TEST: lowered from 90
+    faction: 'human',
+    tags: ['support', 'buffer', 'aura', 'light'],
+    riposteCharges: 1,
   },
 
   // ==========================================================================
   // CONTROL (1) - Crowd control abilities
+  // Mechanics: debuff auras, resolve damage
   // ==========================================================================
 
   enchanter: {
@@ -347,10 +448,16 @@ export const UNIT_TEMPLATES: Record<UnitId, UnitTemplate> = {
       armor: 1,
       speed: 2,
       initiative: 8,
-      dodge: 5, // 5%
+      dodge: 5,
     },
     range: 3,
     abilities: ['stun'],
+    // Mechanics 2.0: Debuff aura, resolve damage
+    facing: 'S',
+    resolve: 40, // TEST: lowered from 75
+    faction: 'human',
+    tags: ['mage', 'control', 'debuffer', 'aura'],
+    riposteCharges: 0,
   },
 };
 

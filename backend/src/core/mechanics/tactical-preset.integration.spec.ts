@@ -379,8 +379,9 @@ describe('TACTICAL Preset Integration Tests', () => {
       for (const phase of phases) {
         const result = processor.process(phase, mockState, mockContext);
         expect(result).toBeDefined();
-        expect(result.units).toBeDefined();
-        expect(result.round).toBeDefined();
+        expect(result.state).toBeDefined();
+        expect(result.state.units).toBeDefined();
+        expect(result.state.round).toBeDefined();
         expect(result.events).toBeDefined();
       }
     });

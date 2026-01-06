@@ -14,8 +14,8 @@
  * @module core/mechanics/tier4/armor-shred
  */
 
-import type { BattleState, BattleUnit } from '../../../types';
-import type { BattlePhase, PhaseContext } from '../../processor';
+import type { BattleState, BattleUnit, BattleEvent, ArmorShredEvent } from '../../../types';
+import type { BattlePhase, PhaseContext, MechanicResult } from '../../processor';
 import type { ShredConfig } from '../../config/mechanics.types';
 import { updateUnit, updateUnits } from '../../helpers';
 import type {
@@ -48,12 +48,19 @@ function isUnitAlive(unit: BattleUnit): boolean {
 
 /**
  * Gets armor shred-specific properties from a unit.
+ * Adapts BattleUnit (with stats.armor) to UnitWithArmorShred interface.
  *
  * @param unit - Unit to get armor shred properties from
- * @returns Unit with armor shred properties
+ * @returns Unit with armor shred properties (armor aliased from stats.armor)
  */
 function asArmorShredUnit(unit: BattleUnit): BattleUnit & UnitWithArmorShred {
-  return unit as BattleUnit & UnitWithArmorShred;
+  // Create an adapter that maps stats.armor to armor for the UnitWithArmorShred interface
+  const adapted = unit as BattleUnit & UnitWithArmorShred;
+  // If armor is not directly on unit, use stats.armor
+  if (adapted.armor === undefined && unit.stats?.armor !== undefined) {
+    (adapted as { armor: number }).armor = unit.stats.armor;
+  }
+  return adapted;
 }
 
 /**
@@ -161,7 +168,8 @@ export function createShredProcessor(config: ShredConfig): ArmorShredProcessor {
       target: BattleUnit & UnitWithArmorShred,
       shredConfig: ShredConfig,
     ): ApplyShredResult {
-      const baseArmor = target.armor ?? 0;
+      // Use stats.armor if armor is not directly on unit
+      const baseArmor = target.armor ?? target.stats?.armor ?? 0;
       const currentShred = target.armorShred ?? 0;
       const shredPerAttack = getShredPerAttack(shredConfig);
       const maxShredPercent = getMaxShredPercent(shredConfig);
@@ -197,7 +205,8 @@ export function createShredProcessor(config: ShredConfig): ArmorShredProcessor {
      * @returns Effective armor value (minimum 0)
      */
     getEffectiveArmor(unit: BattleUnit & UnitWithArmorShred): number {
-      const baseArmor = unit.armor ?? 0;
+      // Use stats.armor if armor is not directly on unit
+      const baseArmor = unit.armor ?? unit.stats?.armor ?? 0;
       const currentShred = unit.armorShred ?? 0;
       return Math.max(MIN_EFFECTIVE_ARMOR, baseArmor - currentShred);
     },
@@ -213,7 +222,8 @@ export function createShredProcessor(config: ShredConfig): ArmorShredProcessor {
       unit: BattleUnit & UnitWithArmorShred,
       shredConfig: ShredConfig,
     ): EffectiveArmorResult {
-      const baseArmor = unit.armor ?? 0;
+      // Use stats.armor if armor is not directly on unit
+      const baseArmor = unit.armor ?? unit.stats?.armor ?? 0;
       const currentShred = unit.armorShred ?? 0;
       const maxShredPercent = getMaxShredPercent(shredConfig);
       const maxShred = Math.floor(baseArmor * maxShredPercent);
@@ -241,7 +251,8 @@ export function createShredProcessor(config: ShredConfig): ArmorShredProcessor {
       unit: BattleUnit & UnitWithArmorShred,
       shredConfig: ShredConfig,
     ): number {
-      const baseArmor = unit.armor ?? 0;
+      // Use stats.armor if armor is not directly on unit
+      const baseArmor = unit.armor ?? unit.stats?.armor ?? 0;
       const maxShredPercent = getMaxShredPercent(shredConfig);
       return Math.floor(baseArmor * maxShredPercent);
     },
@@ -354,13 +365,15 @@ export function createShredProcessor(config: ShredConfig): ArmorShredProcessor {
      * @param phase - Current battle phase
      * @param state - Current battle state
      * @param context - Phase context with active unit and action info
-     * @returns Updated battle state
+     * @returns MechanicResult with updated state and generated events
      */
     apply(
       phase: BattlePhase,
       state: BattleState,
       context: PhaseContext,
-    ): BattleState {
+    ): MechanicResult {
+      const events: BattleEvent[] = [];
+
       // ─────────────────────────────────────────────────────────────
       // ATTACK: Apply shred on physical attacks
       // ─────────────────────────────────────────────────────────────
@@ -369,11 +382,30 @@ export function createShredProcessor(config: ShredConfig): ArmorShredProcessor {
 
         // Only apply shred to alive units with armor
         if (!isUnitAlive(target) || (target.armor ?? 0) <= 0) {
-          return state;
+          return { state, events };
         }
 
-        const updatedTarget = this.applyShred(target, config);
-        return updateUnit(state, updatedTarget);
+        const shredResult = this.applyShredWithDetails(target, config);
+        const updatedState = updateUnit(state, shredResult.target);
+
+        // Generate armor shred event for battle log
+        if (shredResult.shredApplied > 0) {
+          const baseArmor = target.armor ?? target.stats?.armor ?? 0;
+          const armorShredEvent: ArmorShredEvent = {
+            type: 'mechanic_armor_shred',
+            round: state.round,
+            actorId: context.activeUnit.instanceId,
+            targetId: target.instanceId,
+            shredApplied: shredResult.shredApplied,
+            totalShred: shredResult.newTotalShred,
+            baseArmor,
+            effectiveArmor: Math.max(MIN_EFFECTIVE_ARMOR, baseArmor - shredResult.newTotalShred),
+            wasCapped: shredResult.wasCapped,
+          };
+          events.push(armorShredEvent as BattleEvent);
+        }
+
+        return { state: updatedState, events };
       }
 
       // ─────────────────────────────────────────────────────────────
@@ -384,7 +416,7 @@ export function createShredProcessor(config: ShredConfig): ArmorShredProcessor {
 
         // Skip if no decay configured
         if (decayPerTurn === 0) {
-          return state;
+          return { state, events };
         }
 
         // Decay shred on all units
@@ -403,11 +435,11 @@ export function createShredProcessor(config: ShredConfig): ArmorShredProcessor {
         }
 
         if (hasChanges) {
-          return updateUnits(state, updatedUnitsArray);
+          return { state: updateUnits(state, updatedUnitsArray), events };
         }
       }
 
-      return state;
+      return { state, events };
     },
   };
 }

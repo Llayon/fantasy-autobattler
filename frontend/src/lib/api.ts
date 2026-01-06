@@ -462,17 +462,31 @@ export const api = {
    * 
    * @param difficulty - Battle difficulty (optional)
    * @param teamId - Team to use (optional, uses active team)
+   * @param mechanicsPreset - Mechanics preset (optional, defaults to 'mvp')
+   * @param mechanicsToggles - Custom mechanics toggles (optional, used with 'custom' preset)
    * @returns Battle result with events and winner
    * @throws ApiError if no active team or invalid parameters
    * @example
-   * const battle = await api.startBattle('medium', 'team-123');
+   * const battle = await api.startBattle('medium', 'team-123', 'tactical');
    */
-  async startBattle(difficulty?: string, teamId?: string): Promise<{
+  async startBattle(
+    difficulty?: string, 
+    teamId?: string,
+    mechanicsPreset?: 'mvp' | 'tactical' | 'roguelike' | 'custom',
+    mechanicsToggles?: Record<string, boolean>,
+  ): Promise<{
     battleId: string;
   }> {
-    const body: { difficulty?: string; teamId?: string } = {};
+    const body: { 
+      difficulty?: string; 
+      teamId?: string;
+      mechanicsPreset?: string;
+      mechanicsToggles?: Record<string, boolean>;
+    } = {};
     if (difficulty) body.difficulty = difficulty;
     if (teamId) body.teamId = teamId;
+    if (mechanicsPreset) body.mechanicsPreset = mechanicsPreset;
+    if (mechanicsToggles) body.mechanicsToggles = mechanicsToggles;
 
     return fetchApi<{
       battleId: string;

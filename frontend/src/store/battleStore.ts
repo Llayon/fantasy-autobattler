@@ -43,7 +43,12 @@ interface BattleState {
  */
 interface BattleActions {
   /** Start new battle against bot */
-  startBattle: (difficulty?: string, teamId?: string) => Promise<string | null>;
+  startBattle: (
+    difficulty?: string, 
+    teamId?: string,
+    mechanicsPreset?: 'mvp' | 'tactical' | 'roguelike' | 'custom',
+    mechanicsToggles?: Record<string, boolean>,
+  ) => Promise<string | null>;
   /** Load battle by ID */
   loadBattle: (battleId: string) => Promise<void>;
   /** Load player's battle history */
@@ -125,16 +130,23 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
    * 
    * @param difficulty - Battle difficulty (easy, medium, hard)
    * @param teamId - Team ID to use (optional, uses active team)
+   * @param mechanicsPreset - Mechanics preset (optional, defaults to 'mvp')
+   * @param mechanicsToggles - Custom mechanics toggles (optional)
    * @returns Battle ID if successful, null if failed
    * @throws ApiError if battle cannot be started
    * @example
-   * const battleId = await startBattle('medium', 'team-123');
+   * const battleId = await startBattle('medium', 'team-123', 'tactical');
    */
-  startBattle: async (difficulty?: string, teamId?: string) => {
+  startBattle: async (
+    difficulty?: string, 
+    teamId?: string,
+    mechanicsPreset?: 'mvp' | 'tactical' | 'roguelike' | 'custom',
+    mechanicsToggles?: Record<string, boolean>,
+  ) => {
     set({ loading: true, error: null });
     
     try {
-      const battleResult = await api.startBattle(difficulty, teamId);
+      const battleResult = await api.startBattle(difficulty, teamId, mechanicsPreset, mechanicsToggles);
       
       // Refresh battles list to include new battle
       if (get().battlesLoaded) {

@@ -18,7 +18,7 @@
  */
 
 import type { BattlePhase, PhaseContext } from '../../processor';
-import type { BattleState, BattleUnit } from '../../../types';
+import type { BattleState, BattleUnit, BattleEvent } from '../../../types';
 import type { AttackArc } from '../../tier0/facing/facing.types';
 import type { RiposteConfig } from '../../config/mechanics.types';
 
@@ -463,20 +463,22 @@ export interface RiposteProcessor {
    * @param phase - Current battle phase
    * @param state - Current battle state
    * @param context - Phase context with active unit and target
-   * @returns Updated battle state
+   * @returns MechanicResult with updated state and riposte events
    *
    * @example
-   * const newState = processor.apply('attack', state, {
+   * const result = processor.apply('attack', state, {
    *   activeUnit: attacker,
    *   target: defender,
    *   seed: 12345,
    * });
+   * // result.state - updated state
+   * // result.events - riposte events for battle log
    */
   apply(
     phase: BattlePhase,
     state: BattleState,
     context: PhaseContext,
-  ): BattleState;
+  ): BattleState | { state: BattleState; events: BattleEvent[] };
 }
 
 // ═══════════════════════════════════════════════════════════════

@@ -25,6 +25,7 @@ import {
   usePlayerStore, 
   useTeamStore, 
   useMatchmakingStore,
+  useUIStore,
   selectPlayer, 
   selectPlayerLoading, 
   selectPlayerError,
@@ -343,10 +344,14 @@ export default function TeamBuilderPage() {
     // Mark that battle was started on this page (for redirect logic)
     battleStartedOnPageRef.current = true;
     
+    // Get mechanics settings from UI store
+    const { mechanics, getMechanicsToggles } = useUIStore.getState();
+    const mechanicsToggles = mechanics.preset === 'custom' ? getMechanicsToggles() : undefined;
+    
     // Start bot battle for now (can be changed to PvP later)
     const { startBotBattle } = useMatchmakingStore.getState();
     try {
-      await startBotBattle(savedTeam.id, 'medium');
+      await startBotBattle(savedTeam.id, 'medium', mechanics.preset, mechanicsToggles);
     } catch (error) {
       battleStartedOnPageRef.current = false;
     }

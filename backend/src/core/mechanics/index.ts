@@ -100,6 +100,8 @@ export type {
   MechanicsProcessor,
   MechanicProcessorMap,
   MechanicProcessor,
+  MechanicResult,
+  ProcessResult,
   BattlePhase,
   PhaseContext,
   BattleAction,
@@ -182,7 +184,7 @@ export type {
   RiposteFailedEvent,
   RiposteBlockedEvent,
   RiposteChargesResetEvent,
-  RiposteEvent,
+  // Note: RiposteEvent is exported from core/types/event.types.ts
   RiposteProcessorOptions,
   RiposteContext,
   RiposteCheckResult,
@@ -272,7 +274,7 @@ export type {
   ChargeCounteredEvent,
   ChargeFailedEvent,
   MomentumResetEvent,
-  ChargeEvent,
+  // Note: ChargeEvent is exported from core/types/event.types.ts
   ChargeProcessorOptions,
   ChargeContext,
   ChargeFullResult,
@@ -307,7 +309,7 @@ export type {
   VigilanceExitBlockReason,
   OverwatchResetResult,
   OverwatchProcessorOptions,
-  OverwatchEvent,
+  // Note: OverwatchEvent is exported from core/types/event.types.ts
   VigilanceEnteredEvent,
   OverwatchTriggeredEvent,
   OverwatchShotEvent,
@@ -346,7 +348,7 @@ export type {
   PhalanxBreakReason,
   PhalanxUpdatedEvent,
   PhalanxRecalculatedEvent,
-  PhalanxEvent,
+  // Note: PhalanxEvent is exported from core/types/event.types.ts
   PhalanxProcessorOptions,
   PhalanxContext,
   PhalanxFullResult,
@@ -465,7 +467,7 @@ export type {
   EffectSpreadBlockedEvent,
   ContagionPhaseStartedEvent,
   ContagionPhaseEndedEvent,
-  ContagionEvent,
+  // Note: ContagionEvent is exported from core/types/event.types.ts
   ContagionProcessorOptions,
   ContagionContext,
   ContagionFullResult,
@@ -495,7 +497,7 @@ export type {
   ArmorShredAppliedEvent,
   ArmorShredCappedEvent,
   ArmorShredDecayedEvent,
-  ArmorShredEvent,
+  // Note: ArmorShredEvent is exported from core/types/event.types.ts
   ArmorShredProcessorOptions,
   ArmorShredContext,
   ShredStateSummary,

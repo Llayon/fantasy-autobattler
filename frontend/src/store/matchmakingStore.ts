@@ -76,7 +76,12 @@ interface MatchmakingActions {
   /** Find match (manual polling) */
   findMatch: () => Promise<void>;
   /** Start bot battle */
-  startBotBattle: (teamId: string, difficulty?: 'easy' | 'medium' | 'hard') => Promise<void>;
+  startBotBattle: (
+    teamId: string, 
+    difficulty?: 'easy' | 'medium' | 'hard',
+    mechanicsPreset?: 'mvp' | 'tactical' | 'roguelike' | 'custom',
+    mechanicsToggles?: Record<string, boolean>,
+  ) => Promise<void>;
   /** Clear match result */
   clearMatch: () => void;
   /** Reset matchmaking state */
@@ -366,15 +371,22 @@ export const useMatchmakingStore = create<MatchmakingStore>((set, get) => ({
    * 
    * @param teamId - Team ID to use for bot battle
    * @param difficulty - Bot difficulty level
+   * @param mechanicsPreset - Mechanics preset (optional, defaults to 'mvp')
+   * @param mechanicsToggles - Custom mechanics toggles (optional)
    * @throws ApiError if cannot create bot battle
    * @example
-   * await startBotBattle('team-123', 'medium');
+   * await startBotBattle('team-123', 'medium', 'tactical');
    */
-  startBotBattle: async (teamId: string, difficulty: 'easy' | 'medium' | 'hard' = 'medium') => {
+  startBotBattle: async (
+    teamId: string, 
+    difficulty: 'easy' | 'medium' | 'hard' = 'medium',
+    mechanicsPreset?: 'mvp' | 'tactical' | 'roguelike' | 'custom',
+    mechanicsToggles?: Record<string, boolean>,
+  ) => {
     set({ loading: true, error: null });
     
     try {
-      const battle = await api.startBattle(difficulty, teamId);
+      const battle = await api.startBattle(difficulty, teamId, mechanicsPreset, mechanicsToggles);
       
       if (!battle || !battle.battleId) {
         throw new Error('Invalid API response: missing battleId');

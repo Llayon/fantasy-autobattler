@@ -731,7 +731,8 @@ describe('Core 1.0 vs MVP Preset Comparison', () => {
       for (const phase of phases) {
         const result = processor.process(phase, mockState, mockContext);
         // State should be returned unchanged (same reference)
-        expect(result).toBe(mockState);
+        expect(result.state).toBe(mockState);
+        expect(result.events).toEqual([]);
       }
     });
   });

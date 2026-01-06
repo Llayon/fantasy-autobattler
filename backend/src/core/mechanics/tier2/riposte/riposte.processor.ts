@@ -17,7 +17,7 @@
  * @module core/mechanics/tier2/riposte
  */
 
-import type { BattleState, BattleUnit } from '../../../types';
+import type { BattleState, BattleUnit, BattleEvent } from '../../../types';
 import type { BattlePhase, PhaseContext } from '../../processor';
 import type { RiposteConfig } from '../../config/mechanics.types';
 import { updateUnits } from '../../helpers';
@@ -312,32 +312,36 @@ export function createRiposteProcessor(config: RiposteConfig): RiposteProcessor 
      * @param phase - Current battle phase
      * @param state - Current battle state
      * @param context - Phase context with active unit and target
-     * @returns Updated battle state
+     * @returns MechanicResult with updated state and riposte events
      *
      * @example
-     * const newState = processor.apply('attack', state, {
+     * const result = processor.apply('attack', state, {
      *   activeUnit: attacker,
      *   target: defender,
      *   seed: 12345,
      * });
+     * // result.state - updated state
+     * // result.events - riposte events for battle log
      */
     apply(
       phase: BattlePhase,
       state: BattleState,
       context: PhaseContext,
-    ): BattleState {
+    ): { state: BattleState; events: BattleEvent[] } {
+      const events: BattleEvent[] = [];
+
       // Handle riposte trigger during attack phase
       if (phase === 'attack' && context.target) {
         // Get the target (defender) from state to ensure we have latest HP
         const defender = state.units.find(u => u.id === context.target?.id);
         if (!defender || !defender.alive || defender.currentHp <= 0) {
-          return state;
+          return { state, events };
         }
 
         // Get the attacker from state
         const attacker = state.units.find(u => u.id === context.activeUnit.id);
         if (!attacker || !attacker.alive || attacker.currentHp <= 0) {
-          return state;
+          return { state, events };
         }
 
         // Calculate attack arc using facing processor
@@ -347,7 +351,7 @@ export function createRiposteProcessor(config: RiposteConfig): RiposteProcessor 
         // Check if defender can riposte
         const defenderWithRiposte = defender as BattleUnit & UnitWithRiposte;
         if (!this.canRiposte(defenderWithRiposte, attacker, arc)) {
-          return state;
+          return { state, events };
         }
 
         // Calculate riposte chance
@@ -358,7 +362,28 @@ export function createRiposteProcessor(config: RiposteConfig): RiposteProcessor 
 
         // If roll succeeds, execute riposte
         if (roll < chance) {
-          return this.executeRiposte(defenderWithRiposte, attacker, state);
+          // Calculate riposte damage for event
+          const defenderAtk = defender.stats?.atk ?? 0;
+          const riposteDamage = Math.floor(defenderAtk * DAMAGE_MULTIPLIER);
+          const newAttackerHp = Math.max(0, attacker.currentHp - riposteDamage);
+          const attackerKilled = newAttackerHp <= 0;
+
+          // Generate riposte event for battle log
+          events.push({
+            type: 'mechanic_riposte',
+            round: state.round ?? 1,
+            actorId: defender.instanceId,
+            targetId: attacker.instanceId,
+            metadata: {
+              damage: riposteDamage,
+              chance: Math.round(chance * 100),
+              attackerKilled,
+              arc,
+            },
+          } as BattleEvent);
+
+          const newState = this.executeRiposte(defenderWithRiposte, attacker, state);
+          return { state: newState, events };
         }
       }
 
@@ -382,12 +407,12 @@ export function createRiposteProcessor(config: RiposteConfig): RiposteProcessor 
               maxRiposteCharges: maxCharges,
               lastChargeResetRound: currentRound,
             };
-            return updateUnits(state, [updatedUnit]);
+            return { state: updateUnits(state, [updatedUnit]), events };
           }
         }
       }
 
-      return state;
+      return { state, events };
     },
   };
 }

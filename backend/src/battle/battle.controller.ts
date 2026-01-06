@@ -25,13 +25,13 @@ export class BattleController {
   /**
    * Start a new battle against a bot opponent.
    * @param req - Authenticated request containing player information
-   * @param battleData - Battle configuration (difficulty, team selection)
+   * @param battleData - Battle configuration (difficulty, team selection, mechanics)
    * @returns Battle result with events and winner
    */
   @Post('start')
   @ApiOperation({
     summary: 'Start new battle',
-    description: 'Starts a new battle against a bot opponent with optional difficulty and team selection',
+    description: 'Starts a new battle against a bot opponent with optional difficulty, team selection, and mechanics preset',
   })
   @ApiBody({
     type: StartBattleDto,
@@ -57,7 +57,13 @@ export class BattleController {
     @Req() req: AuthenticatedRequest,
     @Body() battleData: StartBattleDto = {},
   ) {
-    return this.battleService.startBattle(req.player.id, battleData.difficulty, battleData.teamId);
+    return this.battleService.startBattle(
+      req.player.id, 
+      battleData.difficulty, 
+      battleData.teamId,
+      battleData.mechanicsPreset,
+      battleData.mechanicsToggles,
+    );
   }
 
   /**

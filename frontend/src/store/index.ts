@@ -53,6 +53,17 @@ export {
   selectHasMatch,
 } from './matchmakingStore';
 
+// UI store
+export {
+  useUIStore,
+  selectShowDebugInfo,
+  selectShowAdvancedStats,
+  selectAnimationSpeed,
+  selectMechanics,
+  selectMechanicsPreset,
+} from './uiStore';
+export type { MechanicsPreset, MechanicsToggles, MechanicsSettings } from './uiStore';
+
 // Roguelike run store
 export {
   useRunStore,

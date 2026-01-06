@@ -973,7 +973,7 @@ describe('Riposte + Initiative Integration', () => {
 
       // Apply riposte during attack phase
       // Using a seed that will result in a roll < 1.0 (guaranteed riposte)
-      const newState = riposteProcessor.apply('attack', state, {
+      const result = riposteProcessor.apply('attack', state, {
         activeUnit: attacker,
         target: defender,
         seed: 12345,
@@ -981,7 +981,7 @@ describe('Riposte + Initiative Integration', () => {
 
       // Attacker should have taken riposte damage
       // Riposte damage = floor(20 * 0.5) = 10
-      const updatedAttacker = newState.units.find((u: BattleUnit) => u.id === 'attacker');
+      const updatedAttacker = result.state.units.find((u: BattleUnit) => u.id === 'attacker');
       expect(updatedAttacker?.currentHp).toBe(90); // 100 - 10 = 90
     });
   });

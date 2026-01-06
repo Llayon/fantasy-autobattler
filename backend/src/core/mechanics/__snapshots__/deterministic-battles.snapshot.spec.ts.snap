@@ -2,7 +2,7 @@
 
 exports[`Deterministic Battles Snapshot Tests Edge Case Scenarios should handle corner positions battle 1`] = `
 {
-  "eventCount": 51,
+  "eventCount": 53,
   "eventSequence": [
     {
       "actorId": "system",
@@ -89,6 +89,12 @@ exports[`Deterministic Battles Snapshot Tests Edge Case Scenarios should handle 
       "type": "ability",
     },
     {
+      "actorId": "player_archer_1",
+      "round": 2,
+      "targetId": undefined,
+      "type": "death",
+    },
+    {
       "actorId": "player_knight_0",
       "round": 2,
       "targetId": undefined,
@@ -303,6 +309,12 @@ exports[`Deterministic Battles Snapshot Tests Edge Case Scenarios should handle 
       "round": 8,
       "targetId": "player_knight_0",
       "type": "ability",
+    },
+    {
+      "actorId": "player_knight_0",
+      "round": 8,
+      "targetId": undefined,
+      "type": "death",
     },
     {
       "actorId": "system",
@@ -744,7 +756,7 @@ exports[`Deterministic Battles Snapshot Tests Edge Case Scenarios should handle 
 
 exports[`Deterministic Battles Snapshot Tests Edge Case Scenarios should handle mirror match (identical teams) 1`] = `
 {
-  "eventCount": 50,
+  "eventCount": 51,
   "eventSequence": [
     {
       "actorId": "system",
@@ -1039,6 +1051,12 @@ exports[`Deterministic Battles Snapshot Tests Edge Case Scenarios should handle 
       "round": 6,
       "targetId": "player_knight_0",
       "type": "ability",
+    },
+    {
+      "actorId": "player_knight_0",
+      "round": 6,
+      "targetId": undefined,
+      "type": "death",
     },
     {
       "actorId": "system",
@@ -1641,7 +1659,7 @@ exports[`Deterministic Battles Snapshot Tests Edge Case Scenarios should handle 
 
 exports[`Deterministic Battles Snapshot Tests Large Team Battles should match snapshot for max team size (8v8) 1`] = `
 {
-  "eventCount": 293,
+  "eventCount": 297,
   "eventSequence": [
     {
       "actorId": "system",
@@ -1968,6 +1986,12 @@ exports[`Deterministic Battles Snapshot Tests Large Team Battles should match sn
       "type": "ability",
     },
     {
+      "actorId": "player_mage_5",
+      "round": 3,
+      "targetId": undefined,
+      "type": "death",
+    },
+    {
       "actorId": "player_priest_6",
       "round": 3,
       "targetId": "player_bard_7",
@@ -2214,6 +2238,12 @@ exports[`Deterministic Battles Snapshot Tests Large Team Battles should match sn
       "type": "ability",
     },
     {
+      "actorId": "player_priest_6",
+      "round": 5,
+      "targetId": undefined,
+      "type": "death",
+    },
+    {
       "actorId": "player_bard_7",
       "round": 5,
       "targetId": undefined,
@@ -2266,6 +2296,12 @@ exports[`Deterministic Battles Snapshot Tests Large Team Battles should match sn
       "round": 5,
       "targetId": undefined,
       "type": "ability",
+    },
+    {
+      "actorId": "player_bard_7",
+      "round": 5,
+      "targetId": undefined,
+      "type": "death",
     },
     {
       "actorId": "bot_priest_6",
@@ -2970,6 +3006,12 @@ exports[`Deterministic Battles Snapshot Tests Large Team Battles should match sn
       "type": "ability",
     },
     {
+      "actorId": "player_archer_4",
+      "round": 10,
+      "targetId": undefined,
+      "type": "death",
+    },
+    {
       "actorId": "bot_priest_6",
       "round": 10,
       "targetId": undefined,
@@ -3560,7 +3602,7 @@ exports[`Deterministic Battles Snapshot Tests Large Team Battles should match sn
 
 exports[`Deterministic Battles Snapshot Tests Long Range Combat Scenarios should match snapshot for long range battle 1`] = `
 {
-  "eventCount": 27,
+  "eventCount": 29,
   "eventSequence": [
     {
       "actorId": "system",
@@ -3629,6 +3671,12 @@ exports[`Deterministic Battles Snapshot Tests Long Range Combat Scenarios should
       "type": "ability",
     },
     {
+      "actorId": "player_elementalist_1",
+      "round": 2,
+      "targetId": undefined,
+      "type": "death",
+    },
+    {
       "actorId": "player_crossbowman_0",
       "round": 2,
       "targetId": "bot_crossbowman_0",
@@ -3687,6 +3735,12 @@ exports[`Deterministic Battles Snapshot Tests Long Range Combat Scenarios should
       "round": 4,
       "targetId": "bot_crossbowman_0",
       "type": "ability",
+    },
+    {
+      "actorId": "bot_crossbowman_0",
+      "round": 4,
+      "targetId": undefined,
+      "type": "death",
     },
     {
       "actorId": "system",
@@ -3775,7 +3829,7 @@ exports[`Deterministic Battles Snapshot Tests Long Range Combat Scenarios should
 
 exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should produce deterministic result for seed_100 1`] = `
 {
-  "eventCount": 66,
+  "eventCount": 70,
   "eventSequence": [
     {
       "actorId": "system",
@@ -3868,12 +3922,24 @@ exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should 
       "type": "ability",
     },
     {
+      "actorId": "bot_warlock_2",
+      "round": 2,
+      "targetId": undefined,
+      "type": "death",
+    },
+    {
       "actorId": "bot_crossbowman_1",
       "round": 2,
       "targetId": "player_mage_2",
       "type": "ability",
     },
     {
+      "actorId": "player_mage_2",
+      "round": 2,
+      "targetId": undefined,
+      "type": "death",
+    },
+    {
       "actorId": "player_knight_0",
       "round": 2,
       "targetId": undefined,
@@ -3956,6 +4022,12 @@ exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should 
       "round": 4,
       "targetId": "player_archer_1",
       "type": "ability",
+    },
+    {
+      "actorId": "player_archer_1",
+      "round": 4,
+      "targetId": undefined,
+      "type": "death",
     },
     {
       "actorId": "player_knight_0",
@@ -4166,6 +4238,12 @@ exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should 
       "round": 10,
       "targetId": "player_knight_0",
       "type": "ability",
+    },
+    {
+      "actorId": "player_knight_0",
+      "round": 10,
+      "targetId": undefined,
+      "type": "death",
     },
     {
       "actorId": "system",
@@ -4242,7 +4320,7 @@ exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should 
 
 exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should produce deterministic result for seed_500 1`] = `
 {
-  "eventCount": 65,
+  "eventCount": 69,
   "eventSequence": [
     {
       "actorId": "system",
@@ -4335,12 +4413,24 @@ exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should 
       "type": "ability",
     },
     {
+      "actorId": "bot_warlock_2",
+      "round": 2,
+      "targetId": undefined,
+      "type": "death",
+    },
+    {
       "actorId": "bot_crossbowman_1",
       "round": 2,
       "targetId": "player_mage_2",
       "type": "ability",
     },
     {
+      "actorId": "player_mage_2",
+      "round": 2,
+      "targetId": undefined,
+      "type": "death",
+    },
+    {
       "actorId": "player_knight_0",
       "round": 2,
       "targetId": undefined,
@@ -4423,6 +4513,12 @@ exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should 
       "round": 4,
       "targetId": "player_archer_1",
       "type": "ability",
+    },
+    {
+      "actorId": "player_archer_1",
+      "round": 4,
+      "targetId": undefined,
+      "type": "death",
     },
     {
       "actorId": "player_knight_0",
@@ -4627,6 +4723,12 @@ exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should 
       "round": 10,
       "targetId": "player_knight_0",
       "type": "ability",
+    },
+    {
+      "actorId": "player_knight_0",
+      "round": 10,
+      "targetId": undefined,
+      "type": "death",
     },
     {
       "actorId": "system",
@@ -4703,7 +4805,7 @@ exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should 
 
 exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should produce deterministic result for seed_1000 1`] = `
 {
-  "eventCount": 66,
+  "eventCount": 70,
   "eventSequence": [
     {
       "actorId": "system",
@@ -4796,12 +4898,24 @@ exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should 
       "type": "ability",
     },
     {
+      "actorId": "bot_warlock_2",
+      "round": 2,
+      "targetId": undefined,
+      "type": "death",
+    },
+    {
       "actorId": "bot_crossbowman_1",
       "round": 2,
       "targetId": "player_mage_2",
       "type": "ability",
     },
     {
+      "actorId": "player_mage_2",
+      "round": 2,
+      "targetId": undefined,
+      "type": "death",
+    },
+    {
       "actorId": "player_knight_0",
       "round": 2,
       "targetId": undefined,
@@ -4884,6 +4998,12 @@ exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should 
       "round": 4,
       "targetId": "player_archer_1",
       "type": "ability",
+    },
+    {
+      "actorId": "player_archer_1",
+      "round": 4,
+      "targetId": undefined,
+      "type": "death",
     },
     {
       "actorId": "player_knight_0",
@@ -5094,6 +5214,12 @@ exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should 
       "round": 10,
       "targetId": "player_knight_0",
       "type": "ability",
+    },
+    {
+      "actorId": "player_knight_0",
+      "round": 10,
+      "targetId": undefined,
+      "type": "death",
     },
     {
       "actorId": "system",
@@ -5170,7 +5296,7 @@ exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should 
 
 exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should produce deterministic result for seed_5000 1`] = `
 {
-  "eventCount": 65,
+  "eventCount": 69,
   "eventSequence": [
     {
       "actorId": "system",
@@ -5263,12 +5389,24 @@ exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should 
       "type": "ability",
     },
     {
+      "actorId": "bot_warlock_2",
+      "round": 2,
+      "targetId": undefined,
+      "type": "death",
+    },
+    {
       "actorId": "bot_crossbowman_1",
       "round": 2,
       "targetId": "player_mage_2",
       "type": "ability",
     },
     {
+      "actorId": "player_mage_2",
+      "round": 2,
+      "targetId": undefined,
+      "type": "death",
+    },
+    {
       "actorId": "player_knight_0",
       "round": 2,
       "targetId": undefined,
@@ -5351,6 +5489,12 @@ exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should 
       "round": 4,
       "targetId": "player_archer_1",
       "type": "ability",
+    },
+    {
+      "actorId": "player_archer_1",
+      "round": 4,
+      "targetId": undefined,
+      "type": "death",
     },
     {
       "actorId": "player_knight_0",
@@ -5555,6 +5699,12 @@ exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should 
       "round": 10,
       "targetId": "player_knight_0",
       "type": "ability",
+    },
+    {
+      "actorId": "player_knight_0",
+      "round": 10,
+      "targetId": undefined,
+      "type": "death",
     },
     {
       "actorId": "system",
@@ -5631,7 +5781,7 @@ exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should 
 
 exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should produce deterministic result for seed_10000 1`] = `
 {
-  "eventCount": 66,
+  "eventCount": 70,
   "eventSequence": [
     {
       "actorId": "system",
@@ -5724,12 +5874,24 @@ exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should 
       "type": "ability",
     },
     {
+      "actorId": "bot_warlock_2",
+      "round": 2,
+      "targetId": undefined,
+      "type": "death",
+    },
+    {
       "actorId": "bot_crossbowman_1",
       "round": 2,
       "targetId": "player_mage_2",
       "type": "ability",
     },
     {
+      "actorId": "player_mage_2",
+      "round": 2,
+      "targetId": undefined,
+      "type": "death",
+    },
+    {
       "actorId": "player_knight_0",
       "round": 2,
       "targetId": undefined,
@@ -5812,6 +5974,12 @@ exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should 
       "round": 4,
       "targetId": "player_archer_1",
       "type": "ability",
+    },
+    {
+      "actorId": "player_archer_1",
+      "round": 4,
+      "targetId": undefined,
+      "type": "death",
     },
     {
       "actorId": "player_knight_0",
@@ -6022,6 +6190,12 @@ exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should 
       "round": 10,
       "targetId": "player_knight_0",
       "type": "ability",
+    },
+    {
+      "actorId": "player_knight_0",
+      "round": 10,
+      "targetId": undefined,
+      "type": "death",
     },
     {
       "actorId": "system",
@@ -6098,7 +6272,7 @@ exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should 
 
 exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should produce deterministic result for seed_50000 1`] = `
 {
-  "eventCount": 65,
+  "eventCount": 69,
   "eventSequence": [
     {
       "actorId": "system",
@@ -6191,12 +6365,24 @@ exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should 
       "type": "ability",
     },
     {
+      "actorId": "bot_warlock_2",
+      "round": 2,
+      "targetId": undefined,
+      "type": "death",
+    },
+    {
       "actorId": "bot_crossbowman_1",
       "round": 2,
       "targetId": "player_mage_2",
       "type": "ability",
     },
     {
+      "actorId": "player_mage_2",
+      "round": 2,
+      "targetId": undefined,
+      "type": "death",
+    },
+    {
       "actorId": "player_knight_0",
       "round": 2,
       "targetId": undefined,
@@ -6279,6 +6465,12 @@ exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should 
       "round": 4,
       "targetId": "player_archer_1",
       "type": "ability",
+    },
+    {
+      "actorId": "player_archer_1",
+      "round": 4,
+      "targetId": undefined,
+      "type": "death",
     },
     {
       "actorId": "player_knight_0",
@@ -6483,6 +6675,12 @@ exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should 
       "round": 10,
       "targetId": "player_knight_0",
       "type": "ability",
+    },
+    {
+      "actorId": "player_knight_0",
+      "round": 10,
+      "targetId": undefined,
+      "type": "death",
     },
     {
       "actorId": "system",
@@ -6559,7 +6757,7 @@ exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should 
 
 exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should produce deterministic result for seed_99999 1`] = `
 {
-  "eventCount": 66,
+  "eventCount": 70,
   "eventSequence": [
     {
       "actorId": "system",
@@ -6652,12 +6850,24 @@ exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should 
       "type": "ability",
     },
     {
+      "actorId": "bot_warlock_2",
+      "round": 2,
+      "targetId": undefined,
+      "type": "death",
+    },
+    {
       "actorId": "bot_crossbowman_1",
       "round": 2,
       "targetId": "player_mage_2",
       "type": "ability",
     },
     {
+      "actorId": "player_mage_2",
+      "round": 2,
+      "targetId": undefined,
+      "type": "death",
+    },
+    {
       "actorId": "player_knight_0",
       "round": 2,
       "targetId": undefined,
@@ -6740,6 +6950,12 @@ exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should 
       "round": 4,
       "targetId": "player_archer_1",
       "type": "ability",
+    },
+    {
+      "actorId": "player_archer_1",
+      "round": 4,
+      "targetId": undefined,
+      "type": "death",
     },
     {
       "actorId": "player_knight_0",
@@ -6950,6 +7166,12 @@ exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should 
       "round": 10,
       "targetId": "player_knight_0",
       "type": "ability",
+    },
+    {
+      "actorId": "player_knight_0",
+      "round": 10,
+      "targetId": undefined,
+      "type": "death",
     },
     {
       "actorId": "system",
@@ -7026,7 +7248,7 @@ exports[`Deterministic Battles Snapshot Tests Multiple Seeds Determinism should 
 
 exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios should match snapshot for all_mages_battle 1`] = `
 {
-  "eventCount": 26,
+  "eventCount": 29,
   "eventSequence": [
     {
       "actorId": "system",
@@ -7101,6 +7323,12 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "ability",
     },
     {
+      "actorId": "bot_elementalist_2",
+      "round": 2,
+      "targetId": undefined,
+      "type": "death",
+    },
+    {
       "actorId": "player_mage_0",
       "round": 2,
       "targetId": undefined,
@@ -7121,8 +7349,20 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
     {
       "actorId": "bot_warlock_1",
       "round": 2,
+      "targetId": undefined,
+      "type": "death",
+    },
+    {
+      "actorId": "bot_warlock_1",
+      "round": 2,
       "targetId": "player_warlock_1",
       "type": "ability",
+    },
+    {
+      "actorId": "player_warlock_1",
+      "round": 2,
+      "targetId": undefined,
+      "type": "death",
     },
     {
       "actorId": "system",
@@ -7253,7 +7493,7 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
 
 exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios should match snapshot for all_ranged_battle 1`] = `
 {
-  "eventCount": 47,
+  "eventCount": 49,
   "eventSequence": [
     {
       "actorId": "system",
@@ -7460,6 +7700,12 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "type": "ability",
     },
     {
+      "actorId": "player_hunter_2",
+      "round": 3,
+      "targetId": undefined,
+      "type": "death",
+    },
+    {
       "actorId": "system",
       "round": 4,
       "targetId": undefined,
@@ -7530,6 +7776,12 @@ exports[`Deterministic Battles Snapshot Tests Role-Specific Battle Scenarios sho
       "round": 5,
       "targetId": "player_archer_0",
       "type": "ability",
+    },
+    {
+      "actorId": "player_archer_0",
+      "round": 5,
+      "targetId": undefined,
+      "type": "death",
     },
     {
       "actorId": "system",
@@ -17840,7 +18092,7 @@ exports[`Deterministic Battles Snapshot Tests Victory Condition Scenarios should
 
 exports[`Deterministic Battles Snapshot Tests Victory Condition Scenarios should match snapshot for player victory scenario 1`] = `
 {
-  "eventCount": 18,
+  "eventCount": 19,
   "eventSequence": [
     {
       "actorId": "system",
@@ -17901,6 +18153,12 @@ exports[`Deterministic Battles Snapshot Tests Victory Condition Scenarios should
       "round": 2,
       "targetId": "bot_priest_0",
       "type": "ability",
+    },
+    {
+      "actorId": "bot_priest_0",
+      "round": 2,
+      "targetId": undefined,
+      "type": "death",
     },
     {
       "actorId": "bot_bard_1",

@@ -62,6 +62,41 @@ import { canTarget } from './targeting';
 import { createFacingProcessor } from '../core/mechanics/tier0/facing/facing.processor';
 import type { FacingDirection } from '../core/mechanics/tier0/facing/facing.types';
 
+// =============================================================================
+// RESOLVE DAMAGE CONSTANTS (per design doc)
+// =============================================================================
+
+/**
+ * Resolve damage values per design document.
+ * These values represent psychological impact on unit morale.
+ */
+const RESOLVE_DAMAGE = {
+  /** Resolve damage when adjacent ally (within 1 cell) dies */
+  ALLY_DEATH_ADJACENT: 15,
+  /** Resolve damage when nearby ally (within 3 cells) dies */
+  ALLY_DEATH_NEARBY: 8,
+  /** Resolve damage when surrounded by 3+ enemies at turn start */
+  SURROUNDED: 20,
+  /** Minimum enemies adjacent to trigger surrounded penalty */
+  SURROUNDED_MIN_ENEMIES: 3,
+  /** Range for "nearby" ally death */
+  ALLY_DEATH_NEARBY_RANGE: 3,
+} as const;
+
+/**
+ * Routing/Rally constants for resolve system.
+ */
+const ROUTING_CONFIG = {
+  /** Resolve threshold to rally (stop routing) */
+  RALLY_THRESHOLD: 25,
+  /** Movement cells toward own edge when routing */
+  RETREAT_DISTANCE: 2,
+  /** Player team retreat row (toward row 0) */
+  PLAYER_RETREAT_ROW: 0,
+  /** Bot team retreat row (toward row 9) */
+  BOT_RETREAT_ROW: 9,
+} as const;
+
 
 // =============================================================================
 // TEAM SETUP INTERFACE
@@ -168,6 +203,356 @@ function fromCoreBattleState(
   return {
     ...gameState,
     units: updatedUnits,
+  };
+}
+
+/**
+ * Apply resolve damage to allies when a unit dies.
+ * Per design doc:
+ * - Adjacent allies (within 1 cell): -15 resolve
+ * - Nearby allies (within 3 cells): -8 resolve
+ * 
+ * @param state - Current battle state
+ * @param deadUnit - The unit that just died
+ * @param round - Current round number for event generation
+ * @returns Object with updated state and generated events
+ */
+function applyAllyDeathResolveDamage(
+  state: BattleStateWithAbilities,
+  deadUnit: BattleUnitWithAbilities,
+  round: number
+): { state: BattleStateWithAbilities; events: BattleEvent[] } {
+  const events: BattleEvent[] = [];
+  const updatedUnits = [...state.units];
+  
+  // Find all living allies of the dead unit
+  const allies = state.units.filter(u => 
+    u.alive && 
+    u.team === deadUnit.team && 
+    u.instanceId !== deadUnit.instanceId
+  );
+  
+  for (const ally of allies) {
+    const distance = manhattanDistance(ally.position, deadUnit.position);
+    let resolveDamage = 0;
+    
+    if (distance <= 1) {
+      // Adjacent ally - higher resolve damage
+      resolveDamage = RESOLVE_DAMAGE.ALLY_DEATH_ADJACENT;
+    } else if (distance <= RESOLVE_DAMAGE.ALLY_DEATH_NEARBY_RANGE) {
+      // Nearby ally - lower resolve damage
+      resolveDamage = RESOLVE_DAMAGE.ALLY_DEATH_NEARBY;
+    }
+    
+    if (resolveDamage > 0) {
+      const allyWithResolve = ally as BattleUnitWithAbilities & { resolve?: number };
+      const currentResolve = allyWithResolve.resolve ?? 100;
+      const newResolve = Math.max(0, currentResolve - resolveDamage);
+      
+      // Update ally's resolve in state
+      const allyIndex = updatedUnits.findIndex(u => u.instanceId === ally.instanceId);
+      if (allyIndex >= 0) {
+        updatedUnits[allyIndex] = {
+          ...updatedUnits[allyIndex],
+          resolve: newResolve,
+        } as BattleUnitWithAbilities;
+      }
+      
+      // Generate resolve event
+      const resolveEvent: BattleEvent = {
+        type: 'mechanic_resolve',
+        round,
+        actorId: deadUnit.instanceId,
+        targetId: ally.instanceId,
+        metadata: {
+          resolveDamage,
+          previousResolve: currentResolve,
+          newResolve,
+          source: distance <= 1 ? 'ally_death_adjacent' : 'ally_death_nearby',
+          deadAllyId: deadUnit.instanceId,
+          distance,
+        },
+      };
+      events.push(resolveEvent);
+    }
+  }
+  
+  return {
+    state: { ...state, units: updatedUnits },
+    events,
+  };
+}
+
+/**
+ * Check if a unit is surrounded and apply resolve damage.
+ * Per design doc: -20 resolve if 3+ enemies are adjacent at turn start.
+ * 
+ * @param state - Current battle state
+ * @param unit - The unit to check
+ * @param round - Current round number for event generation
+ * @returns Object with updated state and generated event (if any)
+ */
+function checkSurroundedResolveDamage(
+  state: BattleStateWithAbilities,
+  unit: BattleUnitWithAbilities,
+  round: number
+): { state: BattleStateWithAbilities; event: BattleEvent | null } {
+  // Count adjacent enemies
+  const adjacentEnemies = state.units.filter(u => 
+    u.alive && 
+    u.team !== unit.team && 
+    manhattanDistance(u.position, unit.position) <= 1
+  );
+  
+  if (adjacentEnemies.length >= RESOLVE_DAMAGE.SURROUNDED_MIN_ENEMIES) {
+    const unitWithResolve = unit as BattleUnitWithAbilities & { resolve?: number };
+    const currentResolve = unitWithResolve.resolve ?? 100;
+    const newResolve = Math.max(0, currentResolve - RESOLVE_DAMAGE.SURROUNDED);
+    
+    // Update unit's resolve in state
+    const updatedUnits = state.units.map(u => 
+      u.instanceId === unit.instanceId 
+        ? { ...u, resolve: newResolve } as BattleUnitWithAbilities
+        : u
+    );
+    
+    const resolveEvent: BattleEvent = {
+      type: 'mechanic_resolve',
+      round,
+      actorId: unit.instanceId,
+      targetId: unit.instanceId,
+      metadata: {
+        resolveDamage: RESOLVE_DAMAGE.SURROUNDED,
+        previousResolve: currentResolve,
+        newResolve,
+        source: 'surrounded',
+        adjacentEnemyCount: adjacentEnemies.length,
+      },
+    };
+    
+    return {
+      state: { ...state, units: updatedUnits },
+      event: resolveEvent,
+    };
+  }
+  
+  return { state, event: null };
+}
+
+// =============================================================================
+// ROUTING FUNCTIONS (Core 2.0 Resolve)
+// =============================================================================
+
+/**
+ * Check if a unit should start routing (resolve = 0) or rally (resolve >= 25).
+ * Per design doc:
+ * - Human units route when resolve = 0
+ * - Routing units rally when resolve >= 25
+ * 
+ * @param unit - Unit to check
+ * @returns 'route' if should start routing, 'rally' if should stop routing, null otherwise
+ */
+function checkRoutingState(
+  unit: BattleUnitWithAbilities & { resolve?: number; isRouting?: boolean; faction?: string }
+): 'route' | 'rally' | null {
+  const resolve = unit.resolve ?? 100;
+  const isRouting = unit.isRouting ?? false;
+  const faction = unit.faction ?? 'human';
+  
+  // Undead don't route, they crumble (handled separately)
+  if (faction === 'undead') {
+    return null;
+  }
+  
+  // Check if should start routing
+  if (!isRouting && resolve <= 0) {
+    return 'route';
+  }
+  
+  // Check if should rally
+  if (isRouting && resolve >= ROUTING_CONFIG.RALLY_THRESHOLD) {
+    return 'rally';
+  }
+  
+  return null;
+}
+
+/**
+ * Find retreat position for a routing unit.
+ * Unit moves toward their deployment edge.
+ * 
+ * @param unit - Routing unit
+ * @param state - Current battle state
+ * @returns Best retreat position or null if can't move
+ */
+function findRetreatPosition(
+  unit: BattleUnitWithAbilities,
+  state: BattleStateWithAbilities
+): Position | null {
+  const targetRow = unit.team === 'player' 
+    ? ROUTING_CONFIG.PLAYER_RETREAT_ROW 
+    : ROUTING_CONFIG.BOT_RETREAT_ROW;
+  
+  // Already at edge
+  if (unit.position.y === targetRow) {
+    return null;
+  }
+  
+  // Direction to move
+  const direction = targetRow < unit.position.y ? -1 : 1;
+  
+  // Try to move up to RETREAT_DISTANCE cells toward edge
+  for (let dist = ROUTING_CONFIG.RETREAT_DISTANCE; dist >= 1; dist--) {
+    const newY = unit.position.y + (direction * dist);
+    
+    // Check bounds
+    if (newY < 0 || newY > 9) continue;
+    
+    const newPos = { x: unit.position.x, y: newY };
+    
+    // Check if position is occupied
+    const isOccupied = state.units.some(u => 
+      u.alive && 
+      u.instanceId !== unit.instanceId &&
+      u.position.x === newPos.x && 
+      u.position.y === newPos.y
+    );
+    
+    if (!isOccupied) {
+      return newPos;
+    }
+  }
+  
+  // Try adjacent columns if direct path blocked
+  for (const xOffset of [-1, 1]) {
+    const newX = unit.position.x + xOffset;
+    if (newX < 0 || newX > 7) continue;
+    
+    const newY = unit.position.y + direction;
+    if (newY < 0 || newY > 9) continue;
+    
+    const newPos = { x: newX, y: newY };
+    
+    const isOccupied = state.units.some(u => 
+      u.alive && 
+      u.instanceId !== unit.instanceId &&
+      u.position.x === newPos.x && 
+      u.position.y === newPos.y
+    );
+    
+    if (!isOccupied) {
+      return newPos;
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Execute routing behavior for a unit.
+ * Routing units:
+ * - Cannot attack or use abilities
+ * - Move toward their deployment edge
+ * - Generate routing events
+ * 
+ * @param unit - Routing unit
+ * @param state - Current battle state
+ * @param round - Current round number
+ * @returns Updated state and events
+ */
+function executeRoutingTurn(
+  unit: BattleUnitWithAbilities,
+  state: BattleStateWithAbilities,
+  round: number
+): { state: BattleStateWithAbilities; events: BattleEvent[] } {
+  const events: BattleEvent[] = [];
+  
+  // Find retreat position
+  const retreatPos = findRetreatPosition(unit, state);
+  
+  if (retreatPos) {
+    // Generate movement event
+    const moveEvent: BattleEvent = {
+      type: 'move',
+      round,
+      actorId: unit.instanceId,
+      fromPosition: unit.position,
+      toPosition: retreatPos,
+      metadata: {
+        reason: 'routing',
+      },
+    };
+    events.push(moveEvent);
+    
+    // Update unit position in state
+    const updatedUnits = state.units.map(u => 
+      u.instanceId === unit.instanceId 
+        ? { ...u, position: retreatPos } as BattleUnitWithAbilities
+        : u
+    );
+    
+    // Update occupied positions
+    const occupiedPositions = new Set<string>();
+    updatedUnits.forEach(u => {
+      if (u.alive) {
+        occupiedPositions.add(`${u.position.x},${u.position.y}`);
+      }
+    });
+    
+    state = { ...state, units: updatedUnits, occupiedPositions };
+  }
+  
+  // Generate routing status event
+  const routingEvent: BattleEvent = {
+    type: 'mechanic_routing',
+    round,
+    actorId: unit.instanceId,
+    metadata: {
+      status: 'routing',
+      retreatPosition: retreatPos,
+      reason: 'resolve_zero',
+    },
+  };
+  events.push(routingEvent);
+  
+  return { state, events };
+}
+
+/**
+ * Apply routing state change to a unit.
+ * 
+ * @param state - Current battle state
+ * @param unit - Unit to update
+ * @param isRouting - New routing state
+ * @param round - Current round number
+ * @returns Updated state and event
+ */
+function applyRoutingStateChange(
+  state: BattleStateWithAbilities,
+  unit: BattleUnitWithAbilities,
+  isRouting: boolean,
+  round: number
+): { state: BattleStateWithAbilities; event: BattleEvent } {
+  // Update unit's routing state
+  const updatedUnits = state.units.map(u => 
+    u.instanceId === unit.instanceId 
+      ? { ...u, isRouting } as BattleUnitWithAbilities
+      : u
+  );
+  
+  const event: BattleEvent = {
+    type: 'mechanic_routing',
+    round,
+    actorId: unit.instanceId,
+    metadata: {
+      status: isRouting ? 'started_routing' : 'rallied',
+      resolve: (unit as BattleUnitWithAbilities & { resolve?: number }).resolve ?? 0,
+    },
+  };
+  
+  return {
+    state: { ...state, units: updatedUnits },
+    event,
   };
 }
 
@@ -292,6 +677,9 @@ function createBattleUnits(teamSetup: TeamSetup, teamType: TeamType): BattleUnit
       chargeMomentum: 0,
       isInOverwatch: false,
       isInPhalanx: false,
+      // Routing state (Core 2.0 Resolve)
+      isRouting: false,
+      hasCrumbled: false,
     };
   });
 }
@@ -507,6 +895,55 @@ function executeUnitTurnWithAbilities(
     seed: currentSeed++,
   });
   
+  // Check if unit is surrounded at turn start (Core 2.0)
+  // Per design doc: -20 resolve if 3+ enemies are adjacent
+  if (processor?.config.resolve) {
+    const surroundedResult = checkSurroundedResolveDamage(
+      currentState,
+      unit,
+      currentState.currentRound
+    );
+    if (surroundedResult.event) {
+      currentState = surroundedResult.state;
+      events.push(surroundedResult.event);
+    }
+    
+    // Get fresh unit state after surrounded damage
+    const freshUnit = currentState.units.find(u => u.instanceId === unit.instanceId);
+    if (freshUnit) {
+      // Check routing state (resolve = 0 starts routing, resolve >= 25 rallies)
+      const routingChange = checkRoutingState(freshUnit as BattleUnitWithAbilities & { resolve?: number; isRouting?: boolean });
+      
+      if (routingChange === 'route') {
+        // Unit starts routing
+        const routeResult = applyRoutingStateChange(currentState, freshUnit, true, currentState.currentRound);
+        currentState = routeResult.state;
+        events.push(routeResult.event);
+      } else if (routingChange === 'rally') {
+        // Unit rallies (stops routing)
+        const rallyResult = applyRoutingStateChange(currentState, freshUnit, false, currentState.currentRound);
+        currentState = rallyResult.state;
+        events.push(rallyResult.event);
+      }
+      
+      // If unit is routing, execute routing turn instead of normal turn
+      const unitAfterCheck = currentState.units.find(u => u.instanceId === unit.instanceId);
+      if (unitAfterCheck && (unitAfterCheck as BattleUnitWithAbilities & { isRouting?: boolean }).isRouting) {
+        const routingTurnResult = executeRoutingTurn(unitAfterCheck, currentState, currentState.currentRound);
+        currentState = routingTurnResult.state;
+        events.push(...routingTurnResult.events);
+        
+        // TURN_END phase (Core 2.0)
+        processMechanicsPhase('turn_end', {
+          activeUnit: unitAfterCheck as unknown as CoreBattleUnit,
+          seed: currentSeed++,
+        });
+        
+        return { events, state: currentState };
+      }
+    }
+  }
+  
   // Get AI decision for this unit
   const action = decideAction(unit, currentState);
   
@@ -568,6 +1005,20 @@ function executeUnitTurnWithAbilities(
                 killedUnits: [killedUnitId],
               };
               events.push(deathEvent);
+              
+              // Apply resolve damage to allies of the dead unit (Core 2.0)
+              if (processor?.config.resolve) {
+                const deadUnit = currentState.units.find(u => u.instanceId === killedUnitId);
+                if (deadUnit) {
+                  const allyDeathResult = applyAllyDeathResolveDamage(
+                    currentState,
+                    deadUnit as BattleUnitWithAbilities,
+                    currentState.currentRound
+                  );
+                  currentState = allyDeathResult.state;
+                  events.push(...allyDeathResult.events);
+                }
+              }
             }
           }
         }
@@ -712,11 +1163,21 @@ function executeUnitTurnWithAbilities(
               events.push(damageEvent);
               attackEvents.push(damageEvent);
               
-              // Apply resolve damage from flanking/rear attacks (Core 2.0)
-              if (combatModifiers.resolveDamage > 0 && processor?.config.resolve) {
+              // Apply resolve damage (Core 2.0)
+              // Per design doc: Every attack deals Resolve damage = 100% ATK
+              // Plus additional damage from flanking/rear attacks
+              if (processor?.config.resolve) {
                 const targetWithResolve = currentTarget as BattleUnitWithAbilities & { resolve?: number; maxResolve?: number };
                 const currentResolve = targetWithResolve.resolve ?? 100;
-                const newResolve = Math.max(0, currentResolve - combatModifiers.resolveDamage);
+                
+                // Base resolve damage = attacker's ATK (armor does NOT reduce resolve damage)
+                const baseResolveDamage = unit.stats.atk;
+                // Additional resolve damage from flanking/rear attacks
+                const flankingResolveDamage = combatModifiers.resolveDamage;
+                // Total resolve damage
+                const totalResolveDamage = baseResolveDamage + flankingResolveDamage;
+                
+                const newResolve = Math.max(0, currentResolve - totalResolveDamage);
                 
                 // Update target's resolve in state
                 const targetIndex = currentState.units.findIndex(u => u.instanceId === currentTarget?.instanceId);
@@ -734,14 +1195,28 @@ function executeUnitTurnWithAbilities(
                   actorId: unit.instanceId,
                   targetId: currentTarget.instanceId,
                   metadata: {
-                    resolveDamage: combatModifiers.resolveDamage,
+                    resolveDamage: totalResolveDamage,
+                    baseResolveDamage,
+                    flankingResolveDamage,
                     previousResolve: currentResolve,
                     newResolve,
-                    source: combatModifiers.attackArc,
+                    source: flankingResolveDamage > 0 ? combatModifiers.attackArc : 'attack',
                   },
                 };
                 events.push(resolveEvent);
-                // Note: resolve event doesn't need to be in attackEvents as it's already applied above
+                
+                // Check if target should start routing (resolve = 0)
+                if (newResolve <= 0) {
+                  const targetAfterResolve = currentState.units.find(u => u.instanceId === currentTarget?.instanceId);
+                  if (targetAfterResolve && targetAfterResolve.alive) {
+                    const routingChange = checkRoutingState(targetAfterResolve as BattleUnitWithAbilities & { resolve?: number; isRouting?: boolean });
+                    if (routingChange === 'route') {
+                      const routeResult = applyRoutingStateChange(currentState, targetAfterResolve, true, currentState.currentRound);
+                      currentState = routeResult.state;
+                      events.push(routeResult.event);
+                    }
+                  }
+                }
               }
             }
             
@@ -764,6 +1239,17 @@ function executeUnitTurnWithAbilities(
                 events.push(deathEvent);
                 // Apply death event to state
                 currentState = applyBattleEvents(currentState, [deathEvent]) as BattleStateWithAbilities;
+                
+                // Apply resolve damage to allies of the dead unit (Core 2.0)
+                if (processor?.config.resolve) {
+                  const allyDeathResult = applyAllyDeathResolveDamage(
+                    currentState,
+                    currentTarget as BattleUnitWithAbilities,
+                    currentState.currentRound
+                  );
+                  currentState = allyDeathResult.state;
+                  events.push(...allyDeathResult.events);
+                }
               }
             }
           } else {
@@ -811,6 +1297,46 @@ function executeUnitTurnWithAbilities(
                     };
                   }
                   
+                  // Apply resolve damage for legacy turn attacks (Core 2.0)
+                  if (processor?.config.resolve && attackEvent.damage && attackEvent.damage > 0) {
+                    const targetWithResolve = attackTarget as BattleUnitWithAbilities & { resolve?: number };
+                    const currentResolve = targetWithResolve.resolve ?? 100;
+                    
+                    // Base resolve damage = attacker's ATK
+                    const baseResolveDamage = unit.stats.atk;
+                    // Additional resolve damage from flanking/rear attacks
+                    const flankingResolveDamage = legacyModifiers.modifiers.resolveDamage;
+                    const totalResolveDamage = baseResolveDamage + flankingResolveDamage;
+                    
+                    const newResolve = Math.max(0, currentResolve - totalResolveDamage);
+                    
+                    // Update target's resolve in state after applyBattleEvents
+                    const targetIndex = currentState.units.findIndex(u => u.instanceId === attackTarget.instanceId);
+                    if (targetIndex >= 0) {
+                      currentState.units[targetIndex] = {
+                        ...currentState.units[targetIndex],
+                        resolve: newResolve,
+                      } as BattleUnitWithAbilities;
+                    }
+                    
+                    // Generate resolve event
+                    const resolveEvent: BattleEvent = {
+                      type: 'mechanic_resolve',
+                      round: currentState.currentRound,
+                      actorId: unit.instanceId,
+                      targetId: attackTarget.instanceId,
+                      metadata: {
+                        resolveDamage: totalResolveDamage,
+                        baseResolveDamage,
+                        flankingResolveDamage,
+                        previousResolve: currentResolve,
+                        newResolve,
+                        source: flankingResolveDamage > 0 ? legacyModifiers.modifiers.attackArc : 'attack',
+                      },
+                    };
+                    events.push(resolveEvent);
+                  }
+                  
                   // Update currentTarget for post-attack mechanics
                   currentTarget = attackTarget as BattleUnitWithAbilities;
                 }
@@ -832,6 +1358,20 @@ function executeUnitTurnWithAbilities(
                     killedUnits: [attackEvent.targetId],
                   };
                   events.push(deathEvent);
+                  
+                  // Apply resolve damage to allies of the dead unit (Core 2.0)
+                  if (processor?.config.resolve) {
+                    const deadUnit = currentState.units.find(u => u.instanceId === attackEvent.targetId);
+                    if (deadUnit) {
+                      const allyDeathResult = applyAllyDeathResolveDamage(
+                        currentState,
+                        deadUnit as BattleUnitWithAbilities,
+                        currentState.currentRound
+                      );
+                      currentState = allyDeathResult.state;
+                      events.push(...allyDeathResult.events);
+                    }
+                  }
                 }
               }
             }
@@ -879,6 +1419,46 @@ function executeUnitTurnWithAbilities(
                   };
                 }
                 
+                // Apply resolve damage for legacy turn attacks (Core 2.0)
+                if (processor?.config.resolve && attackEvent.damage && attackEvent.damage > 0) {
+                  const targetWithResolve = attackTarget as BattleUnitWithAbilities & { resolve?: number };
+                  const currentResolve = targetWithResolve.resolve ?? 100;
+                  
+                  // Base resolve damage = attacker's ATK
+                  const baseResolveDamage = unit.stats.atk;
+                  // Additional resolve damage from flanking/rear attacks
+                  const flankingResolveDamage = legacyModifiers.modifiers.resolveDamage;
+                  const totalResolveDamage = baseResolveDamage + flankingResolveDamage;
+                  
+                  const newResolve = Math.max(0, currentResolve - totalResolveDamage);
+                  
+                  // Update target's resolve in state after applyBattleEvents
+                  const targetIndex = currentState.units.findIndex(u => u.instanceId === attackTarget.instanceId);
+                  if (targetIndex >= 0) {
+                    currentState.units[targetIndex] = {
+                      ...currentState.units[targetIndex],
+                      resolve: newResolve,
+                    } as BattleUnitWithAbilities;
+                  }
+                  
+                  // Generate resolve event
+                  const resolveEvent: BattleEvent = {
+                    type: 'mechanic_resolve',
+                    round: currentState.currentRound,
+                    actorId: unit.instanceId,
+                    targetId: attackTarget.instanceId,
+                    metadata: {
+                      resolveDamage: totalResolveDamage,
+                      baseResolveDamage,
+                      flankingResolveDamage,
+                      previousResolve: currentResolve,
+                      newResolve,
+                      source: flankingResolveDamage > 0 ? legacyModifiers.modifiers.attackArc : 'attack',
+                    },
+                  };
+                  events.push(resolveEvent);
+                }
+                
                 currentTarget = attackTarget as BattleUnitWithAbilities;
               }
             }
@@ -899,7 +1479,20 @@ function executeUnitTurnWithAbilities(
                   killedUnits: [attackEvent.targetId],
                 };
                 events.push(deathEvent);
-                // State already has alive=false from applyBattleEvents damage handling
+                
+                // Apply resolve damage to allies of the dead unit (Core 2.0)
+                if (processor?.config.resolve) {
+                  const deadUnit = currentState.units.find(u => u.instanceId === attackEvent.targetId);
+                  if (deadUnit) {
+                    const allyDeathResult = applyAllyDeathResolveDamage(
+                      currentState,
+                      deadUnit as BattleUnitWithAbilities,
+                      currentState.currentRound
+                    );
+                    currentState = allyDeathResult.state;
+                    events.push(...allyDeathResult.events);
+                  }
+                }
               }
             }
           }

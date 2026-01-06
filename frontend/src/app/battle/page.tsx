@@ -30,6 +30,7 @@ import {
   selectActiveTeam,
   selectTeams
 } from '@/store/teamStore';
+import { useUIStore } from '@/store/uiStore';
 import { TeamResponse } from '@/types/game';
 
 // =============================================================================
@@ -580,9 +581,13 @@ export default function BattlePage() {
         hard: 'сложным'
       };
       
+      // Get mechanics settings from UI store
+      const { mechanics, getMechanicsToggles } = useUIStore.getState();
+      const mechanicsToggles = mechanics.preset === 'custom' ? getMechanicsToggles() : undefined;
+      
       // Mark that battle was started on this page (for redirect logic)
       battleStartedOnPageRef.current = true;
-      await startBotBattle(activeTeam.id, difficulty);
+      await startBotBattle(activeTeam.id, difficulty, mechanics.preset, mechanicsToggles);
       showSuccess(`Бой с ${difficultyNames[difficulty]} ботом создан!`);
     } catch (error) {
       battleStartedOnPageRef.current = false;

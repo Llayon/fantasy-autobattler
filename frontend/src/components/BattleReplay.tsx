@@ -30,6 +30,11 @@ export { getHpBarColor } from '@/lib/hpBarUtils';
 // =============================================================================
 
 /**
+ * Unit facing direction for Core 2.0 mechanics.
+ */
+type UnitFacing = 'N' | 'S' | 'E' | 'W';
+
+/**
  * Battle unit state for replay visualization.
  */
 interface ReplayUnit {
@@ -55,6 +60,15 @@ interface ReplayUnit {
     targetId?: string;
     damage?: number;
   };
+  // Core 2.0 Mechanics fields
+  /** Current resolve/morale (0-100) */
+  resolve?: number;
+  /** Maximum resolve */
+  maxResolve?: number;
+  /** Accumulated armor shred */
+  armorShred?: number;
+  /** Current facing direction */
+  facing?: UnitFacing;
 }
 
 /**
@@ -111,6 +125,16 @@ const EVENT_TYPE_NAMES: Record<string, string> = {
   ability: '✨ Способность',
   round_start: '🔄 Начало раунда',
   battle_end: '🏁 Конец боя',
+  // Core 2.0 Mechanics events
+  mechanic_facing: '🧭 Поворот',
+  mechanic_armor_shred: '🛡️ Пробитие брони',
+  mechanic_flanking: '🔪 Фланговая атака',
+  mechanic_charge: '🐎 Рывок',
+  mechanic_riposte: '⚔️ Контратака',
+  mechanic_resolve: '💪 Решимость',
+  mechanic_phalanx: '🛡️ Фаланга',
+  mechanic_overwatch: '👁️ Наблюдение',
+  mechanic_contagion: '☠️ Заражение',
 };
 
 // =============================================================================
@@ -188,6 +212,12 @@ function extractInitialUnits(battle: BattleLog): ReplayUnit[] {
           // Generate instanceId that matches battle events: ${teamType}_${unitTemplate.id}_${index}
           const instanceId = `player_${unitTemplate.id}_${i}`;
 
+          // Extract Core 2.0 fields from template if available
+          const templateWithMechanics = unitTemplate as UnitTemplate & {
+            resolve?: number;
+            facing?: UnitFacing;
+          };
+
           units.push({
             instanceId,
             template: unitTemplate,
@@ -196,6 +226,11 @@ function extractInitialUnits(battle: BattleLog): ReplayUnit[] {
             maxHp: unitTemplate.stats.hp,
             team: 'player1',
             alive: true,
+            // Core 2.0 fields - player units face North ('N')
+            resolve: templateWithMechanics.resolve ?? 100,
+            maxResolve: 100,
+            armorShred: 0,
+            facing: templateWithMechanics.facing ?? 'N',
           });
         }
       }
@@ -216,6 +251,12 @@ function extractInitialUnits(battle: BattleLog): ReplayUnit[] {
           // Generate instanceId that matches battle events: ${teamType}_${unitTemplate.id}_${index}
           const instanceId = `bot_${unitTemplate.id}_${i}`;
 
+          // Extract Core 2.0 fields from template if available
+          const templateWithMechanics = unitTemplate as UnitTemplate & {
+            resolve?: number;
+            facing?: UnitFacing;
+          };
+
           units.push({
             instanceId,
             template: unitTemplate,
@@ -224,6 +265,11 @@ function extractInitialUnits(battle: BattleLog): ReplayUnit[] {
             maxHp: unitTemplate.stats.hp,
             team: 'player2',
             alive: true,
+            // Core 2.0 fields - bot units face South ('S')
+            resolve: templateWithMechanics.resolve ?? 100,
+            maxResolve: 100,
+            armorShred: 0,
+            facing: templateWithMechanics.facing ?? 'S',
           });
         }
       }
@@ -332,6 +378,79 @@ function applyEventToUnits(units: ReplayUnit[], event: BattleEvent): ReplayUnit[
           };
         }
         break;
+
+      // ─────────────────────────────────────────────────────────────
+      // Core 2.0 Mechanics Events
+      // ─────────────────────────────────────────────────────────────
+
+      case 'mechanic_armor_shred':
+        // Apply armor shred to target
+        // ArmorShredEvent has shredApplied/totalShred directly on event, not in metadata
+        if (event.targetId === unit.instanceId) {
+          const shredEvent = event as typeof event & { shredApplied?: number; totalShred?: number };
+          const metadata = event.metadata as { shredApplied?: number; totalShred?: number } | undefined;
+          // Try direct properties first, then fallback to metadata
+          const totalShred = shredEvent.totalShred ?? metadata?.totalShred;
+          const shredApplied = shredEvent.shredApplied ?? metadata?.shredApplied;
+          if (totalShred !== undefined) {
+            updatedUnit.armorShred = totalShred;
+          } else if (shredApplied !== undefined) {
+            updatedUnit.armorShred = (unit.armorShred ?? 0) + shredApplied;
+          }
+        }
+        break;
+
+      case 'mechanic_resolve':
+        // Apply resolve changes
+        // ResolveEvent uses resolveDamage, previousResolve, newResolve, source
+        if (event.targetId === unit.instanceId) {
+          const metadata = event.metadata as { 
+            newResolve?: number; 
+            resolveDamage?: number;
+            // Legacy format
+            amount?: number; 
+            changeType?: string;
+          } | undefined;
+          
+          // Try newResolve first (new format)
+          if (metadata?.newResolve !== undefined) {
+            updatedUnit.resolve = metadata.newResolve;
+          } else if (metadata?.resolveDamage !== undefined) {
+            // Calculate from resolveDamage
+            const currentResolve = unit.resolve ?? 100;
+            updatedUnit.resolve = Math.max(0, currentResolve - metadata.resolveDamage);
+          } else if (metadata?.amount !== undefined) {
+            // Legacy format
+            const currentResolve = unit.resolve ?? 100;
+            if (metadata.changeType === 'damage') {
+              updatedUnit.resolve = Math.max(0, currentResolve - metadata.amount);
+            } else if (metadata.changeType === 'regen') {
+              updatedUnit.resolve = Math.min(unit.maxResolve ?? 100, currentResolve + metadata.amount);
+            }
+          }
+        }
+        break;
+
+      case 'mechanic_flanking':
+        // Flanking events may include resolve damage
+        if (event.targetId === unit.instanceId) {
+          const metadata = event.metadata as { resolveDamage?: number } | undefined;
+          if (metadata?.resolveDamage && metadata.resolveDamage > 0) {
+            const currentResolve = unit.resolve ?? 100;
+            updatedUnit.resolve = Math.max(0, currentResolve - metadata.resolveDamage);
+          }
+        }
+        break;
+
+      case 'mechanic_facing':
+        // Update unit facing direction
+        if (event.targetId === unit.instanceId || event.actorId === unit.instanceId) {
+          const metadata = event.metadata as { newFacing?: UnitFacing } | undefined;
+          if (metadata?.newFacing) {
+            updatedUnit.facing = metadata.newFacing;
+          }
+        }
+        break;
     }
 
     return updatedUnit;
@@ -341,6 +460,23 @@ function applyEventToUnits(units: ReplayUnit[], event: BattleEvent): ReplayUnit[
 // =============================================================================
 // COMPONENTS
 // =============================================================================
+
+/**
+ * Get CSS rotation transform based on unit facing direction.
+ * N=0deg (default), E=90deg, S=180deg, W=270deg
+ * 
+ * @param facing - Unit facing direction
+ * @returns CSS transform string
+ */
+function getFacingRotation(facing?: UnitFacing): string {
+  switch (facing) {
+    case 'E': return 'rotate(90deg)';
+    case 'S': return 'rotate(180deg)';
+    case 'W': return 'rotate(270deg)';
+    case 'N':
+    default: return 'rotate(0deg)';
+  }
+}
 
 /**
  * Grid cell component for battle replay with unit interaction.
@@ -354,7 +490,8 @@ function ReplayGridCell({
   isMovementTarget = false,
   movementPath = [],
   showDebugInfo = false,
-  isActiveUnit = false
+  isActiveUnit = false,
+  isHighlighted = false
 }: {
   position: Position;
   unit?: ReplayUnit;
@@ -365,6 +502,7 @@ function ReplayGridCell({
   movementPath?: Position[];
   showDebugInfo?: boolean;
   isActiveUnit?: boolean;
+  isHighlighted?: boolean;
 }) {
   const isPlayerZone = position.y <= 1;
   const isEnemyZone = position.y >= 8;
@@ -377,6 +515,7 @@ function ReplayGridCell({
     isMovementSource ? 'bg-yellow-500/30 border-yellow-400' : '',
     isMovementTarget ? 'bg-green-500/30 border-green-400' : '',
     isOnMovementPath ? 'bg-yellow-400/20 border-yellow-300' : '',
+    isHighlighted ? 'ring-2 ring-cyan-400 ring-offset-1 ring-offset-gray-900' : '',
   ].join(' ');
 
   /**
@@ -432,7 +571,10 @@ function ReplayGridCell({
           `}
             title={`${unit.template.name} - Click for details`}
           >
-            {UNIT_INFO[unit.template.id]?.emoji || '❓'}
+            {/* Unit emoji with facing rotation */}
+            <span style={{ transform: getFacingRotation(unit.facing), display: 'inline-block' }}>
+              {UNIT_INFO[unit.template.id]?.emoji || '❓'}
+            </span>
 
             {/* HP bar - 3px height with conditional colors */}
             <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-gray-700 rounded-b">
@@ -441,6 +583,16 @@ function ReplayGridCell({
                 style={{ width: `${(unit.currentHp / unit.maxHp) * 100}%` }}
               />
             </div>
+
+            {/* Resolve bar - 2px height above HP bar (only show if resolve < 100) */}
+            {unit.resolve !== undefined && unit.resolve < (unit.maxResolve ?? 100) && (
+              <div className="absolute bottom-[4px] left-0 right-0 h-[2px] bg-gray-700">
+                <div
+                  className="h-full bg-indigo-400 transition-all duration-300"
+                  style={{ width: `${(unit.resolve / (unit.maxResolve ?? 100)) * 100}%` }}
+                />
+              </div>
+            )}
 
             {/* Damage indicator */}
             {unit.animation?.type === 'damage' && unit.animation.damage && (
@@ -631,9 +783,23 @@ function TurnOrderBar({
               </div>
               <div>
                 <span className="text-gray-400">Armor:</span>
-                <span className="text-blue-400 font-medium ml-1">
-                  {selectedUnit.template.stats.armor}
-                </span>
+                {/* Show effective armor accounting for shred */}
+                {(() => {
+                  const baseArmor = selectedUnit.template.stats.armor;
+                  const shred = selectedUnit.armorShred ?? 0;
+                  const effectiveArmor = Math.max(0, baseArmor - shred);
+                  const hasShred = shred > 0;
+                  return (
+                    <span className={`font-medium ml-1 ${hasShred ? 'text-amber-400' : 'text-blue-400'}`}>
+                      {effectiveArmor}
+                      {hasShred && (
+                        <span className="text-gray-500 text-[10px] ml-1">
+                          (-{shred})
+                        </span>
+                      )}
+                    </span>
+                  );
+                })()}
               </div>
               <div>
                 <span className="text-gray-400">Speed:</span>
@@ -653,6 +819,20 @@ function TurnOrderBar({
                   {selectedUnit.template.stats.dodge}%
                 </span>
               </div>
+              {/* Resolve display (Core 2.0) */}
+              {selectedUnit.resolve !== undefined && (
+                <div className="col-span-2">
+                  <span className="text-gray-400">Мораль:</span>
+                  <span className={`font-medium ml-1 ${selectedUnit.resolve > 60
+                    ? 'text-indigo-400'
+                    : selectedUnit.resolve > 30
+                      ? 'text-yellow-400'
+                      : 'text-red-400'
+                    }`}>
+                    {selectedUnit.resolve}/{selectedUnit.maxResolve ?? 100}
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="mt-2 pt-2 border-t border-gray-700">
@@ -1038,25 +1218,43 @@ function ReplayControls({
 function EventLog({
   events,
   currentEventIndex,
-  units
+  units,
+  onHighlightUnit
 }: {
   events: BattleEvent[];
   currentEventIndex: number;
   units: ReplayUnit[];
+  onHighlightUnit?: (unitId: string | null) => void;
 }) {
   // Ref for current event to enable auto-scroll
   const currentEventRef = useRef<HTMLDivElement>(null);
 
   /**
-   * Get team affiliation from actorId.
+   * Get team affiliation from unit ID.
    * 
-   * @param actorId - Unit instance ID
+   * @param unitId - Unit instance ID
    * @returns Team affiliation ('player1' | 'player2' | null)
    */
-  const getTeamFromActorId = (actorId: string | undefined): 'player1' | 'player2' | null => {
-    if (!actorId) return null;
-    const unit = units.find(u => u.instanceId === actorId);
+  const getTeamFromUnitId = (unitId: string | undefined): 'player1' | 'player2' | null => {
+    if (!unitId) return null;
+    const unit = units.find(u => u.instanceId === unitId);
     return unit?.team || null;
+  };
+
+  /**
+   * Get the primary unit ID for team color display based on event type.
+   * For most events, use actorId. For resolve/damage events, use targetId.
+   * 
+   * @param event - Battle event
+   * @returns Unit ID to use for team color
+   */
+  const getPrimaryUnitIdForEvent = (event: BattleEvent): string | undefined => {
+    // For events that affect a target, show target's team color
+    if (event.type === 'mechanic_resolve' || event.type === 'damage' || event.type === 'heal') {
+      return event.targetId || event.actorId;
+    }
+    // For other events, show actor's team color
+    return event.actorId || event.targetId;
   };
 
   /**
@@ -1103,6 +1301,23 @@ function EventLog({
         return 'text-cyan-400';
       case 'battle_end':
         return 'text-pink-400';
+      // Core 2.0 Mechanics events
+      case 'mechanic_armor_shred':
+        return 'text-amber-400';
+      case 'mechanic_flanking':
+        return 'text-rose-400';
+      case 'mechanic_charge':
+        return 'text-emerald-400';
+      case 'mechanic_riposte':
+        return 'text-orange-300';
+      case 'mechanic_resolve':
+        return 'text-indigo-400';
+      case 'mechanic_phalanx':
+        return 'text-sky-400';
+      case 'mechanic_overwatch':
+        return 'text-violet-400';
+      case 'mechanic_contagion':
+        return 'text-lime-400';
       default:
         return 'text-gray-400';
     }
@@ -1129,6 +1344,23 @@ function EventLog({
         return 'border-cyan-500';
       case 'battle_end':
         return 'border-pink-500';
+      // Core 2.0 Mechanics events
+      case 'mechanic_armor_shred':
+        return 'border-amber-500';
+      case 'mechanic_flanking':
+        return 'border-rose-500';
+      case 'mechanic_charge':
+        return 'border-emerald-500';
+      case 'mechanic_riposte':
+        return 'border-orange-400';
+      case 'mechanic_resolve':
+        return 'border-indigo-500';
+      case 'mechanic_phalanx':
+        return 'border-sky-500';
+      case 'mechanic_overwatch':
+        return 'border-violet-500';
+      case 'mechanic_contagion':
+        return 'border-lime-500';
       default:
         return 'border-gray-500';
     }
@@ -1176,6 +1408,69 @@ function EventLog({
         return `Начинается раунд ${event.round}`;
       case 'battle_end':
         return 'Бой завершен';
+      // ─────────────────────────────────────────────────────────────
+      // Core 2.0 Mechanics Events
+      // ─────────────────────────────────────────────────────────────
+      case 'mechanic_flanking': {
+        const metadata = event.metadata as { arc?: string; damageModifier?: number } | undefined;
+        const arcName = metadata?.arc === 'rear' ? 'в тыл' : 'во фланг';
+        const bonus = metadata?.damageModifier ? Math.round((metadata.damageModifier - 1) * 100) : 0;
+        return `🔪 ${actorName} атакует ${arcName}${bonus > 0 ? ` (+${bonus}% урона)` : ''}`;
+      }
+      case 'mechanic_riposte': {
+        const metadata = event.metadata as { damage?: number; chance?: number; attackerKilled?: boolean } | undefined;
+        const damage = metadata?.damage ?? 0;
+        const killed = metadata?.attackerKilled ? ' 💀' : '';
+        return `⚔️ ${actorName} контратакует ${targetName} (${damage} урона)${killed}`;
+      }
+      case 'mechanic_armor_shred': {
+        // ArmorShredEvent has shredApplied directly on event, not in metadata
+        const shredEvent = event as typeof event & { shredApplied?: number; totalShred?: number };
+        const shred = shredEvent.shredApplied ?? (event.metadata as { shredApplied?: number } | undefined)?.shredApplied ?? 0;
+        return `🛡️ Броня ${targetName} пробита (-${shred} брони)`;
+      }
+      case 'mechanic_charge': {
+        const metadata = event.metadata as { distanceMoved?: number; momentumBonus?: number } | undefined;
+        const bonus = metadata?.momentumBonus ? Math.round(metadata.momentumBonus * 100) : 0;
+        return `🐎 ${actorName} совершает рывок (+${bonus}% урона)`;
+      }
+      case 'mechanic_resolve': {
+        // ResolveEvent uses resolveDamage, previousResolve, newResolve, source
+        const metadata = event.metadata as { 
+          resolveDamage?: number; 
+          previousResolve?: number; 
+          newResolve?: number; 
+          source?: string;
+          // Legacy format support
+          amount?: number; 
+          changeType?: string; 
+        } | undefined;
+        
+        // Try new format first, then legacy
+        const resolveDamage = metadata?.resolveDamage ?? metadata?.amount ?? 0;
+        const source = metadata?.source;
+        const changeType = metadata?.changeType;
+        
+        if (resolveDamage > 0 || changeType === 'damage') {
+          const sourceText = source === 'rear' ? ' (атака в тыл)' : source === 'flank' ? ' (фланговая атака)' : '';
+          return `💪 ${targetName} теряет ${resolveDamage} морали${sourceText}`;
+        } else if (changeType === 'regen') {
+          return `💪 ${targetName} восстанавливает ${metadata?.amount ?? 0} морали`;
+        }
+        return `💪 Мораль ${targetName} изменилась`;
+      }
+      case 'mechanic_facing': {
+        const metadata = event.metadata as { newFacing?: string } | undefined;
+        const facingNames: Record<string, string> = { N: 'на север', S: 'на юг', E: 'на восток', W: 'на запад' };
+        const facing = metadata?.newFacing ?? '';
+        return `🧭 ${actorName || targetName} поворачивается ${facingNames[facing] || facing}`;
+      }
+      case 'mechanic_phalanx':
+        return `🛡️ ${actorName} в строю фаланги`;
+      case 'mechanic_overwatch':
+        return `👁️ ${actorName} на страже`;
+      case 'mechanic_contagion':
+        return `☠️ ${targetName} заражён`;
       default:
         return EVENT_TYPE_NAMES[event.type] || event.type;
     }
@@ -1210,20 +1505,29 @@ function EventLog({
             {/* Round events */}
             <div className="space-y-1 ml-2">
               {roundEvents.map(({ event, index }) => {
-                const team = getTeamFromActorId(event.actorId);
-                const showTeamDot = team !== null; // Only show dot for events with actorId
+                const primaryUnitId = getPrimaryUnitIdForEvent(event);
+                const team = getTeamFromUnitId(primaryUnitId);
+                const showTeamDot = team !== null; // Only show dot for events with a unit
 
                 return (
                   <div
                     key={index}
                     ref={index === currentEventIndex ? currentEventRef : null}
                     className={`
-                      text-sm p-2 rounded border-l-4 transition-all duration-200
+                      text-sm p-2 rounded border-l-4 transition-all duration-200 cursor-pointer
                       ${index === currentEventIndex
                         ? 'bg-blue-900/30 border-blue-400 ring-1 ring-blue-400/50'
-                        : `bg-gray-700/20 ${getEventBorderColor(event.type)}`
+                        : `bg-gray-700/20 ${getEventBorderColor(event.type)} hover:bg-gray-600/30`
                       }
                     `}
+                    onClick={() => {
+                      // Highlight target unit (or actor if no target)
+                      const unitToHighlight = event.targetId || event.actorId;
+                      if (unitToHighlight && onHighlightUnit) {
+                        onHighlightUnit(unitToHighlight);
+                      }
+                    }}
+                    title="Клик для выделения юнита на поле"
                   >
                     <div className="flex items-center gap-2">
                       {/* Team color indicator dot */}
@@ -1372,6 +1676,9 @@ export function BattleReplay({ battle, playerId, onBack, hideResultScreen = fals
     position: { x: number; y: number };
   } | null>(null);
 
+  // Highlighted unit from event log click
+  const [highlightedUnitId, setHighlightedUnitId] = useState<string | null>(null);
+
   // Active animations state
   const [activeAnimations, setActiveAnimations] = useState<{
     moves: Array<{ id: string; fromPosition: Position; toPosition: Position }>;
@@ -1427,7 +1734,9 @@ export function BattleReplay({ battle, playerId, onBack, hideResultScreen = fals
           const attacker = currentUnits.find(u => u.instanceId === event.actorId);
           const target = currentUnits.find(u => u.instanceId === event.targetId);
 
-          if (attacker && target) {
+          // Only show attack animation if attacker is alive
+          // (prevents showing attacks from units killed in previous events)
+          if (attacker && attacker.alive && target) {
             setActiveAnimations(prev => ({
               ...prev,
               attacks: [...prev.attacks, {
@@ -1499,7 +1808,9 @@ export function BattleReplay({ battle, playerId, onBack, hideResultScreen = fals
           const caster = currentUnits.find(u => u.instanceId === event.actorId);
           const target = currentUnits.find(u => u.instanceId === event.targetId);
 
-          if (caster && target) {
+          // Only show ability animation if caster is alive
+          // (prevents showing abilities from units killed in previous events)
+          if (caster && caster.alive && target) {
             // Determine ability type based on event metadata or ability name
             let abilityType: 'fireball' | 'heal' | 'stun' | 'buff' | 'debuff' | 'shield' | 'lightning' | 'explosion' = 'fireball';
 
@@ -1921,6 +2232,9 @@ export function BattleReplay({ battle, playerId, onBack, hideResultScreen = fals
 
         // Check if this unit is the active unit (currently taking action)
         const isActiveUnit = unit?.instanceId === activeUnitId;
+        
+        // Check if this unit is highlighted from event log click
+        const isHighlighted = unit?.instanceId === highlightedUnitId;
 
         cells.push(
           <ReplayGridCell
@@ -1933,13 +2247,14 @@ export function BattleReplay({ battle, playerId, onBack, hideResultScreen = fals
             movementPath={movementPath}
             showDebugInfo={showDebugInfo}
             isActiveUnit={isActiveUnit}
+            isHighlighted={isHighlighted}
           />
         );
       }
     }
 
     return cells;
-  }, [units, events, replayState.currentEventIndex, handleGridUnitClick, showDebugInfo]);
+  }, [units, events, replayState.currentEventIndex, handleGridUnitClick, showDebugInfo, highlightedUnitId]);
 
   // Early return after all hooks are defined
   if (!isValidBattle) {
@@ -2109,6 +2424,9 @@ export function BattleReplay({ battle, playerId, onBack, hideResultScreen = fals
             events={events}
             currentEventIndex={replayState.currentEventIndex}
             units={units}
+            onHighlightUnit={(unitId) => {
+              setHighlightedUnitId(prev => prev === unitId ? null : unitId);
+            }}
           />
         </div>
       </div>
@@ -2135,18 +2453,56 @@ export function BattleReplay({ battle, playerId, onBack, hideResultScreen = fals
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 text-xs mb-3">
-              <div>
-                <span className="text-gray-400">HP:</span>
-                <div className={`font-medium ml-1 ${selectedGridUnit.unit.currentHp > selectedGridUnit.unit.maxHp * 0.6
+            {/* HP Bar */}
+            <div className="mb-3">
+              <div className="flex justify-between text-xs mb-1">
+                <span className="text-gray-400">HP</span>
+                <span className={`font-medium ${selectedGridUnit.unit.currentHp > selectedGridUnit.unit.maxHp * 0.6
                   ? 'text-green-400'
                   : selectedGridUnit.unit.currentHp > selectedGridUnit.unit.maxHp * 0.3
                     ? 'text-yellow-400'
                     : 'text-red-400'
                   }`}>
                   {selectedGridUnit.unit.currentHp}/{selectedGridUnit.unit.maxHp}
+                </span>
+              </div>
+              <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                <div
+                  className={`h-full transition-all duration-300 ${getHpBarColor((selectedGridUnit.unit.currentHp / selectedGridUnit.unit.maxHp) * 100)}`}
+                  style={{ width: `${(selectedGridUnit.unit.currentHp / selectedGridUnit.unit.maxHp) * 100}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Resolve Bar (Core 2.0) */}
+            {selectedGridUnit.unit.resolve !== undefined && (
+              <div className="mb-3">
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="text-gray-400">Мораль</span>
+                  <span className={`font-medium ${selectedGridUnit.unit.resolve > 60
+                    ? 'text-indigo-400'
+                    : selectedGridUnit.unit.resolve > 30
+                      ? 'text-yellow-400'
+                      : 'text-red-400'
+                    }`}>
+                    {selectedGridUnit.unit.resolve}/{selectedGridUnit.unit.maxResolve ?? 100}
+                  </span>
+                </div>
+                <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-300 ${selectedGridUnit.unit.resolve > 60
+                      ? 'bg-indigo-500'
+                      : selectedGridUnit.unit.resolve > 30
+                        ? 'bg-yellow-500'
+                        : 'bg-red-500'
+                      }`}
+                    style={{ width: `${(selectedGridUnit.unit.resolve / (selectedGridUnit.unit.maxResolve ?? 100)) * 100}%` }}
+                  />
                 </div>
               </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3 text-xs mb-3">
               <div>
                 <span className="text-gray-400">ATK:</span>
                 <span className="text-orange-400 font-medium ml-1">
@@ -2155,9 +2511,23 @@ export function BattleReplay({ battle, playerId, onBack, hideResultScreen = fals
               </div>
               <div>
                 <span className="text-gray-400">Armor:</span>
-                <span className="text-blue-400 font-medium ml-1">
-                  {selectedGridUnit.unit.template.stats.armor}
-                </span>
+                {/* Show effective armor accounting for shred */}
+                {(() => {
+                  const baseArmor = selectedGridUnit.unit.template.stats.armor;
+                  const shred = selectedGridUnit.unit.armorShred ?? 0;
+                  const effectiveArmor = Math.max(0, baseArmor - shred);
+                  const hasShred = shred > 0;
+                  return (
+                    <span className={`font-medium ml-1 ${hasShred ? 'text-amber-400' : 'text-blue-400'}`}>
+                      {effectiveArmor}
+                      {hasShred && (
+                        <span className="text-gray-500 text-[10px] ml-1">
+                          ({baseArmor}-{shred})
+                        </span>
+                      )}
+                    </span>
+                  );
+                })()}
               </div>
               <div>
                 <span className="text-gray-400">Speed:</span>
@@ -2177,12 +2547,23 @@ export function BattleReplay({ battle, playerId, onBack, hideResultScreen = fals
                   {selectedGridUnit.unit.template.stats.dodge}%
                 </span>
               </div>
+              <div>
+                <span className="text-gray-400">Range:</span>
+                <span className="text-cyan-400 font-medium ml-1">
+                  {selectedGridUnit.unit.template.range}
+                </span>
+              </div>
             </div>
 
             <div className="pt-2 border-t border-gray-700">
-              <div className="text-xs text-gray-400 mb-2">
+              <div className="text-xs text-gray-400 mb-1">
                 Position: <span className="text-white">({selectedGridUnit.unit.position.x}, {selectedGridUnit.unit.position.y})</span>
               </div>
+              {selectedGridUnit.unit.facing && (
+                <div className="text-xs text-gray-400 mb-1">
+                  Facing: <span className="text-white">{selectedGridUnit.unit.facing}</span>
+                </div>
+              )}
               <div className="text-xs text-gray-400">
                 Status: <span className={selectedGridUnit.unit.alive ? 'text-green-400' : 'text-red-400'}>
                   {selectedGridUnit.unit.alive ? 'Alive' : 'Dead'}

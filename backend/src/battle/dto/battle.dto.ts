@@ -202,4 +202,26 @@ export class StartBattleDto {
   @IsOptional()
   @IsString({ message: 'Team ID must be a string' })
   teamId?: string;
+
+  @ApiProperty({
+    description: 'Mechanics preset for battle simulation (Core 2.0)',
+    example: 'mvp',
+    enum: ['mvp', 'tactical', 'roguelike', 'custom'],
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: 'Mechanics preset must be a string' })
+  @IsEnum(['mvp', 'tactical', 'roguelike', 'custom'], { 
+    message: 'Mechanics preset must be mvp, tactical, roguelike, or custom' 
+  })
+  mechanicsPreset?: 'mvp' | 'tactical' | 'roguelike' | 'custom';
+
+  @ApiProperty({
+    description: 'Custom mechanics toggles (used when mechanicsPreset is "custom")',
+    example: { facing: true, flanking: true, riposte: false },
+    required: false,
+    type: 'object',
+  })
+  @IsOptional()
+  mechanicsToggles?: Record<string, boolean>;
 }
