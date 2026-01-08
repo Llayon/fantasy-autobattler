@@ -42,7 +42,9 @@ export type BattleEventType =
   | 'mechanic_routing'
   | 'mechanic_phalanx'
   | 'mechanic_overwatch'
-  | 'mechanic_contagion';
+  | 'mechanic_contagion'
+  | 'mechanic_intercept'
+  | 'mechanic_aoo';
 
 // =============================================================================
 // BASE EVENT INTERFACE
@@ -391,6 +393,48 @@ export interface ContagionEvent extends BaseBattleEvent {
   spreadChance: number;
   /** Whether phalanx bonus was applied */
   phalanxBonus: boolean;
+}
+
+/**
+ * Intercept mechanic event.
+ * Records when a unit intercepts another during movement.
+ */
+export interface InterceptEvent extends BaseBattleEvent {
+  type: 'mechanic_intercept';
+  /** Interceptor unit ID */
+  actorId: string;
+  /** Target unit ID (being intercepted) */
+  targetId: string;
+  /** Damage dealt (for hard intercept) */
+  damage?: number;
+  /** Intercept type (hard = stop cavalry, soft = engage) */
+  interceptType: 'hard' | 'soft';
+  /** Position where intercept occurred */
+  position?: { x: number; y: number };
+  /** Position where target was stopped (hard intercept) */
+  stoppedAt?: { x: number; y: number };
+  /** Target HP after intercept */
+  targetHpAfter?: number;
+}
+
+/**
+ * Attack of Opportunity mechanic event.
+ * Records when a unit gets a free attack on enemy leaving ZoC.
+ */
+export interface AttackOfOpportunityEvent extends BaseBattleEvent {
+  type: 'mechanic_aoo';
+  /** Attacker unit ID (getting free attack) */
+  actorId: string;
+  /** Target unit ID (leaving ZoC) */
+  targetId: string;
+  /** Damage dealt */
+  damage: number;
+  /** Whether attack hit */
+  hit: boolean;
+  /** Position target was moving from */
+  fromPosition?: { x: number; y: number };
+  /** Position target was moving to */
+  toPosition?: { x: number; y: number };
 }
 
 // =============================================================================

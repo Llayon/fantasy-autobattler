@@ -235,10 +235,12 @@ export interface DisengagementEvent {
 }
 
 /**
- * Attack of Opportunity event.
+ * Internal Attack of Opportunity event for engagement processor.
+ * Note: This is different from AttackOfOpportunityEvent in event.types.ts
+ * which is used for battle event logging.
  *
  * @example
- * const event: AttackOfOpportunityEvent = {
+ * const event: EngagementAoOEvent = {
  *   type: 'attack_of_opportunity',
  *   attackerId: 'enemy_1',
  *   targetId: 'unit_1',
@@ -246,7 +248,7 @@ export interface DisengagementEvent {
  *   damage: 15,
  * };
  */
-export interface AttackOfOpportunityEvent {
+export interface EngagementAoOEvent {
   /** Event type identifier */
   type: 'attack_of_opportunity';
 

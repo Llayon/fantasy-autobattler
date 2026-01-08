@@ -142,7 +142,9 @@ export type BattleEventType =
   | 'mechanic_routing'
   | 'mechanic_phalanx'
   | 'mechanic_overwatch'
-  | 'mechanic_contagion';
+  | 'mechanic_contagion'
+  | 'mechanic_intercept'
+  | 'mechanic_aoo';
 
 /**
  * Individual battle event record matching backend.

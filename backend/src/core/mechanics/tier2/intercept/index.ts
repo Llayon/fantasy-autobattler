@@ -29,7 +29,7 @@ export type {
   InterceptBlockedEvent,
   DisengageEvent,
   InterceptChargesResetEvent,
-  InterceptEvent,
+  InterceptProcessorEvent,
   // Helper types
   InterceptProcessorOptions,
   InterceptContext,
