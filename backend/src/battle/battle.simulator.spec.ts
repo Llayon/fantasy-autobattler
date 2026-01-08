@@ -861,6 +861,148 @@ describe('Battle Simulator v2', () => {
   // PROPERTY-BASED TESTS (Core 2.0 Mechanics)
   // =============================================================================
 
+  describe('Property-Based Tests: MVP Equivalence', () => {
+    /**
+     * **Feature: mechanics-optimization, Property 3: MVP behavior without processor**
+     * **Validates: Requirements 2.2**
+     * 
+     * For any battle simulated without a MechanicsProcessor, the result SHALL be
+     * identical to a battle with MVP_PRESET processor (all mechanics disabled).
+     * 
+     * This ensures backward compatibility - battles without a processor should
+     * behave exactly like Core 1.0 (MVP behavior).
+     */
+    it('Property 3: MVP behavior without processor - battles without processor match MVP_PRESET', () => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const fc = require('fast-check') as typeof import('fast-check');
+      
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { createMechanicsProcessor, MVP_PRESET } = require('../core/mechanics') as {
+        createMechanicsProcessor: (config: unknown) => MechanicsProcessor;
+        MVP_PRESET: unknown;
+      };
+      
+      // Import MechanicsProcessor type
+      type MechanicsProcessor = import('../core/mechanics').MechanicsProcessor;
+      
+      // Arbitrary generator for unit IDs
+      const arbitraryUnitId = fc.constantFrom(
+        'knight', 'guardian', 'berserker',
+        'rogue', 'duelist', 'assassin',
+        'archer', 'crossbowman', 'hunter',
+        'mage', 'warlock', 'elementalist',
+        'priest', 'bard', 'enchanter'
+      );
+      
+      // Arbitrary generator for team setup
+      const arbitraryTeamSetup = (yRange: [number, number]) => fc.tuple(
+        fc.array(arbitraryUnitId, { minLength: 1, maxLength: 3 }),
+        fc.integer({ min: 1000, max: 9999 })
+      ).chain(([unitIds, seed]) => {
+        const units = unitIds.map(id => {
+          const template = getUnitTemplate(id);
+          if (!template) {
+            throw new Error(`Unit template not found: ${id}`);
+          }
+          return template;
+        });
+        
+        // Generate unique positions for each unit
+        // Use a more deterministic approach to avoid duplicates
+        const positions: Position[] = [];
+        const gridWidth = 8;
+        const gridHeight = yRange[1] - yRange[0] + 1;
+        const maxPositions = gridWidth * gridHeight;
+        
+        // Create all possible positions in the range
+        const allPositions: Position[] = [];
+        for (let y = yRange[0]; y <= yRange[1]; y++) {
+          for (let x = 0; x < gridWidth; x++) {
+            allPositions.push({ x, y });
+          }
+        }
+        
+        // Shuffle positions using seed
+        const shuffled = [...allPositions];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.abs(Math.sin(seed + i)) * (i + 1));
+          [shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!];
+        }
+        
+        // Take first N positions
+        for (let i = 0; i < Math.min(units.length, maxPositions); i++) {
+          positions.push(shuffled[i]!);
+        }
+        
+        return fc.constant({ units, positions });
+      });
+      
+      // Property: Battles without processor match MVP_PRESET behavior
+      fc.assert(
+        fc.property(
+          arbitraryTeamSetup([0, 1]), // Player team (rows 0-1)
+          arbitraryTeamSetup([8, 9]), // Enemy team (rows 8-9)
+          fc.integer({ min: 1, max: 99999 }), // Battle seed
+          (playerTeam: TeamSetup, enemyTeam: TeamSetup, seed: number) => {
+            // Simulate battle WITHOUT processor (Core 1.0 behavior)
+            const resultWithoutProcessor = simulateBattle(playerTeam, enemyTeam, seed);
+            
+            // Simulate battle WITH MVP_PRESET processor (all mechanics disabled)
+            const mvpProcessor = createMechanicsProcessor(MVP_PRESET);
+            const resultWithMvpProcessor = simulateBattle(playerTeam, enemyTeam, seed, mvpProcessor);
+            
+            // Property 3: Results should be identical
+            
+            // Winner should be the same
+            expect(resultWithMvpProcessor.winner).toBe(resultWithoutProcessor.winner);
+            
+            // Total rounds should be the same
+            expect(resultWithMvpProcessor.metadata.totalRounds).toBe(resultWithoutProcessor.metadata.totalRounds);
+            
+            // Event count should be the same (no mechanic events added)
+            expect(resultWithMvpProcessor.events.length).toBe(resultWithoutProcessor.events.length);
+            
+            // Event types should match (no mechanic_* events)
+            for (let i = 0; i < Math.min(resultWithoutProcessor.events.length, resultWithMvpProcessor.events.length); i++) {
+              const event1 = resultWithoutProcessor.events[i];
+              const event2 = resultWithMvpProcessor.events[i];
+              if (event1 && event2) {
+                expect(event2.type).toBe(event1.type);
+                expect(event2.round).toBe(event1.round);
+              }
+            }
+            
+            // Final unit states should match
+            expect(resultWithMvpProcessor.finalState.playerUnits.length).toBe(resultWithoutProcessor.finalState.playerUnits.length);
+            expect(resultWithMvpProcessor.finalState.botUnits.length).toBe(resultWithoutProcessor.finalState.botUnits.length);
+            
+            // Verify each unit's final state matches
+            for (let i = 0; i < resultWithoutProcessor.finalState.playerUnits.length; i++) {
+              const unit1 = resultWithoutProcessor.finalState.playerUnits[i];
+              const unit2 = resultWithMvpProcessor.finalState.playerUnits[i];
+              if (unit1 && unit2) {
+                expect(unit2.alive).toBe(unit1.alive);
+                expect(unit2.currentHp).toBe(unit1.currentHp);
+              }
+            }
+            
+            for (let i = 0; i < resultWithoutProcessor.finalState.botUnits.length; i++) {
+              const unit1 = resultWithoutProcessor.finalState.botUnits[i];
+              const unit2 = resultWithMvpProcessor.finalState.botUnits[i];
+              if (unit1 && unit2) {
+                expect(unit2.alive).toBe(unit1.alive);
+                expect(unit2.currentHp).toBe(unit1.currentHp);
+              }
+            }
+            
+            return true;
+          }
+        ),
+        { numRuns: 50 } // Reduced runs since battles can be slow
+      );
+    });
+  });
+
   describe('Property-Based Tests: State Conversion', () => {
     /**
      * **Feature: mechanics-optimization, Property 6: State preservation in conversion**

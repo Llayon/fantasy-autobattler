@@ -69,29 +69,49 @@
     - **Property 6: State preservation in conversion**
     - **Validates: Requirements 5.4**
 
-- [ ] 4. Рефакторинг executeUnitTurnWithAbilities
-  - [ ] 4.1 Создать processPhase helper
+- [x] 4. Рефакторинг executeUnitTurnWithAbilities
+
+
+
+
+
+  - [x] 4.1 Создать processPhase helper
+
+
     - Вызывать processor.process() для каждой фазы
     - Собирать события в массив
     - Обновлять состояние
     - _Requirements: 5.2_
-  - [ ] 4.2 Удалить inline resolve логику
+  - [x] 4.2 Удалить inline resolve логику
+
+
     - Удалить ~100 строк inline кода resolve damage
     - Делегировать ResolveProcessor через processPhase
     - _Requirements: 2.3, 3.1_
-  - [ ] 4.3 Удалить inline flanking логику
+  - [x] 4.3 Удалить inline flanking логику
+
+
     - Удалить ~80 строк inline кода flanking
     - Делегировать FlankingProcessor через processPhase
     - _Requirements: 2.4, 3.2_
-  - [ ] 4.4 Удалить inline facing логику
+  - [x] 4.4 Удалить inline facing логику
+
+
     - Удалить ~50 строк inline кода facing
     - Делегировать FacingProcessor через processPhase
     - _Requirements: 2.5, 3.3_
-  - [ ] 4.5 Написать property test для MVP equivalence
+  - [x] 4.5 Написать property test для MVP equivalence
+
+
     - **Property 3: MVP behavior without processor**
     - **Validates: Requirements 2.2**
 
-- [ ] 5. Checkpoint - Проверить рефакторинг
+- [x] 5. Checkpoint - Проверить рефакторинг
+
+
+
+
+
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Фаза 3 - Полная интеграция механик
