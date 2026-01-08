@@ -856,4 +856,242 @@ describe('Battle Simulator v2', () => {
       });
     });
   });
+
+  // =============================================================================
+  // PROPERTY-BASED TESTS (Core 2.0 Mechanics)
+  // =============================================================================
+
+  describe('Property-Based Tests: State Conversion', () => {
+    /**
+     * **Feature: mechanics-optimization, Property 6: State preservation in conversion**
+     * **Validates: Requirements 5.4**
+     * 
+     * For any game state converted to core state and back, all unit properties
+     * (HP, position, alive, facing, resolve) SHALL be preserved.
+     */
+    it('Property 6: State preservation in conversion - round trip preserves all unit properties', () => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const fc = require('fast-check') as typeof import('fast-check');
+      
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { toCoreBattleState, fromCoreBattleState } = require('./battle.simulator') as {
+        toCoreBattleState: (state: BattleStateWithAbilitiesTest) => CoreBattleStateTest;
+        fromCoreBattleState: (gameState: BattleStateWithAbilitiesTest, coreState: CoreBattleStateTest) => BattleStateWithAbilitiesTest;
+      };
+      
+      // Type definitions for the test
+      interface BattleUnitTest {
+        id: string;
+        name: string;
+        role: string;
+        cost: number;
+        stats: {
+          hp: number;
+          atk: number;
+          atkCount: number;
+          armor: number;
+          speed: number;
+          initiative: number;
+          dodge: number;
+        };
+        range: number;
+        abilities: string[];
+        position: { x: number; y: number };
+        currentHp: number;
+        maxHp: number;
+        team: 'player' | 'bot';
+        alive: boolean;
+        instanceId: string;
+        abilityCooldowns: Record<string, number>;
+        statusEffects: unknown[];
+        isStunned: boolean;
+        hasTaunt: boolean;
+        facing: 'N' | 'S' | 'E' | 'W';
+        resolve: number;
+        maxResolve: number;
+        riposteCharges: number;
+        ammunition: number | undefined;
+        maxAmmunition: number | undefined;
+        tags: string[];
+        armorShred: number;
+        isEngaged: boolean;
+        engagedBy: string[];
+        chargeMomentum: number;
+        isInOverwatch: boolean;
+        isInPhalanx: boolean;
+        isRouting: boolean;
+        hasCrumbled: boolean;
+        faction: string;
+      }
+      
+      interface BattleStateWithAbilitiesTest {
+        units: BattleUnitTest[];
+        currentRound: number;
+        events: unknown[];
+        occupiedPositions: Set<string>;
+        seed: number;
+      }
+      
+      interface CoreBattleStateTest {
+        units: unknown[];
+        round: number;
+        events: unknown[];
+      }
+      
+      // Arbitrary generator for Position
+      const arbitraryPosition = fc.record({
+        x: fc.integer({ min: 0, max: 7 }),
+        y: fc.integer({ min: 0, max: 9 }),
+      });
+      
+      // Arbitrary generator for FacingDirection
+      const arbitraryFacing = fc.constantFrom('N' as const, 'S' as const, 'E' as const, 'W' as const);
+      
+      // Arbitrary generator for UnitStats
+      const arbitraryStats = fc.record({
+        hp: fc.integer({ min: 1, max: 500 }),
+        atk: fc.integer({ min: 1, max: 100 }),
+        atkCount: fc.integer({ min: 1, max: 5 }),
+        armor: fc.integer({ min: 0, max: 50 }),
+        speed: fc.integer({ min: 1, max: 10 }),
+        initiative: fc.integer({ min: 1, max: 20 }),
+        dodge: fc.integer({ min: 0, max: 50 }),
+      });
+      
+      // Arbitrary generator for BattleUnitWithAbilities
+      const arbitraryUnit = (team: 'player' | 'bot', baseIndex: number) => fc.record({
+        id: fc.constant(`unit_${baseIndex}`),
+        name: fc.constant(`Test Unit ${baseIndex}`),
+        role: fc.constantFrom('tank', 'melee_dps', 'ranged_dps', 'mage', 'support'),
+        cost: fc.integer({ min: 3, max: 8 }),
+        stats: arbitraryStats,
+        range: fc.integer({ min: 1, max: 5 }),
+        abilities: fc.constant([] as string[]),
+        position: arbitraryPosition,
+        currentHp: fc.integer({ min: 1, max: 500 }),
+        maxHp: fc.integer({ min: 1, max: 500 }),
+        team: fc.constant(team),
+        alive: fc.boolean(),
+        instanceId: fc.constant(`${team}_unit_${baseIndex}`),
+        // Ability state
+        abilityCooldowns: fc.constant({} as Record<string, number>),
+        statusEffects: fc.constant([] as unknown[]),
+        isStunned: fc.boolean(),
+        hasTaunt: fc.boolean(),
+        // Core 2.0 Mechanics fields
+        facing: arbitraryFacing,
+        resolve: fc.integer({ min: 0, max: 100 }),
+        maxResolve: fc.constant(100),
+        riposteCharges: fc.integer({ min: 0, max: 5 }),
+        ammunition: fc.option(fc.integer({ min: 0, max: 20 }), { nil: undefined }),
+        maxAmmunition: fc.option(fc.integer({ min: 0, max: 20 }), { nil: undefined }),
+        tags: fc.constant([] as string[]),
+        armorShred: fc.integer({ min: 0, max: 20 }),
+        isEngaged: fc.boolean(),
+        engagedBy: fc.constant([] as string[]),
+        chargeMomentum: fc.integer({ min: 0, max: 100 }),
+        isInOverwatch: fc.boolean(),
+        isInPhalanx: fc.boolean(),
+        isRouting: fc.boolean(),
+        hasCrumbled: fc.boolean(),
+        faction: fc.constantFrom('human', 'undead'),
+      }).map((unit): BattleUnitTest => ({
+        ...unit,
+        // Ensure currentHp <= maxHp
+        currentHp: Math.min(unit.currentHp, unit.maxHp),
+      }));
+      
+      // Arbitrary generator for BattleStateWithAbilities
+      const arbitraryBattleState = fc.tuple(
+        fc.array(arbitraryUnit('player', 0), { minLength: 1, maxLength: 3 }),
+        fc.array(arbitraryUnit('bot', 0), { minLength: 1, maxLength: 3 }),
+        fc.integer({ min: 1, max: 100 }),
+      ).map(([playerUnits, botUnits, round]): BattleStateWithAbilitiesTest => {
+        // Assign unique instanceIds
+        const units: BattleUnitTest[] = [
+          ...playerUnits.map((u: BattleUnitTest, i: number) => ({ ...u, instanceId: `player_unit_${i}` })),
+          ...botUnits.map((u: BattleUnitTest, i: number) => ({ ...u, instanceId: `bot_unit_${i}` })),
+        ];
+        
+        // Create occupied positions set
+        const occupiedPositions = new Set<string>();
+        units.forEach((u: BattleUnitTest) => {
+          if (u.alive) {
+            occupiedPositions.add(`${u.position.x},${u.position.y}`);
+          }
+        });
+        
+        return {
+          units,
+          currentRound: round,
+          events: [],
+          occupiedPositions,
+          seed: 12345,
+        };
+      });
+      
+      // Property: Round-trip conversion preserves critical unit properties
+      fc.assert(
+        fc.property(arbitraryBattleState, (gameState: BattleStateWithAbilitiesTest) => {
+          // Convert to core state
+          const coreState = toCoreBattleState(gameState);
+          
+          // Convert back to game state
+          const roundTrippedState = fromCoreBattleState(gameState, coreState);
+          
+          // Verify all units are preserved
+          expect(roundTrippedState.units.length).toBe(gameState.units.length);
+          
+          // Verify each unit's critical properties are preserved
+          for (let i = 0; i < gameState.units.length; i++) {
+            const original = gameState.units[i];
+            if (!original) continue; // Skip if original is undefined
+            
+            const roundTripped = roundTrippedState.units.find(
+              (u: BattleUnitTest) => u.instanceId === original.instanceId
+            );
+            
+            expect(roundTripped).toBeDefined();
+            if (!roundTripped) continue;
+            
+            // Property 6: HP preservation
+            expect(roundTripped.currentHp).toBe(original.currentHp);
+            expect(roundTripped.maxHp).toBe(original.maxHp);
+            
+            // Property 6: Position preservation
+            expect(roundTripped.position.x).toBe(original.position.x);
+            expect(roundTripped.position.y).toBe(original.position.y);
+            
+            // Property 6: Alive status preservation
+            expect(roundTripped.alive).toBe(original.alive);
+            
+            // Property 6: Facing preservation
+            expect(roundTripped.facing).toBe(original.facing);
+            
+            // Property 6: Resolve preservation
+            expect(roundTripped.resolve).toBe(original.resolve);
+            
+            // Additional mechanics fields preservation
+            expect(roundTripped.riposteCharges).toBe(original.riposteCharges);
+            expect(roundTripped.armorShred).toBe(original.armorShred);
+            expect(roundTripped.isEngaged).toBe(original.isEngaged);
+            expect(roundTripped.chargeMomentum).toBe(original.chargeMomentum);
+            expect(roundTripped.isInPhalanx).toBe(original.isInPhalanx);
+            
+            // Game-specific fields preservation
+            expect(roundTripped.abilityCooldowns).toEqual(original.abilityCooldowns);
+            expect(roundTripped.statusEffects).toEqual(original.statusEffects);
+            expect(roundTripped.isStunned).toBe(original.isStunned);
+            expect(roundTripped.hasTaunt).toBe(original.hasTaunt);
+          }
+          
+          // Verify round is preserved
+          expect(roundTrippedState.currentRound).toBe(gameState.currentRound);
+          
+          return true;
+        }),
+        { numRuns: 100 }
+      );
+    });
+  });
 });

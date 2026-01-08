@@ -125,14 +125,81 @@ interface BattleStateWithAbilities extends BattleState {
  * Convert game-specific BattleState to core BattleState for mechanics processor.
  * The mechanics processor expects the core BattleState interface.
  * 
+ * This function creates a deep copy of unit data to prevent mutations from
+ * affecting the original game state. All unit properties are preserved:
+ * - HP (currentHp, maxHp)
+ * - Position (x, y coordinates)
+ * - Alive status
+ * - Facing direction (N, S, E, W)
+ * - Resolve (morale value)
+ * - All other Core 2.0 mechanics fields
+ * 
  * @param state - Game-specific battle state
  * @returns Core battle state compatible with mechanics processor
+ * 
+ * @example
+ * const coreState = toCoreBattleState(gameState);
+ * const result = processor.process('attack', coreState, context);
  */
-function toCoreBattleState(state: BattleStateWithAbilities): CoreBattleState<CoreBattleUnit> {
+export function toCoreBattleState(state: BattleStateWithAbilities): CoreBattleState<CoreBattleUnit> {
+  // Map game units to core units, preserving all relevant properties
+  const coreUnits: CoreBattleUnit[] = state.units.map(gameUnit => {
+    // Extract Core 2.0 mechanics fields from game unit
+    const unitWithMechanics = gameUnit as BattleUnitWithAbilities & {
+      facing?: FacingDirection;
+      resolve?: number;
+      maxResolve?: number;
+      riposteCharges?: number;
+      ammunition?: number;
+      maxAmmunition?: number;
+      tags?: string[];
+      armorShred?: number;
+      isEngaged?: boolean;
+      engagedBy?: string[];
+      chargeMomentum?: number;
+      isInOverwatch?: boolean;
+      isInPhalanx?: boolean;
+      isRouting?: boolean;
+      hasCrumbled?: boolean;
+      faction?: string;
+    };
+
+    return {
+      // Base unit properties
+      id: gameUnit.id,
+      name: gameUnit.name,
+      role: gameUnit.role,
+      cost: gameUnit.cost,
+      stats: { ...gameUnit.stats },
+      range: gameUnit.range,
+      abilities: [...gameUnit.abilities],
+      
+      // Battle state properties (CRITICAL: must be preserved)
+      position: { ...gameUnit.position },
+      currentHp: gameUnit.currentHp,
+      maxHp: gameUnit.maxHp,
+      team: gameUnit.team,
+      alive: gameUnit.alive,
+      instanceId: gameUnit.instanceId,
+      
+      // Core 2.0 Mechanics fields (Tier 0-4)
+      facing: unitWithMechanics.facing,
+      resolve: unitWithMechanics.resolve,
+      faction: unitWithMechanics.faction,
+      engaged: unitWithMechanics.isEngaged,
+      riposteCharges: unitWithMechanics.riposteCharges,
+      tags: unitWithMechanics.tags ? [...unitWithMechanics.tags] : undefined,
+      momentum: unitWithMechanics.chargeMomentum,
+      inPhalanx: unitWithMechanics.isInPhalanx,
+      ammo: unitWithMechanics.ammunition,
+      armorShred: unitWithMechanics.armorShred,
+    } as CoreBattleUnit;
+  });
+
   return {
-    units: state.units as unknown as CoreBattleUnit[],
+    units: coreUnits,
     round: state.currentRound,
-    events: state.events,
+    events: [...state.events],
   };
 }
 
@@ -143,15 +210,29 @@ function toCoreBattleState(state: BattleStateWithAbilities): CoreBattleState<Cor
  * CRITICAL: This function preserves HP and alive status from gameState to prevent
  * the mechanics processor from "undoing" damage or reviving dead units.
  * 
- * HP preservation logic:
+ * Property preservation rules:
+ * 
+ * HP preservation:
  * - Uses Math.min(gameState.currentHp, coreState.currentHp) to ensure damage is never undone
  * - If coreState doesn't have HP info, uses gameState HP
  * 
- * Alive status logic:
+ * Alive status:
  * - Unit is dead if gameState marks it dead (gameUnit.alive === false)
  * - Unit is dead if coreState marks it dead (coreUnit.alive === false)
  * - Unit is dead if effective HP <= 0
  * - All three conditions must be true for unit to be alive
+ * 
+ * Position:
+ * - Uses coreState position if available (mechanics may move units)
+ * - Falls back to gameState position if not set
+ * 
+ * Facing:
+ * - Uses coreState facing if available (facing processor may rotate units)
+ * - Falls back to gameState facing if not set
+ * 
+ * Resolve:
+ * - Uses coreState resolve if available (resolve processor may modify)
+ * - Falls back to gameState resolve if not set
  * 
  * @param gameState - Original game-specific state with current HP and alive status
  * @param coreState - Updated core state from mechanics processor (may have stale HP/alive)
@@ -163,7 +244,7 @@ function toCoreBattleState(state: BattleStateWithAbilities): CoreBattleState<Cor
  * const updatedState = fromCoreBattleState(gameState, result.state);
  * // updatedState preserves HP reductions and death status from gameState
  */
-function fromCoreBattleState(
+export function fromCoreBattleState(
   gameState: BattleStateWithAbilities,
   coreState: CoreBattleState<CoreBattleUnit>
 ): BattleStateWithAbilities {
@@ -171,7 +252,26 @@ function fromCoreBattleState(
   const updatedUnits = gameState.units.map(gameUnit => {
     const coreUnit = coreState.units.find(u => u.instanceId === gameUnit.instanceId);
     if (coreUnit) {
-      // Merge core unit properties back to game unit
+      // Extract game-specific mechanics fields
+      const gameUnitWithMechanics = gameUnit as BattleUnitWithAbilities & {
+        facing?: FacingDirection;
+        resolve?: number;
+        maxResolve?: number;
+        riposteCharges?: number;
+        ammunition?: number;
+        maxAmmunition?: number;
+        tags?: string[];
+        armorShred?: number;
+        isEngaged?: boolean;
+        engagedBy?: string[];
+        chargeMomentum?: number;
+        isInOverwatch?: boolean;
+        isInPhalanx?: boolean;
+        isRouting?: boolean;
+        hasCrumbled?: boolean;
+        faction?: string;
+      };
+
       // CRITICAL: Preserve HP and alive status from gameState - coreState may not have updated death info
       // Use the LOWER HP value between gameState and coreState (damage should never be "undone")
       const effectiveHp = Math.min(
@@ -184,17 +284,49 @@ function fromCoreBattleState(
         (coreUnit.alive ?? true) && 
         effectiveHp > 0;
       
+      // Position: use coreState if available (mechanics may move units)
+      const position = coreUnit.position ?? gameUnit.position;
+      
+      // Facing: use coreState if available (facing processor may rotate units)
+      const facing = coreUnit.facing ?? gameUnitWithMechanics.facing;
+      
+      // Resolve: use coreState if available (resolve processor may modify)
+      const resolve = coreUnit.resolve ?? gameUnitWithMechanics.resolve;
+      
       return {
         ...gameUnit,
-        ...coreUnit,
         // Preserve game-specific properties that might not be in core
         abilityCooldowns: gameUnit.abilityCooldowns,
         statusEffects: gameUnit.statusEffects,
         isStunned: gameUnit.isStunned,
         hasTaunt: gameUnit.hasTaunt,
-        // Explicitly preserve HP and alive status (don't let coreUnit overwrite incorrectly)
+        
+        // CRITICAL: Explicitly set HP and alive status (don't let coreUnit overwrite incorrectly)
         currentHp: effectiveHp,
         alive: isAlive,
+        
+        // Position (may be updated by mechanics)
+        position: { ...position },
+        
+        // Core 2.0 Mechanics fields (may be updated by processors)
+        facing,
+        resolve,
+        riposteCharges: coreUnit.riposteCharges ?? gameUnitWithMechanics.riposteCharges,
+        isEngaged: coreUnit.engaged ?? gameUnitWithMechanics.isEngaged,
+        chargeMomentum: coreUnit.momentum ?? gameUnitWithMechanics.chargeMomentum,
+        isInPhalanx: coreUnit.inPhalanx ?? gameUnitWithMechanics.isInPhalanx,
+        ammunition: coreUnit.ammo ?? gameUnitWithMechanics.ammunition,
+        armorShred: coreUnit.armorShred ?? gameUnitWithMechanics.armorShred,
+        
+        // Preserve fields not modified by core processors
+        maxResolve: gameUnitWithMechanics.maxResolve,
+        maxAmmunition: gameUnitWithMechanics.maxAmmunition,
+        tags: gameUnitWithMechanics.tags,
+        engagedBy: gameUnitWithMechanics.engagedBy,
+        isInOverwatch: gameUnitWithMechanics.isInOverwatch,
+        isRouting: gameUnitWithMechanics.isRouting,
+        hasCrumbled: gameUnitWithMechanics.hasCrumbled,
+        faction: gameUnitWithMechanics.faction,
       } as BattleUnitWithAbilities;
     }
     return gameUnit;

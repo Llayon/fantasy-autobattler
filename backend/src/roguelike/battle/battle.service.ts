@@ -3,6 +3,7 @@
  *
  * Handles battle simulation and persistence for roguelike mode.
  * Integrates with existing battle simulator and BattleLog entity.
+ * Uses Core 2.0 mechanics via ROGUELIKE_PRESET for tactical combat.
  *
  * @module roguelike/battle/service
  */
@@ -18,6 +19,11 @@ import { RoguelikeSnapshotEntity, PlacedUnit } from '../entities/snapshot.entity
 import { BotOpponent } from '../matchmaking/matchmaking.service';
 import { mapToTeamSetup } from './unit-mapper';
 import { v4 as uuidv4 } from 'uuid';
+import {
+  createMechanicsProcessor,
+  ROGUELIKE_PRESET,
+  MechanicsProcessor,
+} from '../../core/mechanics';
 
 /**
  * Result of a roguelike battle simulation.
@@ -69,6 +75,20 @@ export class RoguelikeBattleService {
     @InjectRepository(BattleLog)
     private readonly battleLogRepository: Repository<BattleLog>,
   ) {}
+
+  /**
+   * Creates a MechanicsProcessor configured with ROGUELIKE_PRESET.
+   * Enables all 14 Core 2.0 mechanics for tactical roguelike combat.
+   *
+   * @returns MechanicsProcessor with ROGUELIKE_PRESET configuration
+   * @example
+   * const processor = this.createRoguelikeProcessor();
+   * const result = simulateBattle(playerTeam, opponentTeam, seed, processor);
+   */
+  private createRoguelikeProcessor(): MechanicsProcessor {
+    this.logger.debug('Creating MechanicsProcessor with ROGUELIKE_PRESET');
+    return createMechanicsProcessor(ROGUELIKE_PRESET);
+  }
 
   /**
    * Simulates a roguelike battle and saves the result.
@@ -131,10 +151,13 @@ export class RoguelikeBattleService {
     const playerTeamSetup = this.convertFieldToTeamSetup(playerField, 'player');
     const opponentTeamSetup = this.convertOpponentToTeamSetup(opponent);
 
-    // Run simulation
+    // Create processor for roguelike mechanics (Core 2.0)
+    const processor = this.createRoguelikeProcessor();
+
+    // Run simulation with Core 2.0 mechanics
     let battleResult: BattleResult;
     try {
-      battleResult = simulateBattle(playerTeamSetup, opponentTeamSetup, seed);
+      battleResult = simulateBattle(playerTeamSetup, opponentTeamSetup, seed, processor);
     } catch (error) {
       this.logger.error('Battle simulation failed', {
         runId: run.id,
