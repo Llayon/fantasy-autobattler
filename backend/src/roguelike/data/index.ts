@@ -115,6 +115,30 @@ export {
   UNDEAD_ALL_UNITS,
 } from './undead.units';
 
+// Core 2.0 specialized units
+export {
+  // Humans Core 2.0
+  LIGHT_CAVALRY_T1,
+  SPEARMAN_T1,
+  HUNTER_T1,
+  LIGHT_CAVALRY_LINE,
+  SPEARMAN_LINE,
+  HUNTER_LINE,
+  // Undead Core 2.0
+  PLAGUE_BEARER_T1,
+  WRAITH_T1,
+  BONE_ARCHER_T1,
+  PLAGUE_BEARER_LINE,
+  WRAITH_LINE,
+  BONE_ARCHER_LINE,
+  // Collections
+  CORE2_T1_UNITS,
+  CORE2_UPGRADE_LINES,
+  CORE2_ALL_UNITS,
+  CORE2_HUMANS_UNITS,
+  CORE2_UNDEAD_UNITS,
+} from './core2-units';
+
 // Starter decks
 export {
   HUMANS_STARTER_DECK,
@@ -126,3 +150,19 @@ export {
   isValidStarterDeck,
   getStarterDeckRoleDistribution,
 } from './starter-decks.data';
+
+// Units registry (includes all units + Core 2.0)
+export {
+  ALL_T1_UNITS,
+  ALL_UPGRADE_LINES,
+  ALL_UNITS,
+  ALL_HUMANS_UNITS,
+  ALL_UNDEAD_UNITS,
+  getUnitById,
+  getT1UnitsByFaction,
+  getAllUnitsByFaction,
+  getUpgradeLine,
+  isCore2Unit,
+  getCore2UnitsByFaction,
+  getUnitStats,
+} from './units.registry';
