@@ -19,8 +19,7 @@ import {
   InsufficientGoldException,
   InvalidUpgradeException,
 } from '../exceptions/roguelike.exceptions';
-import { HUMANS_T1_UNITS } from '../data/humans.units';
-import { UNDEAD_T1_UNITS } from '../data/undead.units';
+import { getT1UnitsByFaction } from '../data/units.registry';
 
 /**
  * Upgrade cost information for a unit on the field.
@@ -352,7 +351,7 @@ export class UpgradeService {
    */
   private calculateUpgradeCostForUnit(unit: FieldUnit, faction: string): number {
     // Get base unit to find T1 cost
-    const units = faction === 'humans' ? HUMANS_T1_UNITS : UNDEAD_T1_UNITS;
+    const units = getT1UnitsByFaction(faction as 'humans' | 'undead');
     const unitData = units.find((u) => u.id === unit.unitId);
 
     if (!unitData) {
