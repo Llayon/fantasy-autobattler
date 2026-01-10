@@ -116,142 +116,264 @@
 
 ## Фаза 3 - Полная интеграция механик
 
-- [ ] 6. Интегрировать Tier 1 механики
-  - [ ] 6.1 Интегрировать Engagement (ZoC, Attack of Opportunity)
+- [x] 6. Интегрировать Tier 1 механики
+
+
+
+
+
+
+
+
+
+
+
+
+  - [x] 6.1 Интегрировать Engagement (ZoC, Attack of Opportunity)
+
+
     - Добавить вызов processPhase('movement') при движении юнита
     - Обработать события engagement_zoc и engagement_aoo
     - _Requirements: 4.1_
-  - [ ] 6.2 Написать unit test для engagement интеграции
+  - [x] 6.2 Написать unit test для engagement интеграции
+
+
+
     - Проверить что ZoC применяется при движении рядом с врагом
     - _Requirements: 4.1_
 
-- [ ] 7. Интегрировать Tier 2 механики
-  - [ ] 7.1 Интегрировать Intercept (hard/soft intercept)
+- [x] 7. Интегрировать Tier 2 механики
+
+
+
+
+  - [x] 7.1 Интегрировать Intercept (hard/soft intercept)
+
+
     - Добавить проверку intercept при движении
     - Обработать события intercept_hard и intercept_soft
     - _Requirements: 4.2_
-  - [ ] 7.2 Интегрировать Aura (area effects)
+  - [x] 7.2 Интегрировать Aura (area effects)
+
+
     - Добавить вызов processPhase('turn_start') для aura
     - Обработать события aura_applied
     - _Requirements: 4.8 (implicit)_
-  - [ ] 7.3 Написать unit tests для tier 2 механик
+  - [x] 7.3 Написать unit tests для tier 2 механик
+
+
     - Проверить intercept и aura интеграцию
     - _Requirements: 4.2_
 
-- [ ] 8. Интегрировать Tier 3 механики
-  - [ ] 8.1 Интегрировать Overwatch (vigilance, trigger shots)
+- [x] 8. Интегрировать Tier 3 механики
+
+
+
+
+  - [x] 8.1 Интегрировать Overwatch (vigilance, trigger shots)
+
+
     - Добавить состояние vigilance для юнитов
     - Обработать события overwatch_triggered
     - _Requirements: 4.3_
-  - [ ] 8.2 Интегрировать Phalanx (formation bonuses)
+  - [x] 8.2 Интегрировать Phalanx (formation bonuses)
+
+
     - Добавить расчет formation bonus при turn_start
     - Обработать события phalanx_bonus
     - _Requirements: 4.4_
-  - [ ] 8.3 Интегрировать LoS (line of sight)
+  - [x] 8.3 Интегрировать LoS (line of sight)
+
+
     - Добавить проверку LoS для ranged атак
     - Обработать события los_blocked
     - _Requirements: 4.5_
-  - [ ] 8.4 Интегрировать Ammunition (ammo tracking)
+  - [x] 8.4 Интегрировать Ammunition (ammo tracking)
+
+
     - Добавить поле ammo для ranged юнитов
     - Обработать события ammo_consumed и ammo_reloaded
     - _Requirements: 4.6_
-  - [ ] 8.5 Написать unit tests для tier 3 механик
+  - [x] 8.5 Написать unit tests для tier 3 механик
+
+
     - Проверить overwatch, phalanx, LoS, ammunition интеграцию
     - _Requirements: 4.3, 4.4, 4.5, 4.6_
 
-- [ ] 9. Интегрировать Tier 4 механики
-  - [ ] 9.1 Интегрировать Contagion (status effect spread)
+- [x] 9. Интегрировать Tier 4 механики
+
+
+
+
+  - [x] 9.1 Интегрировать Contagion (status effect spread)
+
+
     - Добавить вызов processPhase('turn_end') для contagion
     - Обработать события contagion_spread
     - _Requirements: 4.7_
-  - [ ] 9.2 Интегрировать ArmorShred (armor reduction)
+  - [x] 9.2 Интегрировать ArmorShred (armor reduction)
+
+
     - Добавить применение armor shred при физических атаках
     - Обработать события armor_shred_applied
     - _Requirements: 4.8_
-  - [ ] 9.3 Написать unit tests для tier 4 механик
+  - [x] 9.3 Написать unit tests для tier 4 механик
+
+
     - Проверить contagion и armor shred интеграцию
     - _Requirements: 4.7, 4.8_
 
-- [ ] 10. Checkpoint - Проверить все механики
+- [x] 10. Checkpoint - Проверить все механики
+
+
+
+
+
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Финальные тесты и валидация
 
-- [ ] 11. Написать property-based tests
-  - [ ] 11.1 Property test для mechanic event generation
+- [x] 11. Написать property-based tests
+
+
+
+
+
+  - [x] 11.1 Property test для mechanic event generation
+
+
     - **Property 2: Mechanic events are generated with ROGUELIKE_PRESET**
     - **Validates: Requirements 1.3**
-  - [ ] 11.2 Property test для determinism
+  - [x] 11.2 Property test для determinism
+
+
     - **Property 4: Determinism with mechanics**
     - **Validates: Requirements 6.1**
-  - [ ] 11.3 Property test для event count difference
+  - [x] 11.3 Property test для event count difference
+
+
     - **Property 5: Event count difference between presets**
     - **Validates: Requirements 7.4**
-  - [ ] 11.4 Property test для tier order
+  - [x] 11.4 Property test для tier order
+
+
     - **Property 7: Consistent tier order**
     - **Validates: Requirements 6.3**
 
-- [ ] 12. Написать integration tests
-  - [ ] 12.1 Integration test для ROGUELIKE_PRESET
+- [x] 12. Написать integration tests
+
+
+
+
+
+  - [x] 12.1 Integration test для ROGUELIKE_PRESET
+
+
     - Полный бой с проверкой всех 14 механик
     - _Requirements: 7.1_
-  - [ ] 12.2 Integration test для TACTICAL_PRESET
+  - [x] 12.2 Integration test для TACTICAL_PRESET
+
     - Полный бой с проверкой Tier 0-2 механик
     - _Requirements: 7.2_
-  - [ ] 12.3 Integration test для MVP vs ROGUELIKE сравнения
+  - [x] 12.3 Integration test для MVP vs ROGUELIKE сравнения
+
     - Сравнить результаты и количество событий
     - _Requirements: 7.4_
 
-- [ ] 13. Final Checkpoint - Все тесты проходят
+- [x] 13. Final Checkpoint - Все тесты проходят
+
+
+
+
+
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Документация и качество кода
 
-- [ ] 14. Добавить JSDoc документацию
-  - [ ] 14.1 JSDoc для createRoguelikeProcessor()
+- [x] 14. Добавить JSDoc документацию
+
+
+
+
+
+
+  - [x] 14.1 JSDoc для createRoguelikeProcessor()
+
     - Добавить @description, @returns, @example
     - Описать что метод создает processor с ROGUELIKE_PRESET
     - _Requirements: 5.1_
-  - [ ] 14.2 JSDoc для toCoreBattleState() и fromCoreBattleState()
+  - [x] 14.2 JSDoc для toCoreBattleState() и fromCoreBattleState()
+
+
     - Добавить @description, @param, @returns, @example
     - Описать конвертацию между game state и core state
     - _Requirements: 5.4_
-  - [ ] 14.3 JSDoc для processPhase helper
+  - [x] 14.3 JSDoc для processPhase helper
+
+
     - Добавить @description, @param, @returns
     - Описать как helper обрабатывает фазы механик
     - _Requirements: 5.2_
-  - [ ] 14.4 JSDoc для новых интерфейсов и типов
+  - [x] 14.4 JSDoc для новых интерфейсов и типов
+
+
     - Документировать PhaseContext, MechanicEvent и другие типы
     - _Requirements: 5.3_
 
-- [ ] 15. Добавить логирование
-  - [ ] 15.1 Логирование в RoguelikeBattleService
+- [x] 15. Добавить логирование
+
+
+
+
+
+  - [x] 15.1 Логирование в RoguelikeBattleService
+
+
     - Добавить logger.log при создании processor
     - Добавить logger.debug для mechanic events
     - Добавить logger.error при ошибках processor
     - _Requirements: 5.1_
-  - [ ] 15.2 Логирование в battle.simulator.ts
+  - [x] 15.2 Логирование в battle.simulator.ts
+
+
     - Добавить logger.debug для каждой фазы механик
     - Логировать количество событий от каждой механики
     - _Requirements: 5.2_
-  - [ ] 15.3 Логирование ошибок механик
+  - [x] 15.3 Логирование ошибок механик
+
     - Добавить try-catch с logger.error для processor.process()
     - Включить контекст (phase, unitId, battleId)
     - _Requirements: 5.2_
 
-- [ ] 16. Обновить Swagger документацию
-  - [ ] 16.1 Обновить BattleResult DTO
+- [x] 16. Обновить Swagger документацию
+
+
+
+
+
+  - [x] 16.1 Обновить BattleResult DTO
+
+
     - Добавить @ApiProperty для mechanicEvents
     - Описать новые поля связанные с механиками
     - _Requirements: 5.3_
-  - [ ] 16.2 Обновить RoguelikeBattleResult DTO
+  - [x] 16.2 Обновить RoguelikeBattleResult DTO
+
+
     - Добавить @ApiProperty для processor config info
     - Описать какой preset использовался
     - _Requirements: 1.1_
-  - [ ] 16.3 Документировать mechanic event types
+  - [x] 16.3 Документировать mechanic event types
+
+
     - Добавить enum с описанием всех типов mechanic events
     - Добавить @ApiProperty descriptions
     - _Requirements: 5.3_
 
-- [ ] 17. Final Documentation Checkpoint
+- [x] 17. Final Documentation Checkpoint
+
+
+
+
+
   - Ensure all new code has JSDoc, logging, and Swagger docs.

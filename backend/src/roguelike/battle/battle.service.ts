@@ -13,7 +13,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { BattleLog, BattleStatus } from '../../entities/battle-log.entity';
 import { simulateBattle, TeamSetup } from '../../battle/battle.simulator';
-import { BattleResult } from '../../types/game.types';
+import { BattleResult, BattleEvent } from '../../types/game.types';
 import { RoguelikeRunEntity, FieldUnit } from '../entities/run.entity';
 import { RoguelikeSnapshotEntity, PlacedUnit } from '../entities/snapshot.entity';
 import { BotOpponent } from '../matchmaking/matchmaking.service';
@@ -86,8 +86,43 @@ export class RoguelikeBattleService {
    * const result = simulateBattle(playerTeam, opponentTeam, seed, processor);
    */
   private createRoguelikeProcessor(): MechanicsProcessor {
-    this.logger.debug('Creating MechanicsProcessor with ROGUELIKE_PRESET');
-    return createMechanicsProcessor(ROGUELIKE_PRESET);
+    this.logger.log('Creating MechanicsProcessor with ROGUELIKE_PRESET', {
+      preset: 'ROGUELIKE_PRESET',
+      mechanicsCount: 14,
+      tiers: ['Tier 0', 'Tier 1', 'Tier 2', 'Tier 3', 'Tier 4'],
+    });
+    
+    try {
+      const processor = createMechanicsProcessor(ROGUELIKE_PRESET);
+      
+      this.logger.debug('MechanicsProcessor created successfully', {
+        config: {
+          facing: processor.config.facing,
+          flanking: processor.config.flanking,
+          resolve: processor.config.resolve,
+          engagement: processor.config.engagement,
+          riposte: processor.config.riposte,
+          intercept: processor.config.intercept,
+          charge: processor.config.charge,
+          overwatch: processor.config.overwatch,
+          phalanx: processor.config.phalanx,
+          lineOfSight: processor.config.lineOfSight,
+          ammunition: processor.config.ammunition,
+          contagion: processor.config.contagion,
+          armorShred: processor.config.armorShred,
+          aura: processor.config.aura,
+        },
+      });
+      
+      return processor;
+    } catch (error) {
+      this.logger.error('Failed to create MechanicsProcessor', {
+        preset: 'ROGUELIKE_PRESET',
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      throw error;
+    }
   }
 
   /**
@@ -158,6 +193,17 @@ export class RoguelikeBattleService {
     let battleResult: BattleResult;
     try {
       battleResult = simulateBattle(playerTeamSetup, opponentTeamSetup, seed, processor);
+      
+      // Log mechanic events generated during battle
+      const mechanicEvents = battleResult.events.filter(e => e.type.startsWith('mechanic_'));
+      if (mechanicEvents.length > 0) {
+        this.logger.debug('Mechanic events generated during battle', {
+          runId: run.id,
+          totalEvents: battleResult.events.length,
+          mechanicEventsCount: mechanicEvents.length,
+          mechanicEventTypes: this.countEventTypes(mechanicEvents),
+        });
+      }
     } catch (error) {
       this.logger.error('Battle simulation failed', {
         runId: run.id,
@@ -388,5 +434,20 @@ export class RoguelikeBattleService {
     opponent: RoguelikeSnapshotEntity | BotOpponent,
   ): opponent is BotOpponent {
     return 'isBot' in opponent && opponent.isBot === true;
+  }
+
+  /**
+   * Count event types in an array of battle events.
+   * Used for logging mechanic event statistics.
+   *
+   * @param events - Array of battle events
+   * @returns Object mapping event types to their counts
+   */
+  private countEventTypes(events: BattleEvent[]): Record<string, number> {
+    const counts: Record<string, number> = {};
+    for (const event of events) {
+      counts[event.type] = (counts[event.type] || 0) + 1;
+    }
+    return counts;
   }
 }

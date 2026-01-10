@@ -14,8 +14,14 @@
  */
 
 import type { EngagementConfig } from '../../config/mechanics.types';
-import type { BattlePhase, PhaseContext } from '../../processor';
-import type { BattleState, BattleUnit, Position } from '../../../types';
+import type { BattlePhase, PhaseContext, MechanicResult } from '../../processor';
+import type {
+  BattleState,
+  BattleUnit,
+  Position,
+  BattleEvent,
+  AttackOfOpportunityEvent,
+} from '../../../types';
 import { getNeighbors, manhattanDistance } from '../../../grid/grid';
 import { updateUnit, updateUnits, findUnit } from '../../helpers';
 import { SeededRandom } from '../../../utils/random';
@@ -464,12 +470,13 @@ export function createEngagementProcessor(
       phase: BattlePhase,
       state: BattleState,
       context: PhaseContext,
-    ): BattleState {
+    ): BattleState | MechanicResult {
       // Movement phase: check for AoO and update engagements
       if (phase === 'movement' && context.action?.type === 'move' && context.action.path) {
         let currentState = state;
         const path = context.action.path;
         const unit = context.activeUnit as BattleUnit & UnitWithEngagement;
+        const events: BattleEvent[] = [];
 
         // Check each step of the path for AoO triggers
         for (let i = 0; i < path.length - 1; i++) {
@@ -494,16 +501,45 @@ export function createEngagementProcessor(
             );
             currentState = result.state;
 
+            // Generate battle log event for AoO
+            // Note: round is set to 0 here and will be updated by the battle simulator
+            const aooEvent: AttackOfOpportunityEvent = {
+              type: 'mechanic_aoo',
+              round: 0, // Placeholder, will be set by battle simulator
+              actorId: trigger.attacker.instanceId,
+              targetId: trigger.target.instanceId,
+              damage: result.damage,
+              hit: result.hit,
+              fromPosition: trigger.fromPosition,
+              toPosition: trigger.toPosition,
+            };
+            events.push(aooEvent);
+
             // If unit died from AoO, stop processing
             const updatedUnit = findUnit(currentState, unit.instanceId);
             if (!updatedUnit?.alive) {
-              return currentState;
+              // Update engagements before returning
+              currentState = this.updateEngagements(currentState);
+              return {
+                state: currentState,
+                events,
+              };
             }
           }
         }
 
         // Update engagements after movement
-        return this.updateEngagements(currentState);
+        currentState = this.updateEngagements(currentState);
+        
+        // Return with events if any were generated
+        if (events.length > 0) {
+          return {
+            state: currentState,
+            events,
+          };
+        }
+        
+        return currentState;
       }
 
       // Pre-attack phase: apply archer penalty modifier to engaged ranged units

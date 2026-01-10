@@ -68,6 +68,17 @@ function createMockState(units: BattleUnit[]): BattleState {
   };
 }
 
+/**
+ * Helper to extract BattleState from apply() result.
+ * The apply() method can return either BattleState or MechanicResult.
+ */
+function getStateFromResult(result: BattleState | { state: BattleState; events?: any[] }): BattleState {
+  if ('state' in result) {
+    return result.state;
+  }
+  return result;
+}
+
 
 /**
  * Default engagement config for tests.
@@ -871,11 +882,12 @@ describe('EngagementProcessor', () => {
       });
       const state = createMockState([unit]);
 
-      const newState = processor.apply('turn_end', state, {
+      const result = processor.apply('turn_end', state, {
         activeUnit: unit,
         seed: 12345,
       });
 
+      const newState = getStateFromResult(result);
       const updatedUnit = newState.units.find(
         (u) => u.instanceId === 'unit_1',
       ) as BattleUnit & UnitWithEngagement;
@@ -897,7 +909,7 @@ describe('EngagementProcessor', () => {
       });
       const state = createMockState([unit, enemy]);
 
-      const newState = processor.apply('movement', state, {
+      const result = processor.apply('movement', state, {
         activeUnit: unit,
         action: {
           type: 'move',
@@ -910,6 +922,7 @@ describe('EngagementProcessor', () => {
       });
 
       // Enemy should have used AoO
+      const newState = getStateFromResult(result);
       const updatedEnemy = newState.units.find(
         (u) => u.instanceId === 'enemy_1',
       ) as BattleUnit & UnitWithEngagement;
@@ -933,12 +946,13 @@ describe('EngagementProcessor', () => {
         });
         const state = createMockState([archer, enemy]);
 
-        const newState = processor.apply('pre_attack', state, {
+        const result = processor.apply('pre_attack', state, {
           activeUnit: archer,
           action: { type: 'attack', targetId: 'some_target' },
           seed: 12345,
         });
 
+        const newState = getStateFromResult(result);
         const updatedArcher = newState.units.find(
           (u) => u.instanceId === 'archer_1',
         ) as BattleUnit & UnitWithEngagement;
@@ -961,12 +975,13 @@ describe('EngagementProcessor', () => {
         });
         const state = createMockState([archer, enemy]);
 
-        const newState = processor.apply('pre_attack', state, {
+        const result = processor.apply('pre_attack', state, {
           activeUnit: archer,
           action: { type: 'attack', targetId: 'some_target' },
           seed: 12345,
         });
 
+        const newState = getStateFromResult(result);
         const updatedArcher = newState.units.find(
           (u) => u.instanceId === 'archer_1',
         ) as BattleUnit & UnitWithEngagement;
@@ -990,12 +1005,13 @@ describe('EngagementProcessor', () => {
         });
         const state = createMockState([meleeUnit, enemy]);
 
-        const newState = processor.apply('pre_attack', state, {
+        const result = processor.apply('pre_attack', state, {
           activeUnit: meleeUnit,
           action: { type: 'attack', targetId: 'some_target' },
           seed: 12345,
         });
 
+        const newState = getStateFromResult(result);
         const updatedMelee = newState.units.find(
           (u) => u.instanceId === 'melee_1',
         ) as BattleUnit & UnitWithEngagement;
@@ -1023,12 +1039,13 @@ describe('EngagementProcessor', () => {
         });
         const state = createMockState([archer, enemy]);
 
-        const newState = processor.apply('pre_attack', state, {
+        const result = processor.apply('pre_attack', state, {
           activeUnit: archer,
           action: { type: 'attack', targetId: 'some_target' },
           seed: 12345,
         });
 
+        const newState = getStateFromResult(result);
         const updatedArcher = newState.units.find(
           (u) => u.instanceId === 'archer_1',
         ) as BattleUnit & UnitWithEngagement;
@@ -1056,12 +1073,13 @@ describe('EngagementProcessor', () => {
         });
         const state = createMockState([archer, enemy]);
 
-        const newState = processor.apply('pre_attack', state, {
+        const result = processor.apply('pre_attack', state, {
           activeUnit: archer,
           action: { type: 'attack', targetId: 'some_target' },
           seed: 12345,
         });
 
+        const newState = getStateFromResult(result);
         const updatedArcher = newState.units.find(
           (u) => u.instanceId === 'archer_1',
         ) as BattleUnit & UnitWithEngagement;
@@ -1084,12 +1102,13 @@ describe('EngagementProcessor', () => {
         });
         const state = createMockState([archer, enemy]);
 
-        const newState = processor.apply('pre_attack', state, {
+        const result = processor.apply('pre_attack', state, {
           activeUnit: archer,
           action: { type: 'move', path: [] }, // Not an attack action
           seed: 12345,
         });
 
+        const newState = getStateFromResult(result);
         const updatedArcher = newState.units.find(
           (u) => u.instanceId === 'archer_1',
         ) as BattleUnit & UnitWithEngagement;

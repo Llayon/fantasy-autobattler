@@ -1066,24 +1066,61 @@ function processPhase(
   }
   
   try {
+    // Log phase processing start
+    if (process.env['NODE_ENV'] !== 'production') {
+      console.debug(`[Mechanics] Processing phase: ${phase}`, {
+        activeUnit: context.activeUnit?.id,
+        target: (context as { target?: CoreBattleUnit }).target?.id,
+        round: state.currentRound,
+      });
+    }
+    
     // Convert game state to core state for processor
     const coreState = toCoreBattleState(state);
     
     // Process the phase through mechanics processor
     const result: ProcessResult = processor.process(phase, coreState, context);
     
+    // Log mechanic events generated
+    if (process.env['NODE_ENV'] !== 'production' && result.events && result.events.length > 0) {
+      const mechanicEventCounts: Record<string, number> = {};
+      for (const event of result.events) {
+        mechanicEventCounts[event.type] = (mechanicEventCounts[event.type] || 0) + 1;
+      }
+      
+      console.debug(`[Mechanics] Phase ${phase} generated ${result.events.length} events`, {
+        eventTypes: mechanicEventCounts,
+        activeUnit: context.activeUnit?.id,
+      });
+    }
+    
     // Convert core state back to game state
     const updatedState = fromCoreBattleState(state, result.state);
+    
+    // Set round number on all mechanic events (they come with round=0 as placeholder)
+    const eventsWithRound = (result.events || []).map(event => ({
+      ...event,
+      round: state.currentRound,
+    }));
     
     // Return updated state and events
     return {
       state: updatedState,
-      events: result.events || [],
+      events: eventsWithRound,
     };
   } catch (error) {
-    // Log error but don't crash the battle
+    // Log error with full context for debugging
+    console.error(`[Mechanics] Phase ${phase} failed:`, {
+      phase,
+      activeUnit: context.activeUnit?.id,
+      target: (context as { target?: CoreBattleUnit }).target?.id,
+      round: state.currentRound,
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    
+    // Return unchanged state with no events
     // This ensures partial results are preserved for debugging
-    console.error(`Mechanics phase ${phase} failed:`, error);
     return { state, events: [] };
   }
 }
@@ -1665,17 +1702,60 @@ function executeUnitTurnWithAbilities(
     
     case 'move':
     default: {
+      // Calculate movement path for engagement checks (Core 2.0)
+      // We need the full path to check for Attack of Opportunity triggers
+      let movementPath: Position[] | undefined;
+      
+      if (action.targetPosition && processor?.config.engagement) {
+        // Import pathfinding to calculate the full movement path
+        const { findPath } = require('./pathfinding');
+        const { createEmptyGrid } = require('./grid');
+        
+        const grid = createEmptyGrid();
+        const otherUnits = currentState.units.filter(
+          u => u.alive && u.instanceId !== unit.instanceId
+        );
+        
+        // Calculate full path from current position to target
+        const fullPath = findPath(
+          unit.position,
+          action.targetPosition,
+          grid,
+          otherUnits,
+          unit
+        );
+        
+        if (fullPath.length > 1) {
+          // Limit path to unit's speed
+          const maxSteps = Math.min(fullPath.length, unit.stats.speed + 1);
+          movementPath = fullPath.slice(0, maxSteps);
+        }
+      }
+      
       // MOVEMENT phase (Core 2.0)
+      // Pass the full path to engagement processor for AoO checks
+      const movementAction: BattleAction = { type: 'move' };
+      if (movementPath) {
+        movementAction.path = movementPath;
+      }
+      
       const movementResult = processPhase(processor, 'movement', currentState, {
         activeUnit: unit as unknown as CoreBattleUnit,
-        action: convertToBattleAction(action),
+        action: movementAction,
         seed: currentSeed++,
       });
       currentState = movementResult.state;
       events.push(...movementResult.events);
       
+      // Check if unit died from Attack of Opportunity
+      const unitAfterMovement = currentState.units.find(u => u.instanceId === unit.instanceId);
+      if (!unitAfterMovement || !unitAfterMovement.alive) {
+        // Unit was killed by AoO - skip rest of turn
+        break;
+      }
+      
       // Use legacy turn execution for movement
-      const turnEvents = executeTurn(unit, currentState, seed);
+      const turnEvents = executeTurn(unitAfterMovement, currentState, seed);
       
       if (turnEvents.length > 0) {
         currentState = applyBattleEvents(currentState, turnEvents) as BattleStateWithAbilities;

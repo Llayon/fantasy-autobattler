@@ -15,7 +15,7 @@
  */
 
 import type { EngagementConfig } from '../../config/mechanics.types';
-import type { BattlePhase, PhaseContext } from '../../processor';
+import type { BattlePhase, PhaseContext, MechanicResult } from '../../processor';
 import type { BattleState, BattleUnit, Position } from '../../../types';
 
 // ═══════════════════════════════════════════════════════════════
@@ -447,10 +447,10 @@ export interface EngagementProcessor {
    * @param phase - Current battle phase
    * @param state - Current battle state
    * @param context - Phase context with active unit and action
-   * @returns Updated battle state
+   * @returns Updated battle state or MechanicResult with events
    *
    * @example
-   * const newState = processor.apply('movement', state, {
+   * const result = processor.apply('movement', state, {
    *   activeUnit: unit,
    *   action: { type: 'move', path: [...] },
    *   seed: 12345,
@@ -460,7 +460,7 @@ export interface EngagementProcessor {
     phase: BattlePhase,
     state: BattleState,
     context: PhaseContext,
-  ): BattleState;
+  ): BattleState | MechanicResult;
 }
 
 // ═══════════════════════════════════════════════════════════════

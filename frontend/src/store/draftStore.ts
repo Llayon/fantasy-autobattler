@@ -202,6 +202,16 @@ export const useDraftStore = create<DraftStore>((set, get) => ({
         return;
       }
       
+      // 403 means access denied - provide clear message
+      if (error instanceof ApiError && error.status === 403) {
+        set({ 
+          error: 'Доступ к забегу запрещен. Этот забег принадлежит другому игроку или ваша сессия истекла.', 
+          loading: false,
+          isDraftAvailable: false,
+        });
+        return;
+      }
+      
       // Network errors or other issues - show error but don't redirect
       const errorMessage = error instanceof ApiError 
         ? error.message 

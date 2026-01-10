@@ -59,6 +59,45 @@ const ERROR_MESSAGES: Record<number, string> = {
   503: 'Сервис временно недоступен',
 };
 
+/**
+ * Checks if an error is an access denied error (403).
+ * 
+ * @param error - Error to check
+ * @returns True if error is access denied
+ */
+export function isAccessDeniedError(error: unknown): boolean {
+  if (error instanceof ApiError) {
+    return error.status === 403;
+  }
+  return false;
+}
+
+/**
+ * Checks if an error is a not found error (404).
+ * 
+ * @param error - Error to check
+ * @returns True if error is not found
+ */
+export function isNotFoundError(error: unknown): boolean {
+  if (error instanceof ApiError) {
+    return error.status === 404;
+  }
+  return false;
+}
+
+/**
+ * Checks if an error is an authentication error (401).
+ * 
+ * @param error - Error to check
+ * @returns True if error is authentication error
+ */
+export function isAuthError(error: unknown): boolean {
+  if (error instanceof ApiError) {
+    return error.status === 401;
+  }
+  return false;
+}
+
 // =============================================================================
 // AUTHENTICATION
 // =============================================================================

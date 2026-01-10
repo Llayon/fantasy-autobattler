@@ -30,6 +30,7 @@ import {
   expandStarterDeck,
   isValidStarterDeck,
 } from './index';
+import { getT1UnitsByFaction } from './units.registry';
 import {
   calculateUpgradeCost,
   calculateTotalCost,
@@ -228,7 +229,7 @@ describe('Units Data', () => {
       });
 
       it('should contain only humans units', () => {
-        const humanUnitIds = HUMANS_T1_UNITS.map((u) => u.id);
+        const humanUnitIds = getT1UnitsByFaction('humans').map((u) => u.id);
         HUMANS_STARTER_DECK.units.forEach((entry) => {
           expect(humanUnitIds).toContain(entry.unitId);
         });
@@ -245,7 +246,7 @@ describe('Units Data', () => {
       });
 
       it('should contain only undead units', () => {
-        const undeadUnitIds = UNDEAD_T1_UNITS.map((u) => u.id);
+        const undeadUnitIds = getT1UnitsByFaction('undead').map((u) => u.id);
         UNDEAD_STARTER_DECK.units.forEach((entry) => {
           expect(undeadUnitIds).toContain(entry.unitId);
         });
@@ -282,9 +283,8 @@ describe('Units Data', () => {
       it('should create correct instance IDs for duplicates', () => {
         const cards = expandStarterDeck(HUMANS_STARTER_DECK);
         const footmanCards = cards.filter((c) => c.unitId === 'footman');
-        expect(footmanCards).toHaveLength(2);
+        expect(footmanCards).toHaveLength(1); // Now only 1 footman
         expect(footmanCards[0]?.instanceId).toBe('footman-1');
-        expect(footmanCards[1]?.instanceId).toBe('footman-2');
       });
     });
 
