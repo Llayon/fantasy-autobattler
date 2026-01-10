@@ -109,6 +109,7 @@ export const LIGHT_CAVALRY_T1: RoguelikeUnit = {
   dodge: 15,
   resolve: 70,
   resolveResist: 0,
+  tags: ['cavalry', 'charge'], // Enable Charge mechanic
   description: 'Fast cavalry with Charge mechanic (+20% damage per cell moved, max +100%)',
   descriptionRu: 'Быстрая кавалерия с механикой Charge (+20% урона за клетку движения, макс +100%)',
 };
@@ -161,6 +162,7 @@ export const SPEARMAN_T1: RoguelikeUnit = {
   dodge: 8,
   resolve: 75,
   resolveResist: 0,
+  tags: ['spear_wall', 'phalanx'], // Enable Phalanx and counter to cavalry
   description: 'Infantry with Phalanx (+1 armor, +5 resolve per adjacent ally facing same direction)',
   descriptionRu: 'Пехота с Фалангой (+1 броня, +5 решимости за союзника рядом, смотрящего в ту же сторону)',
 };
@@ -207,6 +209,7 @@ export const HUNTER_T1: RoguelikeUnit = {
   dodge: 12,
   resolve: 60,
   resolveResist: 0,
+  ammunition: 6, // Enable Ammunition mechanic
   description: 'Ranged attacker with Ammunition (6 arrows, must reload)',
   descriptionRu: 'Стрелок с Боеприпасами (6 стрел, требует перезарядки)',
 };
@@ -253,6 +256,7 @@ export const PLAGUE_BEARER_T1: RoguelikeUnit = {
   dodge: 0,
   resolve: 100,
   resolveResist: 0,
+  tags: ['plague', 'contagion'], // Enable Contagion mechanic
   description: 'Spreads Plague to adjacent enemies (60% chance, 5 dmg/turn for 3 turns)',
   descriptionRu: 'Распространяет Чуму на соседних врагов (60% шанс, 5 урона/ход 3 хода)',
 };
@@ -304,6 +308,7 @@ export const WRAITH_T1: RoguelikeUnit = {
   dodge: 25, // High dodge
   resolve: 100,
   resolveResist: 0,
+  tags: ['flanker', 'riposte'], // Enable Flanking and Riposte mechanics
   description: 'Fast flanker with Riposte (30% counter, +50% flank dmg, +100% rear dmg)',
   descriptionRu: 'Быстрый фланкер с Рипостом (30% контратака, +50% урон с фланга, +100% сзади)',
 };
@@ -351,6 +356,7 @@ export const BONE_ARCHER_T1: RoguelikeUnit = {
   dodge: 15,
   resolve: 100,
   resolveResist: 0,
+  ammunition: 6, // Enable Ammunition mechanic
   description: 'Skeletal archer with Ammunition (6 bone arrows, must reload)',
   descriptionRu: 'Скелет-лучник с Боеприпасами (6 костяных стрел, требует перезарядки)',
 };

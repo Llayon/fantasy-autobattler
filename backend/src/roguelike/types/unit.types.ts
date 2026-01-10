@@ -150,6 +150,10 @@ export interface RoguelikeUnit extends UnitStats, ResolveStats {
   icon?: string;
   /** Base unit ID for upgrade chain (e.g., 'footman' for all footman tiers) */
   baseUnitId?: string;
+  /** Tags for Core 2.0 mechanics (e.g., 'cavalry', 'spear_wall', 'plague') */
+  tags?: string[];
+  /** Ammunition count for ranged units (Core 2.0 Ammunition mechanic) */
+  ammunition?: number;
 }
 
 /**
