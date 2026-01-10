@@ -71,7 +71,7 @@ export const UNDEAD_STARTER_DECK: StarterDeck = {
     { unitId: 'banshee', count: 1 },
     { unitId: 'dark_sorcerer', count: 1 },
     { unitId: 'vampire', count: 1 },
-  },
+  ],
 };
 
 /**
