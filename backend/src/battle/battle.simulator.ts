@@ -1677,8 +1677,10 @@ function executeUnitTurnWithAbilities(
       
       // ATTACK phase (Core 2.0) - apply armor shred, riposte, etc.
       if (currentTarget) {
+        // Get updated unit from current state (includes momentum from movement phase)
+        const updatedUnit = currentState.units.find(u => u.instanceId === unit.instanceId);
         const attackResult = processPhase(processor, 'attack', currentState, {
-          activeUnit: unit as unknown as CoreBattleUnit,
+          activeUnit: (updatedUnit ?? unit) as unknown as CoreBattleUnit,
           target: currentTarget as unknown as CoreBattleUnit,
           action: convertToBattleAction(action),
           seed: currentSeed++,
@@ -1689,8 +1691,10 @@ function executeUnitTurnWithAbilities(
       
       // POST_ATTACK phase (Core 2.0)
       if (currentTarget) {
+        // Get updated unit from current state
+        const updatedUnit = currentState.units.find(u => u.instanceId === unit.instanceId);
         const postAttackResult = processPhase(processor, 'post_attack', currentState, {
-          activeUnit: unit as unknown as CoreBattleUnit,
+          activeUnit: (updatedUnit ?? unit) as unknown as CoreBattleUnit,
           target: currentTarget as unknown as CoreBattleUnit,
           seed: currentSeed++,
         });
