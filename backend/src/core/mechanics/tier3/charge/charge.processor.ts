@@ -498,6 +498,15 @@ export function createChargeProcessor(config: ChargeConfig): ChargeProcessor {
       state: BattleState,
       context: PhaseContext,
     ): BattleState {
+      // Log every call to Charge processor
+      console.debug('[Charge] Processor called:', {
+        phase,
+        activeUnitId: context.activeUnit.id,
+        hasTarget: !!context.target,
+        hasAction: !!context.action,
+        actionType: context.action?.type,
+      });
+      
       // ─────────────────────────────────────────────────────────────
       // TURN_START: Reset charge state and record start position
       // ─────────────────────────────────────────────────────────────
