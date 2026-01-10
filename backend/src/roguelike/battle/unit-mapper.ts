@@ -72,7 +72,7 @@ export function mapRoguelikeUnitToTemplate(
     abilities.push(unit.abilityId);
   }
 
-  return {
+  const template: UnitTemplate = {
     id: unit.id,
     name: unit.name,
     role: mapRoleToLegacy(unit.role) as UnitTemplate['role'],
@@ -80,7 +80,19 @@ export function mapRoguelikeUnitToTemplate(
     range: unit.range,
     abilities,
     stats,
+    resolve: unit.resolve,
+    faction: unit.faction,
   };
+
+  // Add Core 2.0 mechanics fields if present
+  if (unit.tags) {
+    template.tags = unit.tags;
+  }
+  if (unit.ammunition !== undefined) {
+    template.ammo = unit.ammunition;
+  }
+
+  return template;
 }
 
 /**
