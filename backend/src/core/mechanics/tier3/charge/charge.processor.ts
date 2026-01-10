@@ -525,11 +525,31 @@ export function createChargeProcessor(config: ChargeConfig): ChargeProcessor {
         const unit = findUnit(state, context.activeUnit.id);
         if (unit) {
           const unitWithCharge = unit as BattleUnit & UnitWithCharge;
+          
+          // Log charge tracking
+          console.debug('[Charge] Movement phase:', {
+            unitId: unit.id,
+            unitName: unit.name,
+            hasTags: !!unit.tags,
+            tags: unit.tags,
+            hasChargeCapability: hasChargeCapability(unitWithCharge),
+            pathLength: context.action.path.length,
+            distance: context.action.path.length - 1,
+          });
+          
           const updatedUnit = this.trackMovement(
             unitWithCharge,
             context.action.path,
             config,
           );
+          
+          console.debug('[Charge] After trackMovement:', {
+            unitId: updatedUnit.id,
+            momentum: updatedUnit.momentum,
+            isCharging: updatedUnit.isCharging,
+            chargeDistance: updatedUnit.chargeDistance,
+          });
+          
           return updateUnit(state, updatedUnit);
         }
         return state;
@@ -592,11 +612,29 @@ export function createChargeProcessor(config: ChargeConfig): ChargeProcessor {
           const targetWithCharge = target as BattleUnit & UnitWithCharge;
           const momentum = unitWithCharge.momentum ?? 0;
 
+          console.debug('[Charge] Attack phase:', {
+            unitId: unit.id,
+            unitName: unit.name,
+            targetId: target.id,
+            targetName: target.name,
+            momentum,
+            isCharging: unitWithCharge.isCharging,
+            chargeCountered: unitWithCharge.chargeCountered,
+            willApplyShock: momentum > 0 && !unitWithCharge.chargeCountered,
+          });
+
           // Only apply shock damage if unit has momentum and wasn't countered
           if (momentum > 0 && !unitWithCharge.chargeCountered) {
             const shockDamage = config.shockResolveDamage;
             const currentResolve = getUnitResolve(targetWithCharge);
             const newResolve = Math.max(0, currentResolve - shockDamage);
+
+            console.debug('[Charge] Applying shock damage:', {
+              shockDamage,
+              currentResolve,
+              newResolve,
+              momentum,
+            });
 
             const updatedTarget: BattleUnit & UnitWithCharge = {
               ...targetWithCharge,
