@@ -28,14 +28,13 @@ export const HUMANS_STARTER_DECK: StarterDeck = {
   faction: 'humans',
   units: [
     { unitId: 'footman', count: 1 },
-    { unitId: 'spearman', count: 1 }, // Core 2.0: Phalanx
+    { unitId: 'spearman', count: 2 }, // Core 2.0: Phalanx (2 for formation bonus)
     { unitId: 'swordsman', count: 1 },
     { unitId: 'light_cavalry', count: 1 }, // Core 2.0: Charge
     { unitId: 'archer', count: 1 },
     { unitId: 'hunter', count: 1 }, // Core 2.0: Ammunition
     { unitId: 'apprentice', count: 1 },
     { unitId: 'knight', count: 1 },
-    { unitId: 'crusader', count: 1 },
     { unitId: 'crossbowman', count: 1 },
     { unitId: 'battle_mage', count: 1 },
     { unitId: 'priest', count: 1 },
