@@ -69,6 +69,14 @@ interface ReplayUnit {
   armorShred?: number;
   /** Current facing direction */
   facing?: UnitFacing;
+  /** Whether unit is in phalanx formation */
+  inPhalanx?: boolean;
+  /** Phalanx armor bonus */
+  phalanxArmorBonus?: number;
+  /** Phalanx resolve bonus */
+  phalanxResolveBonus?: number;
+  /** Number of adjacent allies in phalanx */
+  adjacentAlliesCount?: number;
 }
 
 /**
@@ -451,6 +459,24 @@ function applyEventToUnits(units: ReplayUnit[], event: BattleEvent): ReplayUnit[
           }
         }
         break;
+
+      case 'mechanic_phalanx':
+        // Update phalanx state for unit
+        if (event.targetId === unit.instanceId || event.actorId === unit.instanceId) {
+          const metadata = event.metadata as { 
+            armorBonus?: number; 
+            resolveBonus?: number; 
+            adjacentAllies?: number;
+            formationState?: string;
+          } | undefined;
+          if (metadata) {
+            updatedUnit.inPhalanx = (metadata.armorBonus ?? 0) > 0;
+            updatedUnit.phalanxArmorBonus = metadata.armorBonus ?? 0;
+            updatedUnit.phalanxResolveBonus = metadata.resolveBonus ?? 0;
+            updatedUnit.adjacentAlliesCount = metadata.adjacentAllies ?? 0;
+          }
+        }
+        break;
     }
 
     return updatedUnit;
@@ -830,6 +856,18 @@ function TurnOrderBar({
                       : 'text-red-400'
                     }`}>
                     {selectedUnit.resolve}/{selectedUnit.maxResolve ?? 100}
+                  </span>
+                </div>
+              )}
+              {/* Phalanx bonus display (Core 2.0) */}
+              {selectedUnit.inPhalanx && (selectedUnit.phalanxArmorBonus ?? 0) > 0 && (
+                <div className="col-span-2 mt-1 p-1 bg-sky-900/30 rounded">
+                  <span className="text-sky-400 text-[10px]">🛡️ Фаланга:</span>
+                  <span className="text-sky-300 font-medium ml-1 text-[10px]">
+                    +{selectedUnit.phalanxArmorBonus} брони, +{selectedUnit.phalanxResolveBonus ?? 0} решимости
+                  </span>
+                  <span className="text-gray-500 text-[10px] ml-1">
+                    ({selectedUnit.adjacentAlliesCount ?? 0} союзн.)
                   </span>
                 </div>
               )}
@@ -1465,8 +1503,16 @@ function EventLog({
         const facing = metadata?.newFacing ?? '';
         return `🧭 ${actorName || targetName} поворачивается ${facingNames[facing] || facing}`;
       }
-      case 'mechanic_phalanx':
+      case 'mechanic_phalanx': {
+        const metadata = event.metadata as { armorBonus?: number; resolveBonus?: number; adjacentAllies?: number } | undefined;
+        const armorBonus = metadata?.armorBonus ?? 0;
+        const resolveBonus = metadata?.resolveBonus ?? 0;
+        const allies = metadata?.adjacentAllies ?? 0;
+        if (armorBonus > 0 || resolveBonus > 0) {
+          return `🛡️ ${actorName} в фаланге: +${armorBonus} брони, +${resolveBonus} решимости (${allies} союзн.)`;
+        }
         return `🛡️ ${actorName} в строю фаланги`;
+      }
       case 'mechanic_overwatch':
         return `👁️ ${actorName} на страже`;
       case 'mechanic_contagion':

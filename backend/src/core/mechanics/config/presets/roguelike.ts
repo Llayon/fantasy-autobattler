@@ -54,10 +54,10 @@ export const ROGUELIKE_PRESET: MechanicsConfig = {
   },
   overwatch: true,
   phalanx: {
-    maxArmorBonus: 5,
-    maxResolveBonus: 25,
-    armorPerAlly: 1,
-    resolvePerAlly: 5,
+    maxArmorBonus: 10,
+    maxResolveBonus: 20,
+    armorPerAlly: 5,
+    resolvePerAlly: 10,
   },
   lineOfSight: {
     directFire: true,
