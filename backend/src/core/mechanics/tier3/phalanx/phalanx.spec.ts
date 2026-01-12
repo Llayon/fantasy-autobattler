@@ -756,7 +756,9 @@ describe('PhalanxProcessor', () => {
         seed: 12345,
       });
 
-      const updatedCenter = asPhalanxUnit(result.units.find(u => u.id === 'center'));
+      // Handle MechanicResult return type
+      const resultState = 'state' in result ? result.state : result;
+      const updatedCenter = asPhalanxUnit(resultState.units.find((u: BattleUnit) => u.id === 'center'));
       expect(updatedCenter.inPhalanx).toBe(true);
       expect(updatedCenter.phalanxArmorBonus).toBe(1);
     });
@@ -793,7 +795,9 @@ describe('PhalanxProcessor', () => {
         seed: 12345,
       });
 
-      const updatedCenter = asPhalanxUnit(result.units.find(u => u.id === 'center'));
+      // Handle MechanicResult return type
+      const resultState = 'state' in result ? result.state : result;
+      const updatedCenter = asPhalanxUnit(resultState.units.find((u: BattleUnit) => u.id === 'center'));
       expect(updatedCenter.inPhalanx).toBe(false);
       expect(updatedCenter.phalanxArmorBonus).toBe(0);
     });
