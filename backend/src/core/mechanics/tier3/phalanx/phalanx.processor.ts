@@ -18,8 +18,8 @@
  * @module core/mechanics/tier3/phalanx
  */
 
-import type { BattleState, BattleUnit, Position } from '../../../types';
-import type { BattlePhase, PhaseContext } from '../../processor';
+import type { BattleState, BattleUnit, Position, BattleEvent } from '../../../types';
+import type { BattlePhase, PhaseContext, MechanicResult } from '../../processor';
 import type { PhalanxConfig } from '../../config/mechanics.types';
 import { updateUnits, findUnit } from '../../helpers';
 import type {
@@ -640,26 +640,53 @@ export function createPhalanxProcessor(config: PhalanxConfig): PhalanxProcessor 
      * Apply phalanx logic for a battle phase.
      *
      * Phase behaviors:
-     * - turn_start: Recalculate all phalanx bonuses
-     * - movement: Recalculate after unit moves
+     * - turn_start: Recalculate all phalanx bonuses and generate events
+     * - movement: Recalculation is handled by the movement processor
      * - post_attack: Recalculate after casualties
      *
      * @param phase - Current battle phase
      * @param state - Current battle state
      * @param context - Phase context with active unit and action
-     * @returns Updated battle state
+     * @returns MechanicResult with updated state and phalanx events
      */
     apply(
       phase: BattlePhase,
       state: BattleState,
       context: PhaseContext,
-    ): BattleState {
+    ): MechanicResult {
+      const events: BattleEvent[] = [];
+      const round = state.round ?? 0;
+
       // ─────────────────────────────────────────────────────────────
-      // TURN_START: Recalculate all phalanx bonuses
+      // TURN_START: Recalculate phalanx for active unit and generate event
       // ─────────────────────────────────────────────────────────────
-      if (phase === 'turn_start') {
+      if (phase === 'turn_start' && context.activeUnit) {
         const result = this.recalculate(state, 'turn_start');
-        return result.state;
+        
+        // Generate event only for active unit if they have phalanx bonus
+        const activeUnitId = getUnitId(context.activeUnit as BattleUnit);
+        const activeUnit = result.state.units.find(u => getUnitId(u) === activeUnitId);
+        
+        if (activeUnit) {
+          const phalanxProps = getPhalanxProps(activeUnit);
+          if (phalanxProps.inPhalanx && (phalanxProps.phalanxArmorBonus ?? 0) > 0) {
+            const phalanxEvent: BattleEvent = {
+              type: 'mechanic_phalanx',
+              round,
+              actorId: activeUnitId,
+              targetId: activeUnitId,
+              metadata: {
+                armorBonus: phalanxProps.phalanxArmorBonus ?? 0,
+                resolveBonus: phalanxProps.phalanxResolveBonus ?? 0,
+                adjacentAllies: phalanxProps.adjacentAlliesCount ?? 0,
+                formationState: phalanxProps.phalanxState ?? 'none',
+              },
+            };
+            events.push(phalanxEvent);
+          }
+        }
+        
+        return { state: result.state, events };
       }
 
       // ─────────────────────────────────────────────────────────────
@@ -695,11 +722,34 @@ export function createPhalanxProcessor(config: PhalanxConfig): PhalanxProcessor 
         // Recalculate formations if any unit died
         if (needsRecalculation) {
           const result = this.recalculate(state, 'unit_death');
-          return result.state;
+          
+          // Generate events for units whose phalanx state changed
+          for (const unitId of result.unitsUpdated) {
+            const unit = result.state.units.find(u => getUnitId(u) === unitId);
+            if (unit) {
+              const phalanxProps = getPhalanxProps(unit);
+              const phalanxEvent: BattleEvent = {
+                type: 'mechanic_phalanx',
+                round,
+                actorId: unitId,
+                targetId: unitId,
+                metadata: {
+                  armorBonus: phalanxProps.phalanxArmorBonus ?? 0,
+                  resolveBonus: phalanxProps.phalanxResolveBonus ?? 0,
+                  adjacentAllies: phalanxProps.adjacentAlliesCount ?? 0,
+                  formationState: phalanxProps.phalanxState ?? 'none',
+                  trigger: 'casualty',
+                },
+              };
+              events.push(phalanxEvent);
+            }
+          }
+          
+          return { state: result.state, events };
         }
       }
 
-      return state;
+      return { state, events };
     },
   };
 }

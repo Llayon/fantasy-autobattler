@@ -1132,7 +1132,9 @@ describe('Tier 3 Integration Tests', () => {
           seed: 12345,
         });
 
-        const updatedUnit1 = result.units.find(u => u.id === 'unit1') as unknown as UnitWithPhalanx;
+        // Handle MechanicResult return type
+        const resultState = 'state' in result ? result.state : result;
+        const updatedUnit1 = resultState.units.find((u: BattleUnit) => u.id === 'unit1') as unknown as UnitWithPhalanx;
         expect(updatedUnit1.inPhalanx).toBe(true);
         expect(updatedUnit1.phalanxArmorBonus).toBe(1);
         expect(updatedUnit1.phalanxResolveBonus).toBe(5);
@@ -1178,8 +1180,10 @@ describe('Tier 3 Integration Tests', () => {
           seed: 12345,
         });
 
+        // Handle MechanicResult return type
+        const resultState = 'state' in result ? result.state : result;
         // unit1 should have reduced bonuses after ally death
-        const updatedUnit1 = result.units.find(u => u.id === 'unit1') as unknown as UnitWithPhalanx;
+        const updatedUnit1 = resultState.units.find((u: BattleUnit) => u.id === 'unit1') as unknown as UnitWithPhalanx;
         expect(updatedUnit1.adjacentAlliesCount).toBe(1);
         expect(updatedUnit1.phalanxArmorBonus).toBe(1);
         expect(updatedUnit1.phalanxResolveBonus).toBe(5);

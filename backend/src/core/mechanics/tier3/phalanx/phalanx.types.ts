@@ -18,7 +18,7 @@
  * @module core/mechanics/tier3/phalanx
  */
 
-import type { BattlePhase, PhaseContext } from '../../processor';
+import type { BattlePhase, PhaseContext, MechanicResult } from '../../processor';
 import type { BattleState, BattleUnit, Position } from '../../../types';
 import type { PhalanxConfig } from '../../config/mechanics.types';
 import type { FacingDirection } from '../../tier0/facing/facing.types';
@@ -723,20 +723,22 @@ export interface PhalanxProcessor {
    * @param phase - Current battle phase
    * @param state - Current battle state
    * @param context - Phase context with active unit and action
-   * @returns Updated battle state
+   * @returns MechanicResult with updated state and phalanx events
    *
    * @example
-   * const newState = processor.apply('post_attack', state, {
+   * const result = processor.apply('post_attack', state, {
    *   activeUnit: attacker,
    *   target: defender,
    *   seed: 12345,
    * });
+   * // result.state - updated state
+   * // result.events - phalanx events for battle log
    */
   apply(
     phase: BattlePhase,
     state: BattleState,
     context: PhaseContext,
-  ): BattleState;
+  ): BattleState | MechanicResult;
 }
 
 // ═══════════════════════════════════════════════════════════════
