@@ -169,31 +169,59 @@ export function calculateCombatModifiers(
   // ─────────────────────────────────────────────────────────────
   // CHARGE (Tier 3)
   // ─────────────────────────────────────────────────────────────
-  if (config.charge && distanceMoved > 0) {
+  if (config.charge) {
     const chargeConfig = typeof config.charge === 'object' ? config.charge : undefined;
 
     if (chargeConfig) {
-      const chargeProcessor = createChargeProcessor(chargeConfig);
+      // Check if attacker has momentum from movement phase
+      // Note: Game state uses 'chargeMomentum', core state uses 'momentum'
+      const attackerWithCharge = attacker as BattleUnit & { 
+        momentum?: number;
+        chargeMomentum?: number;
+        isCharging?: boolean;
+        chargeDistance?: number;
+      };
+      const storedMomentum = attackerWithCharge.momentum ?? attackerWithCharge.chargeMomentum ?? 0;
+      
+      // Use stored momentum if available, otherwise calculate from distanceMoved
+      if (storedMomentum > 0) {
+        momentumBonus = storedMomentum;
+        
+        // Generate charge event
+        events.push({
+          type: 'mechanic_charge',
+          round,
+          actorId: attacker.instanceId,
+          targetId: target.instanceId,
+          metadata: {
+            distanceMoved: attackerWithCharge.chargeDistance ?? distanceMoved,
+            momentumBonus,
+            damageMultiplier: 1 + momentumBonus,
+          },
+        } as BattleEvent);
+      } else if (distanceMoved >= chargeConfig.minChargeDistance) {
+        // Fallback: calculate momentum from distanceMoved
+        // This handles cases where momentum wasn't set by ChargeProcessor
+        const canCharge = hasChargeCapability(attacker);
 
-      // Check if unit can charge (has charge tag or is cavalry)
-      const canCharge = hasChargeCapability(attacker);
+        if (canCharge) {
+          const chargeProcessor = createChargeProcessor(chargeConfig);
+          momentumBonus = chargeProcessor.calculateMomentum(distanceMoved, chargeConfig);
 
-      if (canCharge) {
-        momentumBonus = chargeProcessor.calculateMomentum(distanceMoved, chargeConfig);
-
-        // Generate charge event if momentum > 0
-        if (momentumBonus > 0) {
-          events.push({
-            type: 'mechanic_charge',
-            round,
-            actorId: attacker.instanceId,
-            targetId: target.instanceId,
-            metadata: {
-              distanceMoved,
-              momentumBonus,
-              damageMultiplier: 1 + momentumBonus,
-            },
-          } as BattleEvent);
+          // Generate charge event if momentum > 0
+          if (momentumBonus > 0) {
+            events.push({
+              type: 'mechanic_charge',
+              round,
+              actorId: attacker.instanceId,
+              targetId: target.instanceId,
+              metadata: {
+                distanceMoved,
+                momentumBonus,
+                damageMultiplier: 1 + momentumBonus,
+              },
+            } as BattleEvent);
+          }
         }
       }
     }

@@ -579,7 +579,8 @@ export function createInterceptProcessor(
     ): BattleState {
       // Handle intercept charge reset at turn start (once per round)
       if (phase === 'turn_start') {
-        const unit = findUnit(state, context.activeUnit.id);
+        // Use instanceId for unique battle instance lookup (not id which is unit type)
+        const unit = findUnit(state, context.activeUnit.instanceId);
         if (unit) {
           const unitWithIntercept = unit as BattleUnit & UnitWithIntercept;
           const currentRound = state.round ?? 1;

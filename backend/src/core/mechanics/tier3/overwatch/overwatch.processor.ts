@@ -778,7 +778,8 @@ export function createOverwatchProcessor(
       // TURN_START: Reset overwatch shots for units in vigilance
       // ─────────────────────────────────────────────────────────────
       if (phase === 'turn_start') {
-        const unit = findUnit(state, context.activeUnit.id);
+        // Use instanceId for unique battle instance lookup (not id which is unit type)
+        const unit = findUnit(state, context.activeUnit.instanceId);
         if (unit) {
           const unitWithOverwatch = unit as BattleUnit & UnitWithOverwatch;
 
@@ -850,7 +851,8 @@ export function createOverwatchProcessor(
       // TURN_END: Reset vigilance state
       // ─────────────────────────────────────────────────────────────
       if (phase === 'turn_end') {
-        const unit = findUnit(state, context.activeUnit.id);
+        // Use instanceId for unique battle instance lookup (not id which is unit type)
+        const unit = findUnit(state, context.activeUnit.instanceId);
         if (unit) {
           const unitWithOverwatch = unit as BattleUnit & UnitWithOverwatch;
 

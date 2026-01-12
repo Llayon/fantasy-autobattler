@@ -151,13 +151,22 @@ export function toCoreBattleState(state: BattleStateWithAbilities): CoreBattleSt
       riposteCharges?: number;
       ammunition?: number;
       maxAmmunition?: number;
+      ammoState?: string;
+      isReloading?: boolean;
       tags?: string[];
       armorShred?: number;
       isEngaged?: boolean;
       engagedBy?: string[];
       chargeMomentum?: number;
+      isCharging?: boolean;
+      chargeDistance?: number;
+      chargeStartPosition?: { x: number; y: number };
+      chargeCountered?: boolean;
       isInOverwatch?: boolean;
       isInPhalanx?: boolean;
+      adjacentAlliesCount?: number;
+      phalanxArmorBonus?: number;
+      phalanxResolveBonus?: number;
       isRouting?: boolean;
       hasCrumbled?: boolean;
       faction?: string;
@@ -189,9 +198,22 @@ export function toCoreBattleState(state: BattleStateWithAbilities): CoreBattleSt
       riposteCharges: unitWithMechanics.riposteCharges,
       tags: unitWithMechanics.tags ? [...unitWithMechanics.tags] : undefined,
       momentum: unitWithMechanics.chargeMomentum,
-      inPhalanx: unitWithMechanics.isInPhalanx,
-      ammo: unitWithMechanics.ammunition,
       armorShred: unitWithMechanics.armorShred,
+      // Charge mechanic state (Tier 3)
+      isCharging: unitWithMechanics.isCharging,
+      chargeDistance: unitWithMechanics.chargeDistance,
+      chargeStartPosition: unitWithMechanics.chargeStartPosition,
+      chargeCountered: unitWithMechanics.chargeCountered,
+      // Phalanx mechanic state (Tier 3)
+      inPhalanx: unitWithMechanics.isInPhalanx,
+      adjacentAlliesCount: unitWithMechanics.adjacentAlliesCount,
+      phalanxArmorBonus: unitWithMechanics.phalanxArmorBonus,
+      phalanxResolveBonus: unitWithMechanics.phalanxResolveBonus,
+      // Ammunition mechanic state (Tier 3)
+      ammo: unitWithMechanics.ammunition,
+      maxAmmo: unitWithMechanics.maxAmmunition,
+      ammoState: unitWithMechanics.ammoState,
+      isReloading: unitWithMechanics.isReloading,
     } as CoreBattleUnit;
   });
 
@@ -259,16 +281,39 @@ export function fromCoreBattleState(
         riposteCharges?: number;
         ammunition?: number;
         maxAmmunition?: number;
+        ammoState?: string;
+        isReloading?: boolean;
         tags?: string[];
         armorShred?: number;
         isEngaged?: boolean;
         engagedBy?: string[];
         chargeMomentum?: number;
+        isCharging?: boolean;
+        chargeDistance?: number;
+        chargeStartPosition?: { x: number; y: number };
+        chargeCountered?: boolean;
         isInOverwatch?: boolean;
         isInPhalanx?: boolean;
+        adjacentAlliesCount?: number;
+        phalanxArmorBonus?: number;
+        phalanxResolveBonus?: number;
         isRouting?: boolean;
         hasCrumbled?: boolean;
         faction?: string;
+      };
+      
+      // Extract charge fields from coreUnit (may be updated by charge processor)
+      const coreUnitWithExtras = coreUnit as CoreBattleUnit & {
+        isCharging?: boolean;
+        chargeDistance?: number;
+        chargeStartPosition?: { x: number; y: number };
+        chargeCountered?: boolean;
+        adjacentAlliesCount?: number;
+        phalanxArmorBonus?: number;
+        phalanxResolveBonus?: number;
+        maxAmmo?: number;
+        ammoState?: string;
+        isReloading?: boolean;
       };
 
       // CRITICAL: Preserve HP and alive status from gameState - coreState may not have updated death info
@@ -313,13 +358,25 @@ export function fromCoreBattleState(
         riposteCharges: coreUnit.riposteCharges ?? gameUnitWithMechanics.riposteCharges,
         isEngaged: coreUnit.engaged ?? gameUnitWithMechanics.isEngaged,
         chargeMomentum: coreUnit.momentum ?? gameUnitWithMechanics.chargeMomentum,
-        isInPhalanx: coreUnit.inPhalanx ?? gameUnitWithMechanics.isInPhalanx,
-        ammunition: coreUnit.ammo ?? gameUnitWithMechanics.ammunition,
         armorShred: coreUnit.armorShred ?? gameUnitWithMechanics.armorShred,
+        // Charge mechanic state (Tier 3) - updated by charge processor
+        isCharging: coreUnitWithExtras.isCharging ?? gameUnitWithMechanics.isCharging,
+        chargeDistance: coreUnitWithExtras.chargeDistance ?? gameUnitWithMechanics.chargeDistance,
+        chargeStartPosition: coreUnitWithExtras.chargeStartPosition ?? gameUnitWithMechanics.chargeStartPosition,
+        chargeCountered: coreUnitWithExtras.chargeCountered ?? gameUnitWithMechanics.chargeCountered,
+        // Phalanx mechanic state (Tier 3) - updated by phalanx processor
+        isInPhalanx: coreUnit.inPhalanx ?? gameUnitWithMechanics.isInPhalanx,
+        adjacentAlliesCount: coreUnitWithExtras.adjacentAlliesCount ?? gameUnitWithMechanics.adjacentAlliesCount,
+        phalanxArmorBonus: coreUnitWithExtras.phalanxArmorBonus ?? gameUnitWithMechanics.phalanxArmorBonus,
+        phalanxResolveBonus: coreUnitWithExtras.phalanxResolveBonus ?? gameUnitWithMechanics.phalanxResolveBonus,
+        // Ammunition mechanic state (Tier 3) - updated by ammunition processor
+        ammunition: coreUnit.ammo ?? gameUnitWithMechanics.ammunition,
+        maxAmmunition: coreUnitWithExtras.maxAmmo ?? gameUnitWithMechanics.maxAmmunition,
+        ammoState: coreUnitWithExtras.ammoState ?? gameUnitWithMechanics.ammoState,
+        isReloading: coreUnitWithExtras.isReloading ?? gameUnitWithMechanics.isReloading,
         
         // Preserve fields not modified by core processors
         maxResolve: gameUnitWithMechanics.maxResolve,
-        maxAmmunition: gameUnitWithMechanics.maxAmmunition,
         tags: gameUnitWithMechanics.tags,
         engagedBy: gameUnitWithMechanics.engagedBy,
         isInOverwatch: gameUnitWithMechanics.isInOverwatch,
@@ -771,10 +828,11 @@ function createBattleUnits(teamSetup: TeamSetup, teamType: TeamType): BattleUnit
     const initialFacing = teamType === 'player' ? 'N' : 'S';
     
     // Get mechanics fields from unit template (Core 2.0)
+    // Note: UnitTemplate uses 'ammo' field, not 'ammunition'
     const templateWithMechanics = unitTemplate as typeof unitTemplate & {
       resolve?: number;
       riposteCharges?: number;
-      ammunition?: number;
+      ammo?: number;
       tags?: string[];
       facing?: string;
     };
@@ -799,8 +857,9 @@ function createBattleUnits(teamSetup: TeamSetup, teamType: TeamType): BattleUnit
       // Initialize riposte charges based on attackCount (default 1)
       // This ensures units can riposte from the start of battle
       riposteCharges: templateWithMechanics.riposteCharges ?? unitTemplate.stats.atkCount ?? 1,
-      ammunition: templateWithMechanics.ammunition,
-      maxAmmunition: templateWithMechanics.ammunition,
+      // Note: UnitTemplate uses 'ammo', we store as 'ammunition' internally
+      ammunition: templateWithMechanics.ammo,
+      maxAmmunition: templateWithMechanics.ammo,
       tags: templateWithMechanics.tags ?? [],
       armorShred: 0,
       isEngaged: false,
@@ -1066,33 +1125,11 @@ function processPhase(
   }
   
   try {
-    // Log phase processing start
-    if (process.env['NODE_ENV'] !== 'production') {
-      console.debug(`[Mechanics] Processing phase: ${phase}`, {
-        activeUnit: context.activeUnit?.id,
-        target: (context as { target?: CoreBattleUnit }).target?.id,
-        round: state.currentRound,
-      });
-    }
-    
     // Convert game state to core state for processor
     const coreState = toCoreBattleState(state);
     
     // Process the phase through mechanics processor
     const result: ProcessResult = processor.process(phase, coreState, context);
-    
-    // Log mechanic events generated
-    if (process.env['NODE_ENV'] !== 'production' && result.events && result.events.length > 0) {
-      const mechanicEventCounts: Record<string, number> = {};
-      for (const event of result.events) {
-        mechanicEventCounts[event.type] = (mechanicEventCounts[event.type] || 0) + 1;
-      }
-      
-      console.debug(`[Mechanics] Phase ${phase} generated ${result.events.length} events`, {
-        eventTypes: mechanicEventCounts,
-        activeUnit: context.activeUnit?.id,
-      });
-    }
     
     // Convert core state back to game state
     const updatedState = fromCoreBattleState(state, result.state);
@@ -1109,18 +1146,9 @@ function processPhase(
       events: eventsWithRound,
     };
   } catch (error) {
-    // Log error with full context for debugging
-    console.error(`[Mechanics] Phase ${phase} failed:`, {
-      phase,
-      activeUnit: context.activeUnit?.id,
-      target: (context as { target?: CoreBattleUnit }).target?.id,
-      round: state.currentRound,
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-    });
-    
-    // Return unchanged state with no events
-    // This ensures partial results are preserved for debugging
+    // Return unchanged state with no events on error
+    // This ensures partial results are preserved and battle can continue
+    // Errors here are typically from mechanics processor edge cases
     return { state, events: [] };
   }
 }
@@ -1355,10 +1383,21 @@ function executeUnitTurnWithAbilities(
         // Calculate combat modifiers from enabled mechanics
         // This includes flanking, charge momentum, etc.
         // Note: Facing is already updated by FacingProcessor in pre_attack phase
+        
+        // Get updated attacker from current state (may have momentum from previous move action)
+        const updatedAttacker = currentState.units.find(u => u.instanceId === unit.instanceId) ?? unit;
+        
+        // Check if attacker has momentum from movement phase (set by ChargeProcessor)
+        const attackerWithCharge = updatedAttacker as BattleUnitWithAbilities & { 
+          momentum?: number;
+          chargeDistance?: number;
+        };
+        const distanceMovedThisTurn = attackerWithCharge.chargeDistance ?? 0;
+        
         const modifiersResult = calculateCombatModifiers(processor, {
-          attacker: unit,
+          attacker: updatedAttacker,
           target: currentTarget,
-          distanceMoved: 0, // TODO: Track actual distance moved this turn
+          distanceMoved: distanceMovedThisTurn,
           round: currentState.currentRound,
           seed: currentSeed++,
         });
@@ -1454,8 +1493,88 @@ function executeUnitTurnWithAbilities(
               }
             }
           } else {
-            // Target not in range, use legacy turn execution for movement + attack
-            const turnEvents = executeTurn(unit, currentState, seed);
+            // Target not in range, need to move first then attack
+            // Calculate movement path for charge mechanics (Core 2.0)
+            let movementPath: Position[] = [];
+            let distanceMoved = 0;
+            
+            if (processor?.config.charge || processor?.config.engagement) {
+              // Import pathfinding to calculate the full movement path
+              const { findPath } = require('./pathfinding');
+              const { createEmptyGrid } = require('./grid');
+              
+              const grid = createEmptyGrid();
+              const otherUnits = currentState.units.filter(
+                u => u.alive && u.instanceId !== unit.instanceId
+              );
+              
+              // Find positions within attack range of target
+              const attackPositions: Position[] = [];
+              const attackRange = unit.range;
+              
+              for (let dx = -attackRange; dx <= attackRange; dx++) {
+                for (let dy = -attackRange; dy <= attackRange; dy++) {
+                  if (dx === 0 && dy === 0) continue;
+                  const pos = {
+                    x: currentTarget.position.x + dx,
+                    y: currentTarget.position.y + dy,
+                  };
+                  if (manhattanDistance(pos, currentTarget.position) <= attackRange) {
+                    if (pos.x >= 0 && pos.x < 8 && pos.y >= 0 && pos.y < 10) {
+                      attackPositions.push(pos);
+                    }
+                  }
+                }
+              }
+              
+              // Find shortest path to any attack position
+              let bestPath: Position[] = [];
+              let shortestDistance = Infinity;
+              
+              for (const attackPos of attackPositions) {
+                const pathToPosition = findPath(
+                  unit.position,
+                  attackPos,
+                  grid,
+                  otherUnits,
+                  unit
+                );
+                
+                if (pathToPosition.length > 0 && pathToPosition.length < shortestDistance) {
+                  shortestDistance = pathToPosition.length;
+                  bestPath = pathToPosition;
+                }
+              }
+              
+              if (bestPath.length > 1) {
+                // Limit path to unit's speed
+                const maxSteps = Math.min(bestPath.length, unit.stats.speed + 1);
+                movementPath = bestPath.slice(0, maxSteps);
+                distanceMoved = movementPath.length - 1;
+              }
+            }
+            
+            // MOVEMENT phase (Core 2.0) - process charge momentum before attack
+            if (movementPath.length > 1 && processor) {
+              const movementAction: BattleAction = { 
+                type: 'move',
+                path: movementPath,
+              };
+              
+              const movementResult = processPhase(processor, 'movement', currentState, {
+                activeUnit: unit as unknown as CoreBattleUnit,
+                action: movementAction,
+                seed: currentSeed++,
+              });
+              currentState = movementResult.state;
+              events.push(...movementResult.events);
+            }
+            
+            // Get updated unit from state (may have momentum from movement phase)
+            const unitForLegacyTurn = currentState.units.find(u => u.instanceId === unit.instanceId) ?? unit;
+            
+            // Use legacy turn execution for movement + attack
+            const turnEvents = executeTurn(unitForLegacyTurn, currentState, seed);
             
             if (turnEvents.length > 0) {
               // Find attack event to apply mechanics to the actual target
@@ -1463,11 +1582,14 @@ function executeUnitTurnWithAbilities(
               if (attackEvent && attackEvent.targetId && hasMechanicsEnabled) {
                 const attackTarget = currentState.units.find(u => u.instanceId === attackEvent.targetId);
                 if (attackTarget) {
+                  // Get updated unit from state (may have momentum from movement phase)
+                  const updatedAttacker = currentState.units.find(u => u.instanceId === unit.instanceId) ?? unit;
+                  
                   // Apply flanking mechanics for legacy turn attacks
                   const legacyModifiers = calculateCombatModifiers(processor, {
-                    attacker: unit,
+                    attacker: updatedAttacker,
                     target: attackTarget,
-                    distanceMoved: 0,
+                    distanceMoved, // Use actual distance moved for charge calculation
                     round: currentState.currentRound,
                     seed: currentSeed++,
                   });
@@ -1477,10 +1599,23 @@ function executeUnitTurnWithAbilities(
                     events.push(...legacyModifiers.events);
                   }
                   
-                  // Recalculate damage with flanking modifier if applicable
-                  if (legacyModifiers.modifiers.flankingModifier > 1.0 && attackEvent.damage && attackEvent.damage > 0) {
+                  // Calculate total damage modifier from all mechanics
+                  let totalDamageModifier = 1.0;
+                  
+                  // Apply flanking modifier
+                  if (legacyModifiers.modifiers.flankingModifier > 1.0) {
+                    totalDamageModifier *= legacyModifiers.modifiers.flankingModifier;
+                  }
+                  
+                  // Apply charge momentum bonus
+                  if (legacyModifiers.modifiers.momentumBonus > 0) {
+                    totalDamageModifier *= (1 + legacyModifiers.modifiers.momentumBonus);
+                  }
+                  
+                  // Recalculate damage with combined modifiers if applicable
+                  if (totalDamageModifier > 1.0 && attackEvent.damage && attackEvent.damage > 0) {
                     const originalDamage = attackEvent.damage;
-                    const newDamage = Math.floor(originalDamage * legacyModifiers.modifiers.flankingModifier);
+                    const newDamage = Math.floor(originalDamage * totalDamageModifier);
                     attackEvent.damage = newDamage;
                     
                     // Also update damage event if present
@@ -1494,6 +1629,7 @@ function executeUnitTurnWithAbilities(
                       ...attackEvent.metadata,
                       attackArc: legacyModifiers.modifiers.attackArc,
                       flankingModifier: legacyModifiers.modifiers.flankingModifier,
+                      momentumBonus: legacyModifiers.modifiers.momentumBonus,
                       originalDamage,
                     };
                   }
@@ -1706,11 +1842,12 @@ function executeUnitTurnWithAbilities(
     
     case 'move':
     default: {
-      // Calculate movement path for engagement checks (Core 2.0)
-      // We need the full path to check for Attack of Opportunity triggers
+      // Calculate movement path for engagement checks (Core 2.0) and charge mechanics
+      // We need the full path to check for Attack of Opportunity triggers and calculate momentum
       let movementPath: Position[] | undefined;
+      let distanceMoved = 0;
       
-      if (action.targetPosition && processor?.config.engagement) {
+      if (action.targetPosition && (processor?.config.engagement || processor?.config.charge)) {
         // Import pathfinding to calculate the full movement path
         const { findPath } = require('./pathfinding');
         const { createEmptyGrid } = require('./grid');
@@ -1733,23 +1870,25 @@ function executeUnitTurnWithAbilities(
           // Limit path to unit's speed
           const maxSteps = Math.min(fullPath.length, unit.stats.speed + 1);
           movementPath = fullPath.slice(0, maxSteps);
+          distanceMoved = movementPath ? movementPath.length - 1 : 0;
         }
       }
       
-      // MOVEMENT phase (Core 2.0)
-      // Pass the full path to engagement processor for AoO checks
-      const movementAction: BattleAction = { type: 'move' };
-      if (movementPath) {
-        movementAction.path = movementPath;
+      // MOVEMENT phase (Core 2.0) - only process if we have a path
+      // Pass the full path to engagement processor for AoO checks and charge processor for momentum
+      // Note: If no path is calculated here, we'll process movement after executeTurn
+      // using the actual path from the move event
+      if (movementPath && movementPath.length > 1) {
+        const movementAction: BattleAction = { type: 'move', path: movementPath };
+        
+        const movementResult = processPhase(processor, 'movement', currentState, {
+          activeUnit: unit as unknown as CoreBattleUnit,
+          action: movementAction,
+          seed: currentSeed++,
+        });
+        currentState = movementResult.state;
+        events.push(...movementResult.events);
       }
-      
-      const movementResult = processPhase(processor, 'movement', currentState, {
-        activeUnit: unit as unknown as CoreBattleUnit,
-        action: movementAction,
-        seed: currentSeed++,
-      });
-      currentState = movementResult.state;
-      events.push(...movementResult.events);
       
       // Check if unit died from Attack of Opportunity
       const unitAfterMovement = currentState.units.find(u => u.instanceId === unit.instanceId);
@@ -1762,6 +1901,110 @@ function executeUnitTurnWithAbilities(
       const turnEvents = executeTurn(unitAfterMovement, currentState, seed);
       
       if (turnEvents.length > 0) {
+        // Check if any mechanics are enabled that affect combat
+        const hasMechanicsEnabled = processor && (
+          processor.config.facing ||
+          processor.config.flanking ||
+          processor.config.charge ||
+          processor.config.armorShred ||
+          processor.config.resolve ||
+          processor.config.riposte
+        );
+        
+        // Get actual distance moved from move event (executeTurn calculates its own path)
+        const moveEvent = turnEvents.find(e => e.type === 'move') as BattleEvent & { 
+          path?: Position[];
+          fromPosition?: Position;
+          toPosition?: Position;
+        } | undefined;
+        let actualDistanceMoved = distanceMoved;
+        if (moveEvent && moveEvent.path) {
+          actualDistanceMoved = moveEvent.path.length - 1;
+        } else if (moveEvent && moveEvent.fromPosition && moveEvent.toPosition) {
+          // Fallback: calculate from positions
+          actualDistanceMoved = Math.abs(moveEvent.toPosition.x - moveEvent.fromPosition.x) + 
+                               Math.abs(moveEvent.toPosition.y - moveEvent.fromPosition.y);
+        }
+        
+        // Process charge momentum if unit moved and has charge capability
+        if (actualDistanceMoved > 0 && processor?.config.charge) {
+          const movePath = moveEvent?.path ?? (moveEvent ? [moveEvent.fromPosition, moveEvent.toPosition] : []);
+          if (movePath.length > 1) {
+            const chargeMovementAction: BattleAction = { 
+              type: 'move',
+              path: movePath as Position[],
+            };
+            
+            const chargeResult = processPhase(processor, 'movement', currentState, {
+              activeUnit: unitAfterMovement as unknown as CoreBattleUnit,
+              action: chargeMovementAction,
+              seed: currentSeed++,
+            });
+            currentState = chargeResult.state;
+            // Don't add events here - they would duplicate the move event
+          }
+        }
+        
+        // Find attack event to apply mechanics modifiers
+        const attackEvent = turnEvents.find(e => e.type === 'attack');
+        if (attackEvent && attackEvent.targetId && hasMechanicsEnabled) {
+          const attackTarget = currentState.units.find(u => u.instanceId === attackEvent.targetId);
+          if (attackTarget) {
+            // Get updated unit from state (has momentum from movement phase)
+            // Use unitAfterMovement.instanceId to find the correct unit
+            const updatedAttacker = currentState.units.find(u => u.instanceId === unitAfterMovement.instanceId) ?? unitAfterMovement;
+            
+            // Calculate combat modifiers including charge momentum
+            const moveModifiers = calculateCombatModifiers(processor, {
+              attacker: updatedAttacker,
+              target: attackTarget,
+              distanceMoved: actualDistanceMoved,
+              round: currentState.currentRound,
+              seed: currentSeed++,
+            });
+            
+            // Add mechanic events (flanking, charge, etc.)
+            if (moveModifiers.events.length > 0) {
+              events.push(...moveModifiers.events);
+            }
+            
+            // Calculate total damage modifier from all mechanics
+            let totalDamageModifier = 1.0;
+            
+            // Apply flanking modifier
+            if (moveModifiers.modifiers.flankingModifier > 1.0) {
+              totalDamageModifier *= moveModifiers.modifiers.flankingModifier;
+            }
+            
+            // Apply charge momentum bonus
+            if (moveModifiers.modifiers.momentumBonus > 0) {
+              totalDamageModifier *= (1 + moveModifiers.modifiers.momentumBonus);
+            }
+            
+            // Recalculate damage with combined modifiers if applicable
+            if (totalDamageModifier > 1.0 && attackEvent.damage && attackEvent.damage > 0) {
+              const originalDamage = attackEvent.damage;
+              const newDamage = Math.floor(originalDamage * totalDamageModifier);
+              attackEvent.damage = newDamage;
+              
+              // Also update damage event if present
+              const damageEvent = turnEvents.find(e => e.type === 'damage' && e.targetId === attackEvent.targetId);
+              if (damageEvent && damageEvent.damage) {
+                damageEvent.damage = newDamage;
+              }
+              
+              // Add metadata to attack event
+              attackEvent.metadata = {
+                ...attackEvent.metadata,
+                attackArc: moveModifiers.modifiers.attackArc,
+                flankingModifier: moveModifiers.modifiers.flankingModifier,
+                momentumBonus: moveModifiers.modifiers.momentumBonus,
+                originalDamage,
+              };
+            }
+          }
+        }
+        
         currentState = applyBattleEvents(currentState, turnEvents) as BattleStateWithAbilities;
         events.push(...turnEvents);
       }

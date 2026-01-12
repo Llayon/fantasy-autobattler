@@ -333,13 +333,15 @@ export function createRiposteProcessor(config: RiposteConfig): RiposteProcessor 
       // Handle riposte trigger during attack phase
       if (phase === 'attack' && context.target) {
         // Get the target (defender) from state to ensure we have latest HP
-        const defender = state.units.find(u => u.id === context.target?.id);
+        // Use instanceId for unique battle instance lookup (not id which is unit type)
+        const defender = state.units.find(u => u.instanceId === context.target?.instanceId);
         if (!defender || !defender.alive || defender.currentHp <= 0) {
           return { state, events };
         }
 
         // Get the attacker from state
-        const attacker = state.units.find(u => u.id === context.activeUnit.id);
+        // Use instanceId for unique battle instance lookup (not id which is unit type)
+        const attacker = state.units.find(u => u.instanceId === context.activeUnit.instanceId);
         if (!attacker || !attacker.alive || attacker.currentHp <= 0) {
           return { state, events };
         }
@@ -390,7 +392,8 @@ export function createRiposteProcessor(config: RiposteConfig): RiposteProcessor 
       // Handle riposte charge reset at turn start (once per round)
       // Charges are reset when a new round starts, tracked by lastChargeResetRound
       if (phase === 'turn_start') {
-        const unit = state.units.find(u => u.id === context.activeUnit.id);
+        // Use instanceId for unique battle instance lookup (not id which is unit type)
+        const unit = state.units.find(u => u.instanceId === context.activeUnit.instanceId);
         if (unit) {
           const unitWithRiposte = unit as BattleUnit & UnitWithRiposte;
           const currentRound = state.round ?? 1;

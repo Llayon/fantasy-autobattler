@@ -209,6 +209,7 @@ export const HUNTER_T1: RoguelikeUnit = {
   dodge: 12,
   resolve: 60,
   resolveResist: 0,
+  tags: ['ranged'], // Enable Ammunition mechanic detection
   ammunition: 6, // Enable Ammunition mechanic
   description: 'Ranged attacker with Ammunition (6 arrows, must reload)',
   descriptionRu: 'Стрелок с Боеприпасами (6 стрел, требует перезарядки)',
@@ -356,6 +357,7 @@ export const BONE_ARCHER_T1: RoguelikeUnit = {
   dodge: 15,
   resolve: 100,
   resolveResist: 0,
+  tags: ['ranged'], // Enable Ammunition mechanic detection
   ammunition: 6, // Enable Ammunition mechanic
   description: 'Skeletal archer with Ammunition (6 bone arrows, must reload)',
   descriptionRu: 'Скелет-лучник с Боеприпасами (6 костяных стрел, требует перезарядки)',

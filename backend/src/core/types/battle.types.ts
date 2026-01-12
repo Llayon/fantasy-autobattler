@@ -521,6 +521,35 @@ export interface BattleUnit {
   momentum?: number;
 
   /**
+   * Whether unit is currently in a charge state (Tier 3: Charge mechanic).
+   * Set when unit moves minimum distance and has charge capability.
+   * Reset at turn end or after attack.
+   *
+   * @see ChargeConfig for configuration options
+   */
+  isCharging?: boolean;
+
+  /**
+   * Distance moved this turn for momentum calculation (Tier 3: Charge mechanic).
+   * Reset at turn start.
+   *
+   * @see ChargeConfig for configuration options
+   */
+  chargeDistance?: number;
+
+  /**
+   * Starting position at turn start for distance calculation (Tier 3: Charge mechanic).
+   * Used to calculate total distance moved for momentum.
+   */
+  chargeStartPosition?: Position;
+
+  /**
+   * Whether unit's charge was countered this turn (Tier 3: Charge mechanic).
+   * Set when stopped by Spear Wall unit.
+   */
+  chargeCountered?: boolean;
+
+  /**
    * Whether unit is currently in a phalanx formation (Tier 3: Phalanx mechanic).
    * True when unit has at least one adjacent ally facing the same direction.
    *
@@ -548,6 +577,24 @@ export interface BattleUnit {
   inPhalanx?: boolean;
 
   /**
+   * Number of adjacent allies in phalanx formation (Tier 3: Phalanx mechanic).
+   * Used for bonus calculation.
+   */
+  adjacentAlliesCount?: number;
+
+  /**
+   * Current armor bonus from phalanx formation (Tier 3: Phalanx mechanic).
+   * Calculated as: min(maxArmorBonus, adjacentAlliesCount * armorPerAlly)
+   */
+  phalanxArmorBonus?: number;
+
+  /**
+   * Current resolve bonus from phalanx formation (Tier 3: Phalanx mechanic).
+   * Calculated as: min(maxResolveBonus, adjacentAlliesCount * resolvePerAlly)
+   */
+  phalanxResolveBonus?: number;
+
+  /**
    * Current ammunition count for ranged units (Tier 3: Ammunition mechanic).
    * Decremented on each ranged attack. When ammo reaches 0, unit cannot
    * perform ranged attacks until reloaded.
@@ -571,6 +618,23 @@ export interface BattleUnit {
    * const archer: BattleUnit = { ...baseUnit, ammo: 4, tags: ['ranged'] };
    */
   ammo?: number;
+
+  /**
+   * Maximum ammunition capacity (Tier 3: Ammunition mechanic).
+   * Used to calculate ammo state and reload limits.
+   */
+  maxAmmo?: number;
+
+  /**
+   * Current ammunition state (Tier 3: Ammunition mechanic).
+   * Values: 'full' | 'partial' | 'empty' | 'reloading'
+   */
+  ammoState?: 'full' | 'partial' | 'empty' | 'reloading';
+
+  /**
+   * Whether unit is currently reloading (Tier 3: Ammunition mechanic).
+   */
+  isReloading?: boolean;
 
   /**
    * Ability cooldowns map for mage units (Tier 3: Ammunition mechanic).

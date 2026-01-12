@@ -676,7 +676,8 @@ export function createPhalanxProcessor(config: PhalanxConfig): PhalanxProcessor 
 
         // Check if target died
         if (context.target) {
-          const target = findUnit(state, context.target.id);
+          // Use instanceId for unique battle instance lookup (not id which is unit type)
+          const target = findUnit(state, context.target.instanceId);
           if (target && !isUnitAlive(target)) {
             needsRecalculation = true;
           }
@@ -684,7 +685,8 @@ export function createPhalanxProcessor(config: PhalanxConfig): PhalanxProcessor 
 
         // Check if attacker died (e.g., from riposte counter-attack)
         if (context.activeUnit) {
-          const attacker = findUnit(state, context.activeUnit.id);
+          // Use instanceId for unique battle instance lookup (not id which is unit type)
+          const attacker = findUnit(state, context.activeUnit.instanceId);
           if (attacker && !isUnitAlive(attacker)) {
             needsRecalculation = true;
           }

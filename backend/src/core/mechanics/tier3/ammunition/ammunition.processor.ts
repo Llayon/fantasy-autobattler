@@ -707,7 +707,8 @@ export function createAmmunitionProcessor(
       // TURN_START: Tick cooldowns for mages
       // ─────────────────────────────────────────────────────────────
       if (phase === 'turn_start') {
-        const unit = findUnit(state, context.activeUnit.id);
+        // Use instanceId for unique battle instance lookup (not id which is unit type)
+        const unit = findUnit(state, context.activeUnit.instanceId);
         if (unit) {
           const unitWithAmmo = unit as BattleUnit & UnitWithAmmunition;
           const resourceType = this.getResourceType(unitWithAmmo);
@@ -735,7 +736,8 @@ export function createAmmunitionProcessor(
       // ATTACK: Consume ammo for ranged attacks, trigger cooldowns for abilities
       // ─────────────────────────────────────────────────────────────
       if (phase === 'attack') {
-        const unit = findUnit(state, context.activeUnit.id);
+        // Use instanceId for unique battle instance lookup (not id which is unit type)
+        const unit = findUnit(state, context.activeUnit.instanceId);
         if (!unit) return state;
 
         const unitWithAmmo = unit as BattleUnit & UnitWithAmmunition;

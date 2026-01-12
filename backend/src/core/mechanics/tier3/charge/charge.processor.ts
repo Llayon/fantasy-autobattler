@@ -498,20 +498,12 @@ export function createChargeProcessor(config: ChargeConfig): ChargeProcessor {
       state: BattleState,
       context: PhaseContext,
     ): BattleState {
-      // Log every call to Charge processor
-      console.debug('[Charge] Processor called:', {
-        phase,
-        activeUnitId: context.activeUnit.id,
-        hasTarget: !!context.target,
-        hasAction: !!context.action,
-        actionType: context.action?.type,
-      });
-      
       // ─────────────────────────────────────────────────────────────
       // TURN_START: Reset charge state and record start position
       // ─────────────────────────────────────────────────────────────
       if (phase === 'turn_start') {
-        const unit = findUnit(state, context.activeUnit.id);
+        // Use instanceId for unique battle instance lookup (not id which is unit type)
+        const unit = findUnit(state, context.activeUnit.instanceId);
         if (unit) {
           const unitWithCharge = unit as BattleUnit & UnitWithCharge;
           const resetUnit: BattleUnit & UnitWithCharge = {
@@ -531,33 +523,16 @@ export function createChargeProcessor(config: ChargeConfig): ChargeProcessor {
       // MOVEMENT: Track distance moved for momentum calculation
       // ─────────────────────────────────────────────────────────────
       if (phase === 'movement' && context.action?.type === 'move' && context.action.path) {
-        const unit = findUnit(state, context.activeUnit.id);
+        // Use instanceId for unique battle instance lookup (not id which is unit type)
+        const unit = findUnit(state, context.activeUnit.instanceId);
         if (unit) {
           const unitWithCharge = unit as BattleUnit & UnitWithCharge;
-          
-          // Log charge tracking
-          console.debug('[Charge] Movement phase:', {
-            unitId: unit.id,
-            unitName: unit.name,
-            hasTags: !!unit.tags,
-            tags: unit.tags,
-            hasChargeCapability: hasChargeCapability(unitWithCharge),
-            pathLength: context.action.path.length,
-            distance: context.action.path.length - 1,
-          });
           
           const updatedUnit = this.trackMovement(
             unitWithCharge,
             context.action.path,
             config,
           );
-          
-          console.debug('[Charge] After trackMovement:', {
-            unitId: updatedUnit.id,
-            momentum: updatedUnit.momentum,
-            isCharging: updatedUnit.isCharging,
-            chargeDistance: updatedUnit.chargeDistance,
-          });
           
           return updateUnit(state, updatedUnit);
         }
@@ -568,8 +543,9 @@ export function createChargeProcessor(config: ChargeConfig): ChargeProcessor {
       // PRE_ATTACK: Check for Spear Wall counter
       // ─────────────────────────────────────────────────────────────
       if (phase === 'pre_attack' && context.target) {
-        const unit = findUnit(state, context.activeUnit.id);
-        const target = findUnit(state, context.target.id);
+        // Use instanceId for unique battle instance lookup (not id which is unit type)
+        const unit = findUnit(state, context.activeUnit.instanceId);
+        const target = findUnit(state, context.target.instanceId);
 
         if (unit && target) {
           const unitWithCharge = unit as BattleUnit & UnitWithCharge;
@@ -613,37 +589,20 @@ export function createChargeProcessor(config: ChargeConfig): ChargeProcessor {
       // 3. There is a valid target
       // ─────────────────────────────────────────────────────────────
       if (phase === 'attack' && context.target) {
-        const unit = findUnit(state, context.activeUnit.id);
-        const target = findUnit(state, context.target.id);
+        // Use instanceId for unique battle instance lookup (not id which is unit type)
+        const unit = findUnit(state, context.activeUnit.instanceId);
+        const target = findUnit(state, context.target.instanceId);
 
         if (unit && target) {
           const unitWithCharge = unit as BattleUnit & UnitWithCharge;
           const targetWithCharge = target as BattleUnit & UnitWithCharge;
           const momentum = unitWithCharge.momentum ?? 0;
 
-          console.debug('[Charge] Attack phase:', {
-            unitId: unit.id,
-            unitName: unit.name,
-            targetId: target.id,
-            targetName: target.name,
-            momentum,
-            isCharging: unitWithCharge.isCharging,
-            chargeCountered: unitWithCharge.chargeCountered,
-            willApplyShock: momentum > 0 && !unitWithCharge.chargeCountered,
-          });
-
           // Only apply shock damage if unit has momentum and wasn't countered
           if (momentum > 0 && !unitWithCharge.chargeCountered) {
             const shockDamage = config.shockResolveDamage;
             const currentResolve = getUnitResolve(targetWithCharge);
             const newResolve = Math.max(0, currentResolve - shockDamage);
-
-            console.debug('[Charge] Applying shock damage:', {
-              shockDamage,
-              currentResolve,
-              newResolve,
-              momentum,
-            });
 
             const updatedTarget: BattleUnit & UnitWithCharge = {
               ...targetWithCharge,
@@ -667,7 +626,8 @@ export function createChargeProcessor(config: ChargeConfig): ChargeProcessor {
       // TURN_END: Reset momentum
       // ─────────────────────────────────────────────────────────────
       if (phase === 'turn_end') {
-        const unit = findUnit(state, context.activeUnit.id);
+        // Use instanceId for unique battle instance lookup (not id which is unit type)
+        const unit = findUnit(state, context.activeUnit.instanceId);
         if (unit) {
           const unitWithCharge = unit as BattleUnit & UnitWithCharge;
           const resetUnit = this.resetCharge(unitWithCharge);

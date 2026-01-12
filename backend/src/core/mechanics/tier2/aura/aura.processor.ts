@@ -542,7 +542,8 @@ export function createAuraProcessor(
       if (phase === 'post_attack') {
         // Check if target died
         if (context.target) {
-          const target = findUnit(state, context.target.id);
+          // Use instanceId for unique battle instance lookup (not id which is unit type)
+          const target = findUnit(state, context.target.instanceId);
           if (target && (!target.alive || target.currentHp <= 0)) {
             let newState = this.handleUnitDeath(state, target.id);
             newState = this.recalculateAuras(newState);

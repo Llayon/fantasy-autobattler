@@ -262,12 +262,12 @@ export interface MechanicsProcessor {
  * // ['engagement', 'facing', 'flanking', 'charge', 'lineOfSight', 'ammunition']
  */
 export const PHASE_MECHANICS: Record<BattlePhase, (keyof MechanicsConfig)[]> = {
-  turn_start: ['resolve', 'ammunition', 'aura', 'phalanx'],
+  turn_start: ['charge', 'resolve', 'ammunition', 'aura', 'phalanx'],
   movement: ['engagement', 'intercept', 'overwatch', 'charge'],
   pre_attack: ['engagement', 'facing', 'flanking', 'charge', 'lineOfSight', 'ammunition'],
-  attack: ['armorShred', 'riposte', 'contagion'],
+  attack: ['charge', 'armorShred', 'riposte', 'contagion'],
   post_attack: ['resolve', 'phalanx'],
-  turn_end: ['contagion', 'aura', 'overwatch'],
+  turn_end: ['contagion', 'aura', 'overwatch', 'charge'],
 };
 
 // ═══════════════════════════════════════════════════════════════
