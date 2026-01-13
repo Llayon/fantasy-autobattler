@@ -19,7 +19,7 @@
  * @module core/mechanics/tier3/ammunition
  */
 
-import type { BattlePhase, PhaseContext } from '../../processor';
+import type { BattlePhase, PhaseContext, MechanicResult } from '../../processor';
 import type { BattleState, BattleUnit, Position } from '../../../types';
 import type { AmmoConfig } from '../../config/mechanics.types';
 
@@ -877,10 +877,10 @@ export interface AmmunitionProcessor {
    * @param phase - Current battle phase
    * @param state - Current battle state
    * @param context - Phase context with active unit and action
-   * @returns Updated battle state
+   * @returns Updated battle state or MechanicResult with events
    *
    * @example
-   * const newState = processor.apply('pre_attack', state, {
+   * const result = processor.apply('pre_attack', state, {
    *   activeUnit: archer,
    *   target: enemy,
    *   action: { type: 'attack', targetId: enemy.instanceId },
@@ -891,7 +891,7 @@ export interface AmmunitionProcessor {
     phase: BattlePhase,
     state: BattleState,
     context: PhaseContext,
-  ): BattleState;
+  ): BattleState | MechanicResult;
 }
 
 // ═══════════════════════════════════════════════════════════════

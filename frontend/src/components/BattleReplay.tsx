@@ -143,6 +143,7 @@ const EVENT_TYPE_NAMES: Record<string, string> = {
   mechanic_phalanx: '🛡️ Фаланга',
   mechanic_overwatch: '👁️ Наблюдение',
   mechanic_contagion: '☠️ Заражение',
+  mechanic_ammunition: '🏹 Боеприпасы',
 };
 
 // =============================================================================
@@ -1356,6 +1357,8 @@ function EventLog({
         return 'text-violet-400';
       case 'mechanic_contagion':
         return 'text-lime-400';
+      case 'mechanic_ammunition':
+        return 'text-amber-400';
       default:
         return 'text-gray-400';
     }
@@ -1399,6 +1402,8 @@ function EventLog({
         return 'border-violet-500';
       case 'mechanic_contagion':
         return 'border-lime-500';
+      case 'mechanic_ammunition':
+        return 'border-amber-500';
       default:
         return 'border-gray-500';
     }
@@ -1517,6 +1522,20 @@ function EventLog({
         return `👁️ ${actorName} на страже`;
       case 'mechanic_contagion':
         return `☠️ ${targetName} заражён`;
+      case 'mechanic_ammunition': {
+        const metadata = event.metadata as { action?: string; ammoConsumed?: number; ammoRemaining?: number; cooldownDuration?: number; abilityId?: string } | undefined;
+        const action = metadata?.action;
+        if (action === 'consumed') {
+          return `🏹 ${actorName} использует боеприпас (осталось: ${metadata?.ammoRemaining ?? 0})`;
+        }
+        if (action === 'depleted') {
+          return `🏹 ${actorName} израсходовал все боеприпасы!`;
+        }
+        if (action === 'cooldown_triggered') {
+          return `⏳ ${actorName}: способность на перезарядке (${metadata?.cooldownDuration ?? 0} ходов)`;
+        }
+        return `🏹 ${actorName} использует боеприпасы`;
+      }
       default:
         return EVENT_TYPE_NAMES[event.type] || event.type;
     }

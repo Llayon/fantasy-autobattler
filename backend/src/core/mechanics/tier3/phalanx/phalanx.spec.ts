@@ -12,6 +12,7 @@ import { createPhalanxProcessor } from './phalanx.processor';
 import { createTestUnit, createTestBattleState } from '../../test-fixtures';
 import type { PhalanxConfig } from '../../config/mechanics.types';
 import type { BattleUnit, TeamType } from '../../../types';
+import type { MechanicResult } from '../../processor';
 import {
   PHALANX_TAG,
   PHALANX_IMMUNE_TAG,
@@ -809,9 +810,11 @@ describe('PhalanxProcessor', () => {
       const result = processor.apply('attack', state, {
         activeUnit: unit,
         seed: 12345,
-      });
+      }) as MechanicResult;
 
-      expect(result).toEqual(state);
+      // apply returns MechanicResult { state, events }
+      expect(result.state).toEqual(state);
+      expect(result.events).toEqual([]);
     });
 
     it('should not recalculate in post_attack if no unit died', () => {
@@ -835,9 +838,11 @@ describe('PhalanxProcessor', () => {
         activeUnit: attacker,
         target: target,
         seed: 12345,
-      });
+      }) as MechanicResult;
 
-      expect(result).toEqual(state);
+      // apply returns MechanicResult { state, events }
+      expect(result.state).toEqual(state);
+      expect(result.events).toEqual([]);
     });
   });
 

@@ -612,8 +612,8 @@ describe('Damage System (Core)', () => {
 
         const damage = calculatePhysicalDamage(attacker, target, DEFAULT_BATTLE_CONFIG, { flankingModifier: 1.3 });
 
-        // floor((15 - 5) * 1 * 1.3) = floor(13) = 13
-        expect(damage).toBe(13);
+        // NEW FORMULA: (floor(ATK * flanking) - armor) = (floor(15 * 1.3) - 5) = (19 - 5) = 14
+        expect(damage).toBe(14);
       });
 
       it('should apply rear attack modifier (1.5x)', () => {
@@ -622,8 +622,8 @@ describe('Damage System (Core)', () => {
 
         const damage = calculatePhysicalDamage(attacker, target, DEFAULT_BATTLE_CONFIG, { flankingModifier: 1.5 });
 
-        // floor((15 - 5) * 1 * 1.5) = floor(15) = 15
-        expect(damage).toBe(15);
+        // NEW FORMULA: (floor(ATK * flanking) - armor) = (floor(15 * 1.5) - 5) = (22 - 5) = 17
+        expect(damage).toBe(17);
       });
 
       it('should floor the result after applying modifier', () => {
@@ -632,8 +632,8 @@ describe('Damage System (Core)', () => {
 
         const damage = calculatePhysicalDamage(attacker, target, DEFAULT_BATTLE_CONFIG, { flankingModifier: 1.3 });
 
-        // floor((10 - 3) * 1 * 1.3) = floor(9.1) = 9
-        expect(damage).toBe(9);
+        // NEW FORMULA: (floor(ATK * flanking) - armor) = (floor(10 * 1.3) - 3) = (13 - 3) = 10
+        expect(damage).toBe(10);
       });
 
       it('should still respect minimum damage with flanking modifier', () => {
@@ -653,8 +653,8 @@ describe('Damage System (Core)', () => {
         const damage = calculatePhysicalDamage(attacker, target, DEFAULT_BATTLE_CONFIG, { flankingModifier: 1.3 });
 
         // Effective armor = 10 - 4 = 6
-        // floor((15 - 6) * 1 * 1.3) = floor(11.7) = 11
-        expect(damage).toBe(11);
+        // NEW FORMULA: (floor(ATK * flanking) - effectiveArmor) = (floor(15 * 1.3) - 6) = (19 - 6) = 13
+        expect(damage).toBe(13);
       });
 
       it('should combine flanking modifier with multiple attacks', () => {
@@ -663,8 +663,8 @@ describe('Damage System (Core)', () => {
 
         const damage = calculatePhysicalDamage(attacker, target, DEFAULT_BATTLE_CONFIG, { flankingModifier: 1.5 });
 
-        // floor((8 - 3) * 2 * 1.5) = floor(15) = 15
-        expect(damage).toBe(15);
+        // NEW FORMULA: (floor(ATK * flanking) - armor) * atkCount = (floor(8 * 1.5) - 3) * 2 = (12 - 3) * 2 = 18
+        expect(damage).toBe(18);
       });
 
       it('should be backward compatible when no options provided', () => {
@@ -697,10 +697,10 @@ describe('Damage System (Core)', () => {
 
         const result = resolvePhysicalAttack(attacker, target, 12345, DEFAULT_BATTLE_CONFIG, { flankingModifier: 1.3 });
 
-        // floor((15 - 5) * 1 * 1.3) = 13
-        expect(result.damage).toBe(13);
+        // NEW FORMULA: (ATK * modifier - armor) = (15 * 1.3 - 5) = 14
+        expect(result.damage).toBe(14);
         expect(result.dodged).toBe(false);
-        expect(result.newHp).toBe(37); // 50 - 13
+        expect(result.newHp).toBe(36); // 50 - 14
         expect(result.killed).toBe(false);
       });
 
@@ -710,10 +710,10 @@ describe('Damage System (Core)', () => {
 
         const result = resolvePhysicalAttack(attacker, target, 12345, DEFAULT_BATTLE_CONFIG, { flankingModifier: 1.5 });
 
-        // floor((20 - 5) * 1 * 1.5) = floor(22.5) = 22
-        expect(result.damage).toBe(22);
+        // NEW FORMULA: (ATK * modifier - armor) = (20 * 1.5 - 5) = 25
+        expect(result.damage).toBe(25);
         expect(result.dodged).toBe(false);
-        expect(result.newHp).toBe(8); // 30 - 22
+        expect(result.newHp).toBe(5); // 30 - 25
         expect(result.killed).toBe(false);
       });
 
@@ -723,11 +723,11 @@ describe('Damage System (Core)', () => {
 
         const result = resolvePhysicalAttack(attacker, target, 12345, DEFAULT_BATTLE_CONFIG, { flankingModifier: 1.5 });
 
-        // floor((20 - 5) * 1 * 1.5) = 22
-        expect(result.damage).toBe(22);
+        // NEW FORMULA: (ATK * modifier - armor) = (20 * 1.5 - 5) = 25
+        expect(result.damage).toBe(25);
         expect(result.killed).toBe(true);
         expect(result.newHp).toBe(0);
-        expect(result.overkill).toBe(2); // 22 - 20 = 2
+        expect(result.overkill).toBe(5); // 25 - 20 = 5
       });
 
       it('should not apply flanking modifier when attack is dodged', () => {
@@ -759,9 +759,9 @@ describe('Damage System (Core)', () => {
         const result = resolvePhysicalAttack(attacker, target, 12345, DEFAULT_BATTLE_CONFIG, { flankingModifier: 1.3 });
 
         // Effective armor = 10 - 4 = 6
-        // floor((15 - 6) * 1 * 1.3) = floor(11.7) = 11
-        expect(result.damage).toBe(11);
-        expect(result.newHp).toBe(39); // 50 - 11
+        // NEW FORMULA: (ATK * modifier - effectiveArmor) = (15 * 1.3 - 6) = 13
+        expect(result.damage).toBe(13);
+        expect(result.newHp).toBe(37); // 50 - 13
       });
     });
   });
@@ -774,8 +774,8 @@ describe('Damage System (Core)', () => {
 
         const damage = calculatePhysicalDamage(attacker, target, DEFAULT_BATTLE_CONFIG, { momentumBonus: 0.2 });
 
-        // floor((15 - 5) * 1 * (1 + 0.2)) = floor(12) = 12
-        expect(damage).toBe(12);
+        // NEW FORMULA: (ATK * (1 + momentum) - armor) = (15 * 1.2 - 5) = 13
+        expect(damage).toBe(13);
       });
 
       it('should apply momentum bonus (0.6 = +60%)', () => {
@@ -784,8 +784,8 @@ describe('Damage System (Core)', () => {
 
         const damage = calculatePhysicalDamage(attacker, target, DEFAULT_BATTLE_CONFIG, { momentumBonus: 0.6 });
 
-        // floor((15 - 5) * 1 * (1 + 0.6)) = floor(16) = 16
-        expect(damage).toBe(16);
+        // NEW FORMULA: (ATK * (1 + momentum) - armor) = (15 * 1.6 - 5) = 19
+        expect(damage).toBe(19);
       });
 
       it('should apply max momentum bonus (1.0 = +100%)', () => {
@@ -794,8 +794,8 @@ describe('Damage System (Core)', () => {
 
         const damage = calculatePhysicalDamage(attacker, target, DEFAULT_BATTLE_CONFIG, { momentumBonus: 1.0 });
 
-        // floor((15 - 5) * 1 * (1 + 1.0)) = floor(20) = 20
-        expect(damage).toBe(20);
+        // NEW FORMULA: (ATK * (1 + momentum) - armor) = (15 * 2.0 - 5) = 25
+        expect(damage).toBe(25);
       });
 
       it('should floor the result after applying momentum bonus', () => {
@@ -804,8 +804,8 @@ describe('Damage System (Core)', () => {
 
         const damage = calculatePhysicalDamage(attacker, target, DEFAULT_BATTLE_CONFIG, { momentumBonus: 0.3 });
 
-        // floor((10 - 3) * 1 * (1 + 0.3)) = floor(9.1) = 9
-        expect(damage).toBe(9);
+        // NEW FORMULA: (floor(ATK * (1 + momentum)) - armor) = (floor(10 * 1.3) - 3) = (13 - 3) = 10
+        expect(damage).toBe(10);
       });
 
       it('should not apply momentum bonus when value is 0', () => {
@@ -834,7 +834,7 @@ describe('Damage System (Core)', () => {
 
         const damage = calculatePhysicalDamage(attacker, target, DEFAULT_BATTLE_CONFIG, { momentumBonus: 1.0 });
 
-        // max(1, floor((5 - 10) * 1 * 2.0)) = max(1, floor(-10)) = max(1, -10) = 1
+        // NEW FORMULA: max(1, (5 * 2.0 - 10)) = max(1, 0) = 1
         expect(damage).toBe(1);
       });
 
@@ -845,8 +845,8 @@ describe('Damage System (Core)', () => {
         const damage = calculatePhysicalDamage(attacker, target, DEFAULT_BATTLE_CONFIG, { momentumBonus: 0.5 });
 
         // Effective armor = 10 - 4 = 6
-        // floor((15 - 6) * 1 * (1 + 0.5)) = floor(13.5) = 13
-        expect(damage).toBe(13);
+        // NEW FORMULA: (floor(ATK * (1 + momentum)) - effectiveArmor) = (floor(15 * 1.5) - 6) = (22 - 6) = 16
+        expect(damage).toBe(16);
       });
 
       it('should combine momentum bonus with multiple attacks', () => {
@@ -855,8 +855,8 @@ describe('Damage System (Core)', () => {
 
         const damage = calculatePhysicalDamage(attacker, target, DEFAULT_BATTLE_CONFIG, { momentumBonus: 0.4 });
 
-        // floor((8 - 3) * 2 * (1 + 0.4)) = floor(14) = 14
-        expect(damage).toBe(14);
+        // NEW FORMULA: (floor(ATK * (1 + momentum)) - armor) * atkCount = (floor(8 * 1.4) - 3) * 2 = (11 - 3) * 2 = 16
+        expect(damage).toBe(16);
       });
 
       it('should combine momentum bonus with flanking modifier', () => {
@@ -868,10 +868,9 @@ describe('Damage System (Core)', () => {
           momentumBonus: 0.4 
         });
 
-        // Base damage = (15 - 5) * 1 = 10
-        // After flanking = floor(10 * 1.3) = 13
-        // After momentum = floor(13 * 1.4) = 18
-        expect(damage).toBe(18);
+        // NEW FORMULA: (floor(ATK * flanking * (1 + momentum)) - armor)
+        // = (floor(15 * 1.3 * 1.4) - 5) = (floor(27.3) - 5) = (27 - 5) = 22
+        expect(damage).toBe(22);
       });
 
       it('should combine all modifiers: flanking, momentum, and armor shred', () => {
@@ -884,10 +883,9 @@ describe('Damage System (Core)', () => {
         });
 
         // Effective armor = 10 - 4 = 6
-        // Base damage = (20 - 6) * 1 = 14
-        // After flanking = floor(14 * 1.5) = 21
-        // After momentum = floor(21 * 1.6) = 33
-        expect(damage).toBe(33);
+        // NEW FORMULA: (floor(ATK * flanking * (1 + momentum)) - effectiveArmor)
+        // = (floor(20 * 1.5 * 1.6) - 6) = (floor(48) - 6) = 42
+        expect(damage).toBe(42);
       });
     });
 
@@ -898,10 +896,10 @@ describe('Damage System (Core)', () => {
 
         const result = resolvePhysicalAttack(attacker, target, 12345, DEFAULT_BATTLE_CONFIG, { momentumBonus: 0.6 });
 
-        // floor((15 - 5) * 1 * 1.6) = 16
-        expect(result.damage).toBe(16);
+        // NEW FORMULA: (ATK * (1 + momentum) - armor) = (15 * 1.6 - 5) = 19
+        expect(result.damage).toBe(19);
         expect(result.dodged).toBe(false);
-        expect(result.newHp).toBe(34); // 50 - 16
+        expect(result.newHp).toBe(31); // 50 - 19
         expect(result.killed).toBe(false);
       });
 
@@ -911,10 +909,10 @@ describe('Damage System (Core)', () => {
 
         const result = resolvePhysicalAttack(attacker, target, 12345, DEFAULT_BATTLE_CONFIG, { momentumBonus: 1.0 });
 
-        // floor((15 - 5) * 1 * 2.0) = 20
-        expect(result.damage).toBe(20);
+        // NEW FORMULA: (ATK * (1 + momentum) - armor) = (15 * 2.0 - 5) = 25
+        expect(result.damage).toBe(25);
         expect(result.dodged).toBe(false);
-        expect(result.newHp).toBe(30); // 50 - 20
+        expect(result.newHp).toBe(25); // 50 - 25
         expect(result.killed).toBe(false);
       });
 
@@ -924,11 +922,11 @@ describe('Damage System (Core)', () => {
 
         const result = resolvePhysicalAttack(attacker, target, 12345, DEFAULT_BATTLE_CONFIG, { momentumBonus: 0.6 });
 
-        // floor((15 - 5) * 1 * 1.6) = 16
-        expect(result.damage).toBe(16);
+        // NEW FORMULA: (ATK * (1 + momentum) - armor) = (15 * 1.6 - 5) = 19
+        expect(result.damage).toBe(19);
         expect(result.killed).toBe(true);
         expect(result.newHp).toBe(0);
-        expect(result.overkill).toBe(1); // 16 - 15 = 1
+        expect(result.overkill).toBe(4); // 19 - 15 = 4
       });
 
       it('should not apply momentum bonus when attack is dodged', () => {
@@ -951,11 +949,10 @@ describe('Damage System (Core)', () => {
           momentumBonus: 0.4 
         });
 
-        // Base damage = (15 - 5) * 1 = 10
-        // After flanking = floor(10 * 1.3) = 13
-        // After momentum = floor(13 * 1.4) = 18
-        expect(result.damage).toBe(18);
-        expect(result.newHp).toBe(32); // 50 - 18
+        // NEW FORMULA: (floor(ATK * flanking * (1 + momentum)) - armor)
+        // = (floor(15 * 1.3 * 1.4) - 5) = (floor(27.3) - 5) = (27 - 5) = 22
+        expect(result.damage).toBe(22);
+        expect(result.newHp).toBe(28); // 50 - 22
       });
 
       it('should combine momentum bonus with armor shred in resolved attack', () => {
@@ -965,9 +962,9 @@ describe('Damage System (Core)', () => {
         const result = resolvePhysicalAttack(attacker, target, 12345, DEFAULT_BATTLE_CONFIG, { momentumBonus: 0.5 });
 
         // Effective armor = 10 - 4 = 6
-        // floor((15 - 6) * 1 * 1.5) = floor(13.5) = 13
-        expect(result.damage).toBe(13);
-        expect(result.newHp).toBe(37); // 50 - 13
+        // NEW FORMULA: (floor(ATK * (1 + momentum)) - effectiveArmor) = (floor(15 * 1.5) - 6) = (22 - 6) = 16
+        expect(result.damage).toBe(16);
+        expect(result.newHp).toBe(34); // 50 - 16
       });
     });
   });

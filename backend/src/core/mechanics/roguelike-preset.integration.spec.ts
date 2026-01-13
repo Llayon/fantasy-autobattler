@@ -127,10 +127,10 @@ describe('ROGUELIKE Preset Integration Tests', () => {
     it('should have phalanx configured (Tier 3)', () => {
       expect(ROGUELIKE_PRESET.phalanx).not.toBe(false);
       if (typeof ROGUELIKE_PRESET.phalanx === 'object') {
-        expect(ROGUELIKE_PRESET.phalanx.maxArmorBonus).toBe(5);
-        expect(ROGUELIKE_PRESET.phalanx.maxResolveBonus).toBe(25);
-        expect(ROGUELIKE_PRESET.phalanx.armorPerAlly).toBe(1);
-        expect(ROGUELIKE_PRESET.phalanx.resolvePerAlly).toBe(5);
+        expect(ROGUELIKE_PRESET.phalanx.maxArmorBonus).toBe(10);
+        expect(ROGUELIKE_PRESET.phalanx.maxResolveBonus).toBe(20);
+        expect(ROGUELIKE_PRESET.phalanx.armorPerAlly).toBe(5);
+        expect(ROGUELIKE_PRESET.phalanx.resolvePerAlly).toBe(10);
       }
     });
 

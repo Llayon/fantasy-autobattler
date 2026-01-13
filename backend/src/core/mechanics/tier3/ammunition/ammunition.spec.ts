@@ -9,7 +9,7 @@
 
 import { createAmmunitionProcessor } from './ammunition.processor';
 import { createTestUnit, createTestBattleState } from '../../test-fixtures';
-import type { BattleUnit } from '../../../types';
+import type { BattleUnit, BattleState, BattleEvent } from '../../../types';
 import type { AmmoConfig } from '../../config/mechanics.types';
 import type { UnitWithAmmunition } from './ammunition.types';
 import {
@@ -555,6 +555,22 @@ describe('AmmunitionProcessor', () => {
   describe('apply (phase integration)', () => {
     const processor = createAmmunitionProcessor(DEFAULT_AMMO_CONFIG);
 
+    // Helper to extract state from union type result
+    function getResultState(result: ReturnType<typeof processor.apply>): BattleState {
+      if ('state' in result) {
+        return result.state;
+      }
+      return result;
+    }
+
+    // Helper to extract events from union type result
+    function getResultEvents(result: ReturnType<typeof processor.apply>): BattleEvent[] {
+      if ('events' in result && result.events) {
+        return result.events as BattleEvent[];
+      }
+      return [];
+    }
+
     it('should return unchanged state when ammunition is disabled', () => {
       const disabledConfig: AmmoConfig = { ...DEFAULT_AMMO_CONFIG, enabled: false };
       const disabledProcessor = createAmmunitionProcessor(disabledConfig);
@@ -567,7 +583,8 @@ describe('AmmunitionProcessor', () => {
         seed: 12345,
       });
 
-      expect(result).toEqual(state);
+      expect(getResultState(result)).toEqual(state);
+      expect(getResultEvents(result)).toEqual([]);
     });
 
     it('should tick cooldowns at turn_start for mages', () => {
@@ -582,7 +599,8 @@ describe('AmmunitionProcessor', () => {
         seed: 12345,
       });
 
-      const updatedMage = result.units.find(u => u.id === 'mage') as BattleUnit & UnitWithAmmunition;
+      const resultState = getResultState(result);
+      const updatedMage = resultState.units.find((u: BattleUnit) => u.id === 'mage') as BattleUnit & UnitWithAmmunition;
       const cooldowns = updatedMage.cooldowns as Record<string, number> | undefined;
       expect(cooldowns?.['fireball']).toBe(1);
       expect(cooldowns?.['frostbolt']).toBe(0);
@@ -600,8 +618,14 @@ describe('AmmunitionProcessor', () => {
         seed: 12345,
       });
 
-      const updatedArcher = result.units.find(u => u.id === 'archer') as BattleUnit & UnitWithAmmunition;
+      const resultState = getResultState(result);
+      const updatedArcher = resultState.units.find((u: BattleUnit) => u.id === 'archer') as BattleUnit & UnitWithAmmunition;
       expect(updatedArcher.ammo).toBe(4);
+      
+      // Should generate ammunition event
+      const events = getResultEvents(result);
+      expect(events.length).toBeGreaterThan(0);
+      expect(events[0]?.type).toBe('mechanic_ammunition');
     });
 
     it('should not consume ammo for melee units during attack', () => {
@@ -617,7 +641,8 @@ describe('AmmunitionProcessor', () => {
       });
 
       // State should be unchanged for melee
-      expect(result).toEqual(state);
+      expect(getResultState(result)).toEqual(state);
+      expect(getResultEvents(result)).toEqual([]);
     });
 
     it('should return unchanged state for unhandled phases', () => {
@@ -629,7 +654,8 @@ describe('AmmunitionProcessor', () => {
         seed: 12345,
       });
 
-      expect(result).toEqual(state);
+      expect(getResultState(result)).toEqual(state);
+      expect(getResultEvents(result)).toEqual([]);
     });
   });
 

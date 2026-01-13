@@ -419,7 +419,9 @@ describe('FacingProcessor', () => {
 
       for (const phase of phases) {
         const result = processor.apply(phase, state as BattleState, context);
-        expect(result).toBe(state); // Same reference, no modification
+        // MechanicResult returns { state, events } - state should be unchanged
+        expect(result.state).toBe(state);
+        expect(result.events).toEqual([]);
       }
     });
 
@@ -434,7 +436,9 @@ describe('FacingProcessor', () => {
 
       const result = processor.apply('pre_attack', state as BattleState, context);
 
-      expect(result).toBe(state);
+      // MechanicResult returns { state, events } - state should be unchanged
+      expect(result.state).toBe(state);
+      expect(result.events).toEqual([]);
     });
 
     it('should auto-face active unit toward target in pre_attack phase', () => {
@@ -458,7 +462,7 @@ describe('FacingProcessor', () => {
       const result = processor.apply('pre_attack', state as BattleState, context);
 
       // Find updated unit in state
-      const updatedUnit = result.units.find((u) => u.instanceId === unit.instanceId) as BattleUnitWithFacing;
+      const updatedUnit = result.state.units.find((u) => u.instanceId === unit.instanceId) as BattleUnitWithFacing;
       expect(updatedUnit?.facing).toBe('N'); // Should now face North toward target
     });
 
@@ -489,7 +493,7 @@ describe('FacingProcessor', () => {
       const result = processor.apply('pre_attack', state as BattleState, context);
 
       // Bystander should be unchanged
-      const updatedBystander = result.units.find(
+      const updatedBystander = result.state.units.find(
         (u) => u.instanceId === 'bystander-instance',
       ) as BattleUnitWithFacing;
       expect(updatedBystander?.facing).toBe('E');

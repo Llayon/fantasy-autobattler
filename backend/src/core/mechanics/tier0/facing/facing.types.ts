@@ -8,7 +8,7 @@
  * @module core/mechanics/tier0/facing
  */
 
-import type { BattlePhase, PhaseContext } from '../../processor';
+import type { BattlePhase, PhaseContext, MechanicResult } from '../../processor';
 import type { BattleState, FacingDirection } from '../../../types';
 
 // Re-export FacingDirection from core types for convenience
@@ -97,22 +97,24 @@ export interface FacingProcessor {
   /**
    * Apply facing logic for a battle phase.
    * During pre_attack phase, auto-faces the active unit toward its target.
+   * Generates mechanic_facing event when unit rotates.
    *
    * @param phase - Current battle phase
    * @param state - Current battle state
    * @param context - Phase context with active unit and target
-   * @returns Updated battle state
+   * @returns MechanicResult with updated state and facing events
    *
    * @example
-   * const newState = processor.apply('pre_attack', state, {
+   * const result = processor.apply('pre_attack', state, {
    *   activeUnit: attacker,
    *   target: defender,
    *   seed: 12345,
    * });
+   * // result.events contains mechanic_facing if unit rotated
    */
   apply(
     phase: BattlePhase,
     state: BattleState,
     context: PhaseContext,
-  ): BattleState;
+  ): MechanicResult;
 }

@@ -8,8 +8,8 @@
  * @module core/mechanics/tier0/facing
  */
 
-import type { BattleState } from '../../../types';
-import type { BattlePhase, PhaseContext } from '../../processor';
+import type { BattleState, BattleEvent } from '../../../types';
+import type { BattlePhase, PhaseContext, MechanicResult } from '../../processor';
 import { updateUnit } from '../../helpers';
 import type {
   FacingDirection,
@@ -220,27 +220,33 @@ export function createFacingProcessor(): FacingProcessor {
     /**
      * Apply facing logic for a battle phase.
      * During pre_attack phase, auto-faces the active unit toward its target.
+     * Generates mechanic_facing event when unit rotates.
      *
      * @param phase - Current battle phase ('turn_start', 'movement', 'pre_attack', etc.)
      * @param state - Current battle state with all units
      * @param context - Phase context containing activeUnit, target, and seed
-     * @returns Updated battle state (unchanged if not pre_attack phase)
+     * @returns MechanicResult with updated state and facing event (if rotation occurred)
      * @example
-     * const newState = processor.apply('pre_attack', state, {
+     * const result = processor.apply('pre_attack', state, {
      *   activeUnit: attacker,
      *   target: defender,
      *   seed: 12345,
      * });
+     * // result.state - updated state with new facing
+     * // result.events - contains mechanic_facing event if unit rotated
      */
     apply(
       phase: BattlePhase,
       state: BattleState,
       context: PhaseContext,
-    ): BattleState {
+    ): MechanicResult {
       // Only apply during pre_attack phase when there's a target
       if (phase !== 'pre_attack' || !context.target) {
-        return state;
+        return { state, events: [] };
       }
+
+      // Get current facing before rotation
+      const oldFacing = context.activeUnit.facing ?? 'S';
 
       // Auto-face active unit toward target before attack
       const processor = createFacingProcessor();
@@ -249,7 +255,27 @@ export function createFacingProcessor(): FacingProcessor {
         context.target.position,
       );
 
-      return updateUnit(state, updatedUnit);
+      const newFacing = updatedUnit.facing;
+      const events: BattleEvent[] = [];
+
+      // Generate event only if facing actually changed
+      if (oldFacing !== newFacing) {
+        events.push({
+          type: 'mechanic_facing',
+          round: 0, // Will be set by battle simulator
+          actorId: context.activeUnit.instanceId,
+          targetId: context.activeUnit.instanceId,
+          metadata: {
+            oldFacing,
+            newFacing,
+          },
+        } as BattleEvent);
+      }
+
+      return {
+        state: updateUnit(state, updatedUnit),
+        events,
+      };
     },
   };
 }

@@ -384,6 +384,16 @@ export function createRiposteProcessor(config: RiposteConfig): RiposteProcessor 
             },
           } as BattleEvent);
 
+          // Generate damage event for frontend HP animation
+          // This is needed because the frontend only processes 'damage' events to update HP
+          events.push({
+            type: 'damage',
+            round: state.round ?? 1,
+            actorId: defender.instanceId,
+            targetId: attacker.instanceId,
+            damage: riposteDamage,
+          } as BattleEvent);
+
           const newState = this.executeRiposte(defenderWithRiposte, attacker, state);
           return { state: newState, events };
         }

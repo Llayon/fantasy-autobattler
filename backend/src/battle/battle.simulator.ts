@@ -60,6 +60,7 @@ import { executeAttack } from './actions';
 import { manhattanDistance } from './grid';
 import { canTarget } from './targeting';
 import type { FacingDirection } from '../core/mechanics/tier0/facing/facing.types';
+import { calculatePhysicalDamage, type DamageUnit } from '../core/battle/damage';
 
 // =============================================================================
 // RESOLVE DAMAGE CONSTANTS (per design doc)
@@ -370,7 +371,8 @@ export function fromCoreBattleState(
         phalanxArmorBonus: coreUnitWithExtras.phalanxArmorBonus ?? gameUnitWithMechanics.phalanxArmorBonus,
         phalanxResolveBonus: coreUnitWithExtras.phalanxResolveBonus ?? gameUnitWithMechanics.phalanxResolveBonus,
         // Ammunition mechanic state (Tier 3) - updated by ammunition processor
-        ammunition: coreUnit.ammo ?? gameUnitWithMechanics.ammunition,
+        // CRITICAL: Use coreUnit.ammo if defined (even if 0), only fallback if undefined
+        ammunition: coreUnit.ammo !== undefined ? coreUnit.ammo : gameUnitWithMechanics.ammunition,
         maxAmmunition: coreUnitWithExtras.maxAmmo ?? gameUnitWithMechanics.maxAmmunition,
         ammoState: coreUnitWithExtras.ammoState ?? gameUnitWithMechanics.ammoState,
         isReloading: coreUnitWithExtras.isReloading ?? gameUnitWithMechanics.isReloading,
@@ -824,8 +826,9 @@ function createBattleUnits(teamSetup: TeamSetup, teamType: TeamType): BattleUnit
     }
     
     // Determine initial facing direction based on team
-    // Player units face North (toward enemy), Bot units face South (toward player)
-    const initialFacing = teamType === 'player' ? 'N' : 'S';
+    // Player units start at rows 0-1 (north), face South toward enemy
+    // Bot units start at rows 8-9 (south), face North toward player
+    const initialFacing = teamType === 'player' ? 'S' : 'N';
     
     // Get mechanics fields from unit template (Core 2.0)
     // Note: UnitTemplate uses 'ammo' field, not 'ammunition'
@@ -1585,9 +1588,22 @@ function executeUnitTurnWithAbilities(
                   // Get updated unit from state (may have momentum from movement phase)
                   const updatedAttacker = currentState.units.find(u => u.instanceId === unit.instanceId) ?? unit;
                   
+                  // PRE_ATTACK phase for legacy turn (Core 2.0) - handles Spear Wall counter
+                  const preAttackResult = processPhase(processor, 'pre_attack', currentState, {
+                    activeUnit: updatedAttacker as unknown as CoreBattleUnit,
+                    target: attackTarget as unknown as CoreBattleUnit,
+                    action: { type: 'attack', targetId: attackTarget.instanceId },
+                    seed: currentSeed++,
+                  });
+                  currentState = preAttackResult.state;
+                  events.push(...preAttackResult.events);
+                  
+                  // Re-fetch attacker after pre_attack (may have taken counter damage)
+                  const attackerAfterPreAttack = currentState.units.find(u => u.instanceId === unit.instanceId) ?? updatedAttacker;
+                  
                   // Apply flanking mechanics for legacy turn attacks
                   const legacyModifiers = calculateCombatModifiers(processor, {
-                    attacker: updatedAttacker,
+                    attacker: attackerAfterPreAttack,
                     target: attackTarget,
                     distanceMoved, // Use actual distance moved for charge calculation
                     round: currentState.currentRound,
@@ -1599,23 +1615,31 @@ function executeUnitTurnWithAbilities(
                     events.push(...legacyModifiers.events);
                   }
                   
-                  // Calculate total damage modifier from all mechanics
-                  let totalDamageModifier = 1.0;
+                  // Check if we need to recalculate damage with modifiers (new formula: ATK * modifier - armor)
+                  const hasFlankingBonus = legacyModifiers.modifiers.flankingModifier > 1.0;
+                  const hasMomentumBonus = legacyModifiers.modifiers.momentumBonus > 0;
                   
-                  // Apply flanking modifier
-                  if (legacyModifiers.modifiers.flankingModifier > 1.0) {
-                    totalDamageModifier *= legacyModifiers.modifiers.flankingModifier;
-                  }
-                  
-                  // Apply charge momentum bonus
-                  if (legacyModifiers.modifiers.momentumBonus > 0) {
-                    totalDamageModifier *= (1 + legacyModifiers.modifiers.momentumBonus);
-                  }
-                  
-                  // Recalculate damage with combined modifiers if applicable
-                  if (totalDamageModifier > 1.0 && attackEvent.damage && attackEvent.damage > 0) {
+                  // Recalculate damage with new formula if modifiers apply
+                  if ((hasFlankingBonus || hasMomentumBonus) && attackEvent.damage && attackEvent.damage > 0) {
                     const originalDamage = attackEvent.damage;
-                    const newDamage = Math.floor(originalDamage * totalDamageModifier);
+                    
+                    // Use calculatePhysicalDamage with modifiers for correct formula:
+                    // (ATK * flankingModifier * (1 + momentumBonus) - armor) * atkCount
+                    // Build options object only with defined values to satisfy exactOptionalPropertyTypes
+                    const damageOptions: { flankingModifier?: number; momentumBonus?: number } = {};
+                    if (hasFlankingBonus) {
+                      damageOptions.flankingModifier = legacyModifiers.modifiers.flankingModifier;
+                    }
+                    if (hasMomentumBonus) {
+                      damageOptions.momentumBonus = legacyModifiers.modifiers.momentumBonus;
+                    }
+                    
+                    const newDamage = calculatePhysicalDamage(
+                      attackerAfterPreAttack as DamageUnit,
+                      attackTarget as DamageUnit,
+                      undefined,
+                      damageOptions
+                    );
                     attackEvent.damage = newDamage;
                     
                     // Also update damage event if present
@@ -1696,8 +1720,21 @@ function executeUnitTurnWithAbilities(
             if (attackEvent && attackEvent.targetId && hasMechanicsEnabled) {
               const attackTarget = currentState.units.find(u => u.instanceId === attackEvent.targetId);
               if (attackTarget) {
+                // PRE_ATTACK phase for legacy turn (Core 2.0) - handles Spear Wall counter
+                const preAttackResult = processPhase(processor, 'pre_attack', currentState, {
+                  activeUnit: unit as unknown as CoreBattleUnit,
+                  target: attackTarget as unknown as CoreBattleUnit,
+                  action: { type: 'attack', targetId: attackTarget.instanceId },
+                  seed: currentSeed++,
+                });
+                currentState = preAttackResult.state;
+                events.push(...preAttackResult.events);
+                
+                // Re-fetch attacker after pre_attack (may have taken counter damage)
+                const attackerAfterPreAttack = currentState.units.find(u => u.instanceId === unit.instanceId) ?? unit;
+                
                 const legacyModifiers = calculateCombatModifiers(processor, {
-                  attacker: unit,
+                  attacker: attackerAfterPreAttack,
                   target: attackTarget,
                   distanceMoved: 0,
                   round: currentState.currentRound,
@@ -1709,10 +1746,17 @@ function executeUnitTurnWithAbilities(
                   events.push(...legacyModifiers.events);
                 }
                 
-                // Recalculate damage with flanking modifier if applicable
+                // Recalculate damage with flanking modifier using new formula (ATK * modifier - armor)
                 if (legacyModifiers.modifiers.flankingModifier > 1.0 && attackEvent.damage && attackEvent.damage > 0) {
                   const originalDamage = attackEvent.damage;
-                  const newDamage = Math.floor(originalDamage * legacyModifiers.modifiers.flankingModifier);
+                  
+                  // Use calculatePhysicalDamage with modifiers for correct formula
+                  const newDamage = calculatePhysicalDamage(
+                    attackerAfterPreAttack as DamageUnit,
+                    attackTarget as DamageUnit,
+                    undefined,
+                    { flankingModifier: legacyModifiers.modifiers.flankingModifier }
+                  );
                   attackEvent.damage = newDamage;
                   
                   // Also update damage event if present
@@ -1733,7 +1777,7 @@ function executeUnitTurnWithAbilities(
                 if (processor?.config.resolve && attackEvent.damage && attackEvent.damage > 0) {
                   const resolveResult = applyAttackResolveDamage(
                     currentState,
-                    unit,
+                    attackerAfterPreAttack,
                     attackTarget,
                     { resolveDamage: legacyModifiers.modifiers.resolveDamage, attackArc: legacyModifiers.modifiers.attackArc },
                     currentState.currentRound
@@ -1968,23 +2012,31 @@ function executeUnitTurnWithAbilities(
               events.push(...moveModifiers.events);
             }
             
-            // Calculate total damage modifier from all mechanics
-            let totalDamageModifier = 1.0;
+            // Check if we need to recalculate damage with modifiers (new formula: ATK * modifier - armor)
+            const hasFlankingBonus = moveModifiers.modifiers.flankingModifier > 1.0;
+            const hasMomentumBonus = moveModifiers.modifiers.momentumBonus > 0;
             
-            // Apply flanking modifier
-            if (moveModifiers.modifiers.flankingModifier > 1.0) {
-              totalDamageModifier *= moveModifiers.modifiers.flankingModifier;
-            }
-            
-            // Apply charge momentum bonus
-            if (moveModifiers.modifiers.momentumBonus > 0) {
-              totalDamageModifier *= (1 + moveModifiers.modifiers.momentumBonus);
-            }
-            
-            // Recalculate damage with combined modifiers if applicable
-            if (totalDamageModifier > 1.0 && attackEvent.damage && attackEvent.damage > 0) {
+            // Recalculate damage with new formula if modifiers apply
+            if ((hasFlankingBonus || hasMomentumBonus) && attackEvent.damage && attackEvent.damage > 0) {
               const originalDamage = attackEvent.damage;
-              const newDamage = Math.floor(originalDamage * totalDamageModifier);
+              
+              // Use calculatePhysicalDamage with modifiers for correct formula:
+              // (ATK * flankingModifier * (1 + momentumBonus) - armor) * atkCount
+              // Build options object only with defined values to satisfy exactOptionalPropertyTypes
+              const damageOptions: { flankingModifier?: number; momentumBonus?: number } = {};
+              if (hasFlankingBonus) {
+                damageOptions.flankingModifier = moveModifiers.modifiers.flankingModifier;
+              }
+              if (hasMomentumBonus) {
+                damageOptions.momentumBonus = moveModifiers.modifiers.momentumBonus;
+              }
+              
+              const newDamage = calculatePhysicalDamage(
+                updatedAttacker as DamageUnit,
+                attackTarget as DamageUnit,
+                undefined,
+                damageOptions
+              );
               attackEvent.damage = newDamage;
               
               // Also update damage event if present
@@ -2002,6 +2054,17 @@ function executeUnitTurnWithAbilities(
                 originalDamage,
               };
             }
+            
+            // ATTACK phase (Core 2.0) - apply ammunition consumption, riposte, etc.
+            // This is called after move+attack when unit moved then attacked
+            const attackPhaseResult = processPhase(processor, 'attack', currentState, {
+              activeUnit: updatedAttacker as unknown as CoreBattleUnit,
+              target: attackTarget as unknown as CoreBattleUnit,
+              action: { type: 'attack', targetId: attackTarget.instanceId },
+              seed: currentSeed++,
+            });
+            currentState = attackPhaseResult.state;
+            events.push(...attackPhaseResult.events);
           }
         }
         

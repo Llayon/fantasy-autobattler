@@ -144,7 +144,8 @@ export type BattleEventType =
   | 'mechanic_overwatch'
   | 'mechanic_contagion'
   | 'mechanic_intercept'
-  | 'mechanic_aoo';
+  | 'mechanic_aoo'
+  | 'mechanic_ammunition';
 
 /**
  * Individual battle event record matching backend.

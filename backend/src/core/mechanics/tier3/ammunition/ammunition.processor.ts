@@ -19,8 +19,8 @@
  * @module core/mechanics/tier3/ammunition
  */
 
-import type { BattleState, BattleUnit } from '../../../types';
-import type { BattlePhase, PhaseContext } from '../../processor';
+import type { BattleState, BattleUnit, BattleEvent } from '../../../types';
+import type { BattlePhase, PhaseContext, MechanicResult } from '../../processor';
 import type { AmmoConfig } from '../../config/mechanics.types';
 import { updateUnit, findUnit } from '../../helpers';
 import type {
@@ -45,6 +45,7 @@ import {
   UNLIMITED_AMMO_TAG,
   QUICK_COOLDOWN_TAG,
 } from './ammunition.types';
+
 
 // ═══════════════════════════════════════════════════════════════
 // HELPER FUNCTIONS
@@ -691,16 +692,19 @@ export function createAmmunitionProcessor(
      * @param phase - Current battle phase
      * @param state - Current battle state
      * @param context - Phase context with active unit and action
-     * @returns Updated battle state
+     * @returns MechanicResult with updated state and ammunition events
      */
     apply(
       phase: BattlePhase,
       state: BattleState,
       context: PhaseContext,
-    ): BattleState {
+    ): MechanicResult {
+      const events: BattleEvent[] = [];
+      const round = state.round ?? 0;
+
       // Skip if ammunition mechanic is disabled
       if (!config.enabled) {
-        return state;
+        return { state, events };
       }
 
       // ─────────────────────────────────────────────────────────────
@@ -708,7 +712,8 @@ export function createAmmunitionProcessor(
       // ─────────────────────────────────────────────────────────────
       if (phase === 'turn_start') {
         // Use instanceId for unique battle instance lookup (not id which is unit type)
-        const unit = findUnit(state, context.activeUnit.instanceId);
+        const activeUnitId = context.activeUnit?.instanceId ?? context.activeUnit?.id;
+        const unit = activeUnitId ? findUnit(state, activeUnitId) : undefined;
         if (unit) {
           const unitWithAmmo = unit as BattleUnit & UnitWithAmmunition;
           const resourceType = this.getResourceType(unitWithAmmo);
@@ -716,10 +721,10 @@ export function createAmmunitionProcessor(
           // Tick cooldowns for mages
           if (resourceType === 'cooldown') {
             const tickResult = this.tickCooldowns(unitWithAmmo);
-            return updateUnit(state, tickResult.unit);
+            return { state: updateUnit(state, tickResult.unit), events };
           }
         }
-        return state;
+        return { state, events };
       }
 
       // ─────────────────────────────────────────────────────────────
@@ -729,7 +734,7 @@ export function createAmmunitionProcessor(
       if (phase === 'pre_attack' && context.action?.type === 'attack') {
         // Validation is handled by checkAmmo/checkCooldown methods
         // The battle simulator should call these before allowing attacks
-        return state;
+        return { state, events };
       }
 
       // ─────────────────────────────────────────────────────────────
@@ -737,17 +742,50 @@ export function createAmmunitionProcessor(
       // ─────────────────────────────────────────────────────────────
       if (phase === 'attack') {
         // Use instanceId for unique battle instance lookup (not id which is unit type)
-        const unit = findUnit(state, context.activeUnit.instanceId);
-        if (!unit) return state;
+        const activeUnitId = context.activeUnit?.instanceId ?? context.activeUnit?.id;
+        const unit = activeUnitId ? findUnit(state, activeUnitId) : undefined;
+        if (!unit) return { state, events };
 
         const unitWithAmmo = unit as BattleUnit & UnitWithAmmunition;
         const resourceType = this.getResourceType(unitWithAmmo);
 
         // Handle ranged attack ammo consumption
-        if (context.action?.type === 'attack' && resourceType === 'ammo') {
+        // Consume ammo if:
+        // 1. Action type is 'attack', OR
+        // 2. There's a target (attack happened even if action was 'move' - unit moved then attacked)
+        const isAttackAction = context.action?.type === 'attack';
+        const hasTarget = context.target !== undefined;
+        
+        if ((isAttackAction || hasTarget) && resourceType === 'ammo') {
           const consumeResult = this.consumeAmmo(unitWithAmmo, state);
-          if (consumeResult.success) {
-            return updateUnit(state, consumeResult.unit);
+          if (consumeResult.success && consumeResult.ammoConsumed > 0) {
+            // Generate ammo consumed event
+            events.push({
+              type: 'mechanic_ammunition',
+              round,
+              actorId: unit.instanceId ?? unit.id,
+              metadata: {
+                action: 'consumed',
+                ammoConsumed: consumeResult.ammoConsumed,
+                ammoRemaining: consumeResult.ammoRemaining,
+                ammoState: consumeResult.newState,
+              },
+            });
+            
+            // Check if ammo depleted
+            if (consumeResult.ammoRemaining <= 0) {
+              events.push({
+                type: 'mechanic_ammunition',
+                round,
+                actorId: unit.instanceId ?? unit.id,
+                metadata: {
+                  action: 'depleted',
+                  ammoRemaining: 0,
+                },
+              });
+            }
+            
+            return { state: updateUnit(state, consumeResult.unit), events };
           }
         }
 
@@ -759,14 +797,24 @@ export function createAmmunitionProcessor(
             state,
           );
           if (triggerResult.success) {
-            return updateUnit(state, triggerResult.unit);
+            events.push({
+              type: 'mechanic_ammunition',
+              round,
+              actorId: unit.instanceId ?? unit.id,
+              metadata: {
+                action: 'cooldown_triggered',
+                abilityId: context.action.abilityId,
+                cooldownDuration: triggerResult.cooldownDuration,
+              },
+            });
+            return { state: updateUnit(state, triggerResult.unit), events };
           }
         }
 
-        return state;
+        return { state, events };
       }
 
-      return state;
+      return { state, events };
     },
   };
 }

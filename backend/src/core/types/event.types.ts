@@ -44,7 +44,8 @@ export type BattleEventType =
   | 'mechanic_overwatch'
   | 'mechanic_contagion'
   | 'mechanic_intercept'
-  | 'mechanic_aoo';
+  | 'mechanic_aoo'
+  | 'mechanic_ammunition';
 
 // =============================================================================
 // BASE EVENT INTERFACE

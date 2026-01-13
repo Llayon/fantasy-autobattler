@@ -128,7 +128,9 @@ export interface PhysicalDamageOptions {
  * Effective armor accounts for armor shred from Core 2.0 mechanics.
  * Supports optional flanking modifier and charge momentum bonus from Core 2.0 mechanics.
  * 
- * Formula: max(minDamage, floor((ATK - effectiveArmor) * atkCount * flankingModifier * (1 + momentumBonus)))
+ * Formula: max(minDamage, floor((ATK * flankingModifier * (1 + momentumBonus) - effectiveArmor) * atkCount))
+ * 
+ * Modifiers are applied to ATK BEFORE armor reduction for more impactful flanking/charge attacks.
  *
  * @param attacker - The unit dealing damage
  * @param target - The unit receiving damage
@@ -148,24 +150,22 @@ export interface PhysicalDamageOptions {
  * const damage = calculatePhysicalDamage(attacker, knight);
  *
  * @example
- * // With flanking modifier (Core 2.0)
+ * // With flanking modifier (Core 2.0) - applied to ATK before armor
+ * // ATK=24, armor=20, flankingModifier=1.3
  * const damage = calculatePhysicalDamage(attacker, target, config, { flankingModifier: 1.3 });
- * // Damage is multiplied by 1.3 for flank attack
+ * // Returns: (24 * 1.3 - 20) * 1 = 11 (instead of old: (24-20) * 1.3 = 5)
  *
  * @example
- * // With rear attack (Core 2.0)
- * const damage = calculatePhysicalDamage(attacker, target, config, { flankingModifier: 1.5 });
- * // Damage is multiplied by 1.5 for rear attack
- *
- * @example
- * // With charge momentum bonus (Core 2.0)
+ * // With charge momentum bonus (Core 2.0) - applied to ATK before armor
+ * // ATK=24, armor=20, momentumBonus=0.6
  * const damage = calculatePhysicalDamage(attacker, target, config, { momentumBonus: 0.6 });
- * // Damage is multiplied by 1.6 for charge with 60% momentum
+ * // Returns: (24 * 1.6 - 20) * 1 = 18 (instead of old: (24-20) * 1.6 = 6)
  *
  * @example
  * // With combined flanking and charge (Core 2.0)
- * const damage = calculatePhysicalDamage(attacker, target, config, { flankingModifier: 1.3, momentumBonus: 0.4 });
- * // Damage is multiplied by 1.3 * 1.4 = 1.82 for flank charge attack
+ * // ATK=24, armor=20, flankingModifier=1.15, momentumBonus=0.6
+ * const damage = calculatePhysicalDamage(attacker, target, config, { flankingModifier: 1.15, momentumBonus: 0.6 });
+ * // Returns: (24 * 1.15 * 1.6 - 20) * 1 = 24 (instead of old: (24-20) * 1.84 = 7)
  */
 export function calculatePhysicalDamage(
   attacker: DamageUnit,
@@ -177,32 +177,34 @@ export function calculatePhysicalDamage(
   // Formula: effectiveArmor = max(0, baseArmor - armorShred)
   const effectiveArmor = getEffectiveArmor(target);
 
-  // Step 2: Calculate base damage after armor reduction
-  // Formula: baseDamage = ATK - effectiveArmor
-  const baseDamage = attacker.stats.atk - effectiveArmor;
+  // Step 2: Calculate effective ATK with modifiers applied BEFORE armor reduction
+  // This makes flanking and charge attacks more impactful against armored targets
+  let effectiveAtk = attacker.stats.atk;
 
-  // Step 3: Apply attack count multiplier
-  // Formula: totalDamage = baseDamage * atkCount
-  let totalDamage = baseDamage * attacker.stats.atkCount;
-
-  // Step 4: Apply flanking modifier if provided (Core 2.0 mechanics)
-  // Formula: totalDamage = floor(totalDamage * flankingModifier)
+  // Step 3: Apply flanking modifier to ATK (Core 2.0 mechanics)
   // - Front: 1.0 (no bonus)
-  // - Flank: 1.15 (+15% damage)
-  // - Rear: 1.3 (+30% damage)
+  // - Flank: 1.15 (+15% ATK)
+  // - Rear: 1.3 (+30% ATK)
   if (options?.flankingModifier !== undefined && options.flankingModifier !== 1.0) {
-    totalDamage = Math.floor(totalDamage * options.flankingModifier);
+    effectiveAtk = effectiveAtk * options.flankingModifier;
   }
 
-  // Step 5: Apply charge momentum bonus if provided (Core 2.0 mechanics)
-  // Formula: totalDamage = floor(totalDamage * (1 + momentumBonus))
+  // Step 4: Apply charge momentum bonus to ATK (Core 2.0 mechanics)
   // Momentum is calculated as: min(maxMomentum, distance * momentumPerCell)
   // Default: 0.2 per cell, max 1.0 (100%)
   if (options?.momentumBonus !== undefined && options.momentumBonus > 0) {
-    totalDamage = Math.floor(totalDamage * (1 + options.momentumBonus));
+    effectiveAtk = effectiveAtk * (1 + options.momentumBonus);
   }
 
-  // Step 6: Ensure minimum damage per config
+  // Step 5: Calculate damage after armor reduction
+  // Formula: baseDamage = floor(effectiveAtk) - effectiveArmor
+  const baseDamage = Math.floor(effectiveAtk) - effectiveArmor;
+
+  // Step 6: Apply attack count multiplier
+  // Formula: totalDamage = baseDamage * atkCount
+  const totalDamage = baseDamage * attacker.stats.atkCount;
+
+  // Step 7: Ensure minimum damage per config
   // Formula: finalDamage = max(minDamage, totalDamage)
   // Default minDamage = 1 (attacks always deal at least 1 damage)
   return Math.max(config.minDamage, totalDamage);
