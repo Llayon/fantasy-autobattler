@@ -10,6 +10,11 @@
  * 2. AI decides action (ability/attack/move)
  * 3. Execute action
  * 4. Tick ability cooldowns
+ * 
+ * Core 2.0 Integration:
+ * - Optional MechanicsProcessor for advanced combat mechanics
+ * - Phase hooks for mechanics integration (turn_start, movement, pre_attack, attack, post_attack, turn_end)
+ * - Backward compatible: no processor = MVP behavior (identical to Core 1.0)
  */
 
 import { 
@@ -47,6 +52,51 @@ import { decideAction, UnitAction } from './ai.decision';
 import { getUnitAbility } from '../abilities/ability.data';
 import { isActiveAbility } from '../types/ability.types';
 
+// Core 2.0 Mechanics imports
+import type { MechanicsProcessor, PhaseContext, BattleAction, ProcessResult } from '../core/mechanics';
+import type { BattleState as CoreBattleState, BattleUnit as CoreBattleUnit } from '../core/types';
+import { calculateCombatModifiers } from './mechanics-integration';
+import { executeAttack } from './actions';
+import { manhattanDistance } from './grid';
+import { canTarget } from './targeting';
+import type { FacingDirection } from '../core/mechanics/tier0/facing/facing.types';
+import { calculatePhysicalDamage, type DamageUnit } from '../core/battle/damage';
+
+// =============================================================================
+// RESOLVE DAMAGE CONSTANTS (per design doc)
+// =============================================================================
+
+/**
+ * Resolve damage values per design document.
+ * These values represent psychological impact on unit morale.
+ */
+const RESOLVE_DAMAGE = {
+  /** Resolve damage when adjacent ally (within 1 cell) dies */
+  ALLY_DEATH_ADJACENT: 15,
+  /** Resolve damage when nearby ally (within 3 cells) dies */
+  ALLY_DEATH_NEARBY: 8,
+  /** Resolve damage when surrounded by 3+ enemies at turn start */
+  SURROUNDED: 20,
+  /** Minimum enemies adjacent to trigger surrounded penalty */
+  SURROUNDED_MIN_ENEMIES: 3,
+  /** Range for "nearby" ally death */
+  ALLY_DEATH_NEARBY_RANGE: 3,
+} as const;
+
+/**
+ * Routing/Rally constants for resolve system.
+ */
+const ROUTING_CONFIG = {
+  /** Resolve threshold to rally (stop routing) */
+  RALLY_THRESHOLD: 25,
+  /** Movement cells toward own edge when routing */
+  RETREAT_DISTANCE: 2,
+  /** Player team retreat row (toward row 0) */
+  PLAYER_RETREAT_ROW: 0,
+  /** Bot team retreat row (toward row 9) */
+  BOT_RETREAT_ROW: 9,
+} as const;
+
 
 // =============================================================================
 // TEAM SETUP INTERFACE
@@ -69,6 +119,631 @@ export interface TeamSetup {
 interface BattleStateWithAbilities extends BattleState {
   /** Units with ability state */
   units: BattleUnitWithAbilities[];
+}
+
+/**
+ * Convert game-specific BattleState to core BattleState for mechanics processor.
+ * The mechanics processor expects the core BattleState interface.
+ * 
+ * This function creates a deep copy of unit data to prevent mutations from
+ * affecting the original game state. All unit properties are preserved:
+ * - HP (currentHp, maxHp)
+ * - Position (x, y coordinates)
+ * - Alive status
+ * - Facing direction (N, S, E, W)
+ * - Resolve (morale value)
+ * - All other Core 2.0 mechanics fields
+ * 
+ * @param state - Game-specific battle state
+ * @returns Core battle state compatible with mechanics processor
+ * 
+ * @example
+ * const coreState = toCoreBattleState(gameState);
+ * const result = processor.process('attack', coreState, context);
+ */
+export function toCoreBattleState(state: BattleStateWithAbilities): CoreBattleState<CoreBattleUnit> {
+  // Map game units to core units, preserving all relevant properties
+  const coreUnits: CoreBattleUnit[] = state.units.map(gameUnit => {
+    // Extract Core 2.0 mechanics fields from game unit
+    const unitWithMechanics = gameUnit as BattleUnitWithAbilities & {
+      facing?: FacingDirection;
+      resolve?: number;
+      maxResolve?: number;
+      riposteCharges?: number;
+      ammunition?: number;
+      maxAmmunition?: number;
+      ammoState?: string;
+      isReloading?: boolean;
+      tags?: string[];
+      armorShred?: number;
+      isEngaged?: boolean;
+      engagedBy?: string[];
+      chargeMomentum?: number;
+      isCharging?: boolean;
+      chargeDistance?: number;
+      chargeStartPosition?: { x: number; y: number };
+      chargeCountered?: boolean;
+      isInOverwatch?: boolean;
+      isInPhalanx?: boolean;
+      adjacentAlliesCount?: number;
+      phalanxArmorBonus?: number;
+      phalanxResolveBonus?: number;
+      isRouting?: boolean;
+      hasCrumbled?: boolean;
+      faction?: string;
+    };
+
+    return {
+      // Base unit properties
+      id: gameUnit.id,
+      name: gameUnit.name,
+      role: gameUnit.role,
+      cost: gameUnit.cost,
+      stats: { ...gameUnit.stats },
+      range: gameUnit.range,
+      abilities: [...gameUnit.abilities],
+      
+      // Battle state properties (CRITICAL: must be preserved)
+      position: { ...gameUnit.position },
+      currentHp: gameUnit.currentHp,
+      maxHp: gameUnit.maxHp,
+      team: gameUnit.team,
+      alive: gameUnit.alive,
+      instanceId: gameUnit.instanceId,
+      
+      // Core 2.0 Mechanics fields (Tier 0-4)
+      facing: unitWithMechanics.facing,
+      resolve: unitWithMechanics.resolve,
+      faction: unitWithMechanics.faction,
+      engaged: unitWithMechanics.isEngaged,
+      riposteCharges: unitWithMechanics.riposteCharges,
+      tags: unitWithMechanics.tags ? [...unitWithMechanics.tags] : undefined,
+      momentum: unitWithMechanics.chargeMomentum,
+      armorShred: unitWithMechanics.armorShred,
+      // Charge mechanic state (Tier 3)
+      isCharging: unitWithMechanics.isCharging,
+      chargeDistance: unitWithMechanics.chargeDistance,
+      chargeStartPosition: unitWithMechanics.chargeStartPosition,
+      chargeCountered: unitWithMechanics.chargeCountered,
+      // Phalanx mechanic state (Tier 3)
+      inPhalanx: unitWithMechanics.isInPhalanx,
+      adjacentAlliesCount: unitWithMechanics.adjacentAlliesCount,
+      phalanxArmorBonus: unitWithMechanics.phalanxArmorBonus,
+      phalanxResolveBonus: unitWithMechanics.phalanxResolveBonus,
+      // Ammunition mechanic state (Tier 3)
+      ammo: unitWithMechanics.ammunition,
+      maxAmmo: unitWithMechanics.maxAmmunition,
+      ammoState: unitWithMechanics.ammoState,
+      isReloading: unitWithMechanics.isReloading,
+    } as CoreBattleUnit;
+  });
+
+  return {
+    units: coreUnits,
+    round: state.currentRound,
+    events: [...state.events],
+  };
+}
+
+/**
+ * Apply core battle state changes back to game-specific state.
+ * Merges unit changes from mechanics processor back into game state.
+ * 
+ * CRITICAL: This function preserves HP and alive status from gameState to prevent
+ * the mechanics processor from "undoing" damage or reviving dead units.
+ * 
+ * Property preservation rules:
+ * 
+ * HP preservation:
+ * - Uses Math.min(gameState.currentHp, coreState.currentHp) to ensure damage is never undone
+ * - If coreState doesn't have HP info, uses gameState HP
+ * 
+ * Alive status:
+ * - Unit is dead if gameState marks it dead (gameUnit.alive === false)
+ * - Unit is dead if coreState marks it dead (coreUnit.alive === false)
+ * - Unit is dead if effective HP <= 0
+ * - All three conditions must be true for unit to be alive
+ * 
+ * Position:
+ * - Uses coreState position if available (mechanics may move units)
+ * - Falls back to gameState position if not set
+ * 
+ * Facing:
+ * - Uses coreState facing if available (facing processor may rotate units)
+ * - Falls back to gameState facing if not set
+ * 
+ * Resolve:
+ * - Uses coreState resolve if available (resolve processor may modify)
+ * - Falls back to gameState resolve if not set
+ * 
+ * @param gameState - Original game-specific state with current HP and alive status
+ * @param coreState - Updated core state from mechanics processor (may have stale HP/alive)
+ * @returns Updated game-specific state with preserved HP and alive status
+ * 
+ * @example
+ * // After mechanics phase, merge state back
+ * const result = processor.process('attack', coreState, context);
+ * const updatedState = fromCoreBattleState(gameState, result.state);
+ * // updatedState preserves HP reductions and death status from gameState
+ */
+export function fromCoreBattleState(
+  gameState: BattleStateWithAbilities,
+  coreState: CoreBattleState<CoreBattleUnit>
+): BattleStateWithAbilities {
+  // Merge unit changes from core state back to game state
+  const updatedUnits = gameState.units.map(gameUnit => {
+    const coreUnit = coreState.units.find(u => u.instanceId === gameUnit.instanceId);
+    if (coreUnit) {
+      // Extract game-specific mechanics fields
+      const gameUnitWithMechanics = gameUnit as BattleUnitWithAbilities & {
+        facing?: FacingDirection;
+        resolve?: number;
+        maxResolve?: number;
+        riposteCharges?: number;
+        ammunition?: number;
+        maxAmmunition?: number;
+        ammoState?: string;
+        isReloading?: boolean;
+        tags?: string[];
+        armorShred?: number;
+        isEngaged?: boolean;
+        engagedBy?: string[];
+        chargeMomentum?: number;
+        isCharging?: boolean;
+        chargeDistance?: number;
+        chargeStartPosition?: { x: number; y: number };
+        chargeCountered?: boolean;
+        isInOverwatch?: boolean;
+        isInPhalanx?: boolean;
+        adjacentAlliesCount?: number;
+        phalanxArmorBonus?: number;
+        phalanxResolveBonus?: number;
+        isRouting?: boolean;
+        hasCrumbled?: boolean;
+        faction?: string;
+      };
+      
+      // Extract charge fields from coreUnit (may be updated by charge processor)
+      const coreUnitWithExtras = coreUnit as CoreBattleUnit & {
+        isCharging?: boolean;
+        chargeDistance?: number;
+        chargeStartPosition?: { x: number; y: number };
+        chargeCountered?: boolean;
+        adjacentAlliesCount?: number;
+        phalanxArmorBonus?: number;
+        phalanxResolveBonus?: number;
+        maxAmmo?: number;
+        ammoState?: string;
+        isReloading?: boolean;
+      };
+
+      // CRITICAL: Preserve HP and alive status from gameState - coreState may not have updated death info
+      // Use the LOWER HP value between gameState and coreState (damage should never be "undone")
+      const effectiveHp = Math.min(
+        gameUnit.currentHp,
+        coreUnit.currentHp ?? gameUnit.currentHp
+      );
+      
+      // A unit is dead if either gameState or coreState marks it as dead, or if HP <= 0
+      const isAlive = gameUnit.alive && 
+        (coreUnit.alive ?? true) && 
+        effectiveHp > 0;
+      
+      // Position: use coreState if available (mechanics may move units)
+      const position = coreUnit.position ?? gameUnit.position;
+      
+      // Facing: use coreState if available (facing processor may rotate units)
+      const facing = coreUnit.facing ?? gameUnitWithMechanics.facing;
+      
+      // Resolve: use coreState if available (resolve processor may modify)
+      const resolve = coreUnit.resolve ?? gameUnitWithMechanics.resolve;
+      
+      return {
+        ...gameUnit,
+        // Preserve game-specific properties that might not be in core
+        abilityCooldowns: gameUnit.abilityCooldowns,
+        statusEffects: gameUnit.statusEffects,
+        isStunned: gameUnit.isStunned,
+        hasTaunt: gameUnit.hasTaunt,
+        
+        // CRITICAL: Explicitly set HP and alive status (don't let coreUnit overwrite incorrectly)
+        currentHp: effectiveHp,
+        alive: isAlive,
+        
+        // Position (may be updated by mechanics)
+        position: { ...position },
+        
+        // Core 2.0 Mechanics fields (may be updated by processors)
+        facing,
+        resolve,
+        riposteCharges: coreUnit.riposteCharges ?? gameUnitWithMechanics.riposteCharges,
+        isEngaged: coreUnit.engaged ?? gameUnitWithMechanics.isEngaged,
+        chargeMomentum: coreUnit.momentum ?? gameUnitWithMechanics.chargeMomentum,
+        armorShred: coreUnit.armorShred ?? gameUnitWithMechanics.armorShred,
+        // Charge mechanic state (Tier 3) - updated by charge processor
+        isCharging: coreUnitWithExtras.isCharging ?? gameUnitWithMechanics.isCharging,
+        chargeDistance: coreUnitWithExtras.chargeDistance ?? gameUnitWithMechanics.chargeDistance,
+        chargeStartPosition: coreUnitWithExtras.chargeStartPosition ?? gameUnitWithMechanics.chargeStartPosition,
+        chargeCountered: coreUnitWithExtras.chargeCountered ?? gameUnitWithMechanics.chargeCountered,
+        // Phalanx mechanic state (Tier 3) - updated by phalanx processor
+        isInPhalanx: coreUnit.inPhalanx ?? gameUnitWithMechanics.isInPhalanx,
+        adjacentAlliesCount: coreUnitWithExtras.adjacentAlliesCount ?? gameUnitWithMechanics.adjacentAlliesCount,
+        phalanxArmorBonus: coreUnitWithExtras.phalanxArmorBonus ?? gameUnitWithMechanics.phalanxArmorBonus,
+        phalanxResolveBonus: coreUnitWithExtras.phalanxResolveBonus ?? gameUnitWithMechanics.phalanxResolveBonus,
+        // Ammunition mechanic state (Tier 3) - updated by ammunition processor
+        // CRITICAL: Use coreUnit.ammo if defined (even if 0), only fallback if undefined
+        ammunition: coreUnit.ammo !== undefined ? coreUnit.ammo : gameUnitWithMechanics.ammunition,
+        maxAmmunition: coreUnitWithExtras.maxAmmo ?? gameUnitWithMechanics.maxAmmunition,
+        ammoState: coreUnitWithExtras.ammoState ?? gameUnitWithMechanics.ammoState,
+        isReloading: coreUnitWithExtras.isReloading ?? gameUnitWithMechanics.isReloading,
+        
+        // Preserve fields not modified by core processors
+        maxResolve: gameUnitWithMechanics.maxResolve,
+        tags: gameUnitWithMechanics.tags,
+        engagedBy: gameUnitWithMechanics.engagedBy,
+        isInOverwatch: gameUnitWithMechanics.isInOverwatch,
+        isRouting: gameUnitWithMechanics.isRouting,
+        hasCrumbled: gameUnitWithMechanics.hasCrumbled,
+        faction: gameUnitWithMechanics.faction,
+      } as BattleUnitWithAbilities;
+    }
+    return gameUnit;
+  });
+
+  return {
+    ...gameState,
+    units: updatedUnits,
+  };
+}
+
+/**
+ * Apply resolve damage to allies when a unit dies.
+ * Per design doc:
+ * - Adjacent allies (within 1 cell): -15 resolve
+ * - Nearby allies (within 3 cells): -8 resolve
+ * 
+ * @param state - Current battle state
+ * @param deadUnit - The unit that just died
+ * @param round - Current round number for event generation
+ * @returns Object with updated state and generated events
+ */
+function applyAllyDeathResolveDamage(
+  state: BattleStateWithAbilities,
+  deadUnit: BattleUnitWithAbilities,
+  round: number
+): { state: BattleStateWithAbilities; events: BattleEvent[] } {
+  const events: BattleEvent[] = [];
+  const updatedUnits = [...state.units];
+  
+  // Find all living allies of the dead unit
+  const allies = state.units.filter(u => 
+    u.alive && 
+    u.team === deadUnit.team && 
+    u.instanceId !== deadUnit.instanceId
+  );
+  
+  for (const ally of allies) {
+    const distance = manhattanDistance(ally.position, deadUnit.position);
+    let resolveDamage = 0;
+    
+    if (distance <= 1) {
+      // Adjacent ally - higher resolve damage
+      resolveDamage = RESOLVE_DAMAGE.ALLY_DEATH_ADJACENT;
+    } else if (distance <= RESOLVE_DAMAGE.ALLY_DEATH_NEARBY_RANGE) {
+      // Nearby ally - lower resolve damage
+      resolveDamage = RESOLVE_DAMAGE.ALLY_DEATH_NEARBY;
+    }
+    
+    if (resolveDamage > 0) {
+      const allyWithResolve = ally as BattleUnitWithAbilities & { resolve?: number };
+      const currentResolve = allyWithResolve.resolve ?? 100;
+      const newResolve = Math.max(0, currentResolve - resolveDamage);
+      
+      // Update ally's resolve in state
+      const allyIndex = updatedUnits.findIndex(u => u.instanceId === ally.instanceId);
+      if (allyIndex >= 0) {
+        updatedUnits[allyIndex] = {
+          ...updatedUnits[allyIndex],
+          resolve: newResolve,
+        } as BattleUnitWithAbilities;
+      }
+      
+      // Generate resolve event
+      const resolveEvent: BattleEvent = {
+        type: 'mechanic_resolve',
+        round,
+        actorId: deadUnit.instanceId,
+        targetId: ally.instanceId,
+        metadata: {
+          resolveDamage,
+          previousResolve: currentResolve,
+          newResolve,
+          source: distance <= 1 ? 'ally_death_adjacent' : 'ally_death_nearby',
+          deadAllyId: deadUnit.instanceId,
+          distance,
+        },
+      };
+      events.push(resolveEvent);
+    }
+  }
+  
+  return {
+    state: { ...state, units: updatedUnits },
+    events,
+  };
+}
+
+/**
+ * Check if a unit is surrounded and apply resolve damage.
+ * Per design doc: -20 resolve if 3+ enemies are adjacent at turn start.
+ * 
+ * @param state - Current battle state
+ * @param unit - The unit to check
+ * @param round - Current round number for event generation
+ * @returns Object with updated state and generated event (if any)
+ */
+function checkSurroundedResolveDamage(
+  state: BattleStateWithAbilities,
+  unit: BattleUnitWithAbilities,
+  round: number
+): { state: BattleStateWithAbilities; event: BattleEvent | null } {
+  // Count adjacent enemies
+  const adjacentEnemies = state.units.filter(u => 
+    u.alive && 
+    u.team !== unit.team && 
+    manhattanDistance(u.position, unit.position) <= 1
+  );
+  
+  if (adjacentEnemies.length >= RESOLVE_DAMAGE.SURROUNDED_MIN_ENEMIES) {
+    const unitWithResolve = unit as BattleUnitWithAbilities & { resolve?: number };
+    const currentResolve = unitWithResolve.resolve ?? 100;
+    const newResolve = Math.max(0, currentResolve - RESOLVE_DAMAGE.SURROUNDED);
+    
+    // Update unit's resolve in state
+    const updatedUnits = state.units.map(u => 
+      u.instanceId === unit.instanceId 
+        ? { ...u, resolve: newResolve } as BattleUnitWithAbilities
+        : u
+    );
+    
+    const resolveEvent: BattleEvent = {
+      type: 'mechanic_resolve',
+      round,
+      actorId: unit.instanceId,
+      targetId: unit.instanceId,
+      metadata: {
+        resolveDamage: RESOLVE_DAMAGE.SURROUNDED,
+        previousResolve: currentResolve,
+        newResolve,
+        source: 'surrounded',
+        adjacentEnemyCount: adjacentEnemies.length,
+      },
+    };
+    
+    return {
+      state: { ...state, units: updatedUnits },
+      event: resolveEvent,
+    };
+  }
+  
+  return { state, event: null };
+}
+
+// =============================================================================
+// ROUTING FUNCTIONS (Core 2.0 Resolve)
+// =============================================================================
+
+/**
+ * Check if a unit should start routing (resolve = 0) or rally (resolve >= 25).
+ * Per design doc:
+ * - Human units route when resolve = 0
+ * - Routing units rally when resolve >= 25
+ * 
+ * @param unit - Unit to check
+ * @returns 'route' if should start routing, 'rally' if should stop routing, null otherwise
+ */
+function checkRoutingState(
+  unit: BattleUnitWithAbilities & { resolve?: number; isRouting?: boolean; faction?: string }
+): 'route' | 'rally' | null {
+  const resolve = unit.resolve ?? 100;
+  const isRouting = unit.isRouting ?? false;
+  const faction = unit.faction ?? 'human';
+  
+  // Undead don't route, they crumble (handled separately)
+  if (faction === 'undead') {
+    return null;
+  }
+  
+  // Check if should start routing
+  if (!isRouting && resolve <= 0) {
+    return 'route';
+  }
+  
+  // Check if should rally
+  if (isRouting && resolve >= ROUTING_CONFIG.RALLY_THRESHOLD) {
+    return 'rally';
+  }
+  
+  return null;
+}
+
+/**
+ * Find retreat position for a routing unit.
+ * Unit moves toward their deployment edge.
+ * 
+ * @param unit - Routing unit
+ * @param state - Current battle state
+ * @returns Best retreat position or null if can't move
+ */
+function findRetreatPosition(
+  unit: BattleUnitWithAbilities,
+  state: BattleStateWithAbilities
+): Position | null {
+  const targetRow = unit.team === 'player' 
+    ? ROUTING_CONFIG.PLAYER_RETREAT_ROW 
+    : ROUTING_CONFIG.BOT_RETREAT_ROW;
+  
+  // Already at edge
+  if (unit.position.y === targetRow) {
+    return null;
+  }
+  
+  // Direction to move
+  const direction = targetRow < unit.position.y ? -1 : 1;
+  
+  // Try to move up to RETREAT_DISTANCE cells toward edge
+  for (let dist = ROUTING_CONFIG.RETREAT_DISTANCE; dist >= 1; dist--) {
+    const newY = unit.position.y + (direction * dist);
+    
+    // Check bounds
+    if (newY < 0 || newY > 9) continue;
+    
+    const newPos = { x: unit.position.x, y: newY };
+    
+    // Check if position is occupied
+    const isOccupied = state.units.some(u => 
+      u.alive && 
+      u.instanceId !== unit.instanceId &&
+      u.position.x === newPos.x && 
+      u.position.y === newPos.y
+    );
+    
+    if (!isOccupied) {
+      return newPos;
+    }
+  }
+  
+  // Try adjacent columns if direct path blocked
+  for (const xOffset of [-1, 1]) {
+    const newX = unit.position.x + xOffset;
+    if (newX < 0 || newX > 7) continue;
+    
+    const newY = unit.position.y + direction;
+    if (newY < 0 || newY > 9) continue;
+    
+    const newPos = { x: newX, y: newY };
+    
+    const isOccupied = state.units.some(u => 
+      u.alive && 
+      u.instanceId !== unit.instanceId &&
+      u.position.x === newPos.x && 
+      u.position.y === newPos.y
+    );
+    
+    if (!isOccupied) {
+      return newPos;
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Execute routing behavior for a unit.
+ * Routing units:
+ * - Cannot attack or use abilities
+ * - Move toward their deployment edge
+ * - Generate routing events
+ * 
+ * @param unit - Routing unit
+ * @param state - Current battle state
+ * @param round - Current round number
+ * @returns Updated state and events
+ */
+function executeRoutingTurn(
+  unit: BattleUnitWithAbilities,
+  state: BattleStateWithAbilities,
+  round: number
+): { state: BattleStateWithAbilities; events: BattleEvent[] } {
+  const events: BattleEvent[] = [];
+  
+  // Find retreat position
+  const retreatPos = findRetreatPosition(unit, state);
+  
+  if (retreatPos) {
+    // Generate movement event
+    const moveEvent: BattleEvent = {
+      type: 'move',
+      round,
+      actorId: unit.instanceId,
+      fromPosition: unit.position,
+      toPosition: retreatPos,
+      metadata: {
+        reason: 'routing',
+      },
+    };
+    events.push(moveEvent);
+    
+    // Update unit position in state
+    const updatedUnits = state.units.map(u => 
+      u.instanceId === unit.instanceId 
+        ? { ...u, position: retreatPos } as BattleUnitWithAbilities
+        : u
+    );
+    
+    // Update occupied positions
+    const occupiedPositions = new Set<string>();
+    updatedUnits.forEach(u => {
+      if (u.alive) {
+        occupiedPositions.add(`${u.position.x},${u.position.y}`);
+      }
+    });
+    
+    state = { ...state, units: updatedUnits, occupiedPositions };
+  }
+  
+  // Generate routing status event
+  const routingEvent: BattleEvent = {
+    type: 'mechanic_routing',
+    round,
+    actorId: unit.instanceId,
+    metadata: {
+      status: 'routing',
+      retreatPosition: retreatPos,
+      reason: 'resolve_zero',
+    },
+  };
+  events.push(routingEvent);
+  
+  return { state, events };
+}
+
+/**
+ * Apply routing state change to a unit.
+ * 
+ * @param state - Current battle state
+ * @param unit - Unit to update
+ * @param isRouting - New routing state
+ * @param round - Current round number
+ * @returns Updated state and event
+ */
+function applyRoutingStateChange(
+  state: BattleStateWithAbilities,
+  unit: BattleUnitWithAbilities,
+  isRouting: boolean,
+  round: number
+): { state: BattleStateWithAbilities; event: BattleEvent } {
+  // Update unit's routing state
+  const updatedUnits = state.units.map(u => 
+    u.instanceId === unit.instanceId 
+      ? { ...u, isRouting } as BattleUnitWithAbilities
+      : u
+  );
+  
+  const event: BattleEvent = {
+    type: 'mechanic_routing',
+    round,
+    actorId: unit.instanceId,
+    metadata: {
+      status: isRouting ? 'started_routing' : 'rallied',
+      resolve: (unit as BattleUnitWithAbilities & { resolve?: number }).resolve ?? 0,
+    },
+  };
+  
+  return {
+    state: { ...state, units: updatedUnits },
+    event,
+  };
 }
 
 // =============================================================================
@@ -134,6 +809,7 @@ function validateTeamSetup(
 /**
  * Create battle unit instances from team setup with ability state.
  * Converts unit templates to battle-ready units with positions, state, and cooldowns.
+ * Initializes Core 2.0 mechanics fields (facing, resolve, riposteCharges, etc.)
  * 
  * @param teamSetup - Team configuration
  * @param teamType - Team identifier
@@ -149,6 +825,21 @@ function createBattleUnits(teamSetup: TeamSetup, teamType: TeamType): BattleUnit
       throw new Error(`Position ${index} is undefined for unit ${unitTemplate.id}`);
     }
     
+    // Determine initial facing direction based on team
+    // Player units start at rows 0-1 (north), face South toward enemy
+    // Bot units start at rows 8-9 (south), face North toward player
+    const initialFacing = teamType === 'player' ? 'S' : 'N';
+    
+    // Get mechanics fields from unit template (Core 2.0)
+    // Note: UnitTemplate uses 'ammo' field, not 'ammunition'
+    const templateWithMechanics = unitTemplate as typeof unitTemplate & {
+      resolve?: number;
+      riposteCharges?: number;
+      ammo?: number;
+      tags?: string[];
+      facing?: string;
+    };
+    
     return {
       ...unitTemplate,
       position,
@@ -162,6 +853,26 @@ function createBattleUnits(teamSetup: TeamSetup, teamType: TeamType): BattleUnit
       statusEffects: [],
       isStunned: false,
       hasTaunt: false,
+      // Core 2.0 Mechanics initialization
+      facing: templateWithMechanics.facing ?? initialFacing,
+      resolve: templateWithMechanics.resolve ?? 100,
+      maxResolve: templateWithMechanics.resolve ?? 100,
+      // Initialize riposte charges based on attackCount (default 1)
+      // This ensures units can riposte from the start of battle
+      riposteCharges: templateWithMechanics.riposteCharges ?? unitTemplate.stats.atkCount ?? 1,
+      // Note: UnitTemplate uses 'ammo', we store as 'ammunition' internally
+      ammunition: templateWithMechanics.ammo,
+      maxAmmunition: templateWithMechanics.ammo,
+      tags: templateWithMechanics.tags ?? [],
+      armorShred: 0,
+      isEngaged: false,
+      engagedBy: [],
+      chargeMomentum: 0,
+      isInOverwatch: false,
+      isInPhalanx: false,
+      // Routing state (Core 2.0 Resolve)
+      isRouting: false,
+      hasCrumbled: false,
     };
   });
 }
@@ -223,6 +934,7 @@ function hashTeamSetup(teamSetup: TeamSetup): number {
 /**
  * Execute an ability action for a unit.
  * Handles ability execution and event generation.
+ * Validates that target is still alive before execution.
  * 
  * @param unit - Unit using the ability
  * @param action - AI decision with ability info
@@ -252,7 +964,21 @@ function executeAbilityAction(
   }
   
   // Determine target for ability
-  const target = action.target ?? action.targetPosition ?? unit;
+  // Get fresh target state from current state to ensure we have up-to-date alive status
+  let target: BattleUnitWithAbilities | Position = unit;
+  
+  if (action.target) {
+    // Find the current state of the target unit
+    const currentTarget = state.units.find(u => u.instanceId === action.target?.instanceId);
+    if (currentTarget && currentTarget.alive) {
+      target = currentTarget;
+    } else {
+      // Target is dead or not found - skip ability execution
+      return [];
+    }
+  } else if (action.targetPosition) {
+    target = action.targetPosition;
+  }
   
   return executeAbility(unit, ability, target, state, seed);
 }
@@ -305,25 +1031,218 @@ function tickAllCooldowns(state: BattleStateWithAbilities): BattleStateWithAbili
 }
 
 /**
+ * Apply resolve damage to a target unit from an attack.
+ * Calculates total resolve damage (base ATK + flanking bonus) and updates state.
+ * 
+ * Per design doc: Every attack deals resolve damage = 100% ATK + flanking bonus.
+ * 
+ * @param state - Current battle state
+ * @param attacker - Unit dealing the attack
+ * @param target - Unit receiving resolve damage
+ * @param combatModifiers - Combat modifiers including flanking resolve damage
+ * @param round - Current round number for event generation
+ * @returns Updated state and resolve event
+ */
+function applyAttackResolveDamage(
+  state: BattleStateWithAbilities,
+  attacker: BattleUnitWithAbilities,
+  target: BattleUnitWithAbilities,
+  combatModifiers: { resolveDamage: number; attackArc: string },
+  round: number
+): { state: BattleStateWithAbilities; event: BattleEvent } {
+  const targetWithResolve = target as BattleUnitWithAbilities & { resolve?: number };
+  const currentResolve = targetWithResolve.resolve ?? 100;
+  
+  // Base resolve damage = attacker's ATK (armor does NOT reduce resolve damage)
+  const baseResolveDamage = attacker.stats.atk;
+  // Additional resolve damage from flanking/rear attacks
+  const flankingResolveDamage = combatModifiers.resolveDamage;
+  // Total resolve damage
+  const totalResolveDamage = baseResolveDamage + flankingResolveDamage;
+  
+  const newResolve = Math.max(0, currentResolve - totalResolveDamage);
+  
+  // Update target's resolve in state
+  const updatedUnits = state.units.map(u => 
+    u.instanceId === target.instanceId 
+      ? { ...u, resolve: newResolve } as BattleUnitWithAbilities
+      : u
+  );
+  
+  // Generate resolve event
+  const resolveEvent: BattleEvent = {
+    type: 'mechanic_resolve',
+    round,
+    actorId: attacker.instanceId,
+    targetId: target.instanceId,
+    metadata: {
+      resolveDamage: totalResolveDamage,
+      baseResolveDamage,
+      flankingResolveDamage,
+      previousResolve: currentResolve,
+      newResolve,
+      source: flankingResolveDamage > 0 ? combatModifiers.attackArc : 'attack',
+    },
+  };
+  
+  return {
+    state: { ...state, units: updatedUnits },
+    event: resolveEvent,
+  };
+}
+
+/**
+ * Process a mechanics phase and collect events.
+ * Delegates to the MechanicsProcessor for the specified phase.
+ * 
+ * This helper function:
+ * 1. Converts game state to core state
+ * 2. Calls processor.process() for the phase
+ * 3. Converts core state back to game state
+ * 4. Collects and returns events
+ * 
+ * @param processor - Mechanics processor (optional)
+ * @param phase - Battle phase to process
+ * @param state - Current battle state
+ * @param context - Phase context with active unit, target, action
+ * @returns Updated state and generated events
+ * 
+ * @example
+ * const result = processPhase(processor, 'pre_attack', state, {
+ *   activeUnit: attacker,
+ *   target: defender,
+ *   seed: 12345
+ * });
+ * state = result.state;
+ * events.push(...result.events);
+ */
+function processPhase(
+  processor: MechanicsProcessor | undefined,
+  phase: 'turn_start' | 'movement' | 'pre_attack' | 'attack' | 'post_attack' | 'turn_end',
+  state: BattleStateWithAbilities,
+  context: PhaseContext
+): { state: BattleStateWithAbilities; events: BattleEvent[] } {
+  // If no processor, return unchanged state with no events
+  if (!processor) {
+    return { state, events: [] };
+  }
+  
+  try {
+    // Convert game state to core state for processor
+    const coreState = toCoreBattleState(state);
+    
+    // Process the phase through mechanics processor
+    const result: ProcessResult = processor.process(phase, coreState, context);
+    
+    // Convert core state back to game state
+    const updatedState = fromCoreBattleState(state, result.state);
+    
+    // Set round number on all mechanic events (they come with round=0 as placeholder)
+    const eventsWithRound = (result.events || []).map(event => ({
+      ...event,
+      round: state.currentRound,
+    }));
+    
+    // Return updated state and events
+    return {
+      state: updatedState,
+      events: eventsWithRound,
+    };
+  } catch (error) {
+    // Return unchanged state with no events on error
+    // This ensures partial results are preserved and battle can continue
+    // Errors here are typically from mechanics processor edge cases
+    return { state, events: [] };
+  }
+}
+
+/**
  * Execute a unit's turn with AI decision making and ability support.
  * Flow: check stun → AI decision → execute action
  * 
  * @param unit - Unit taking the turn
  * @param state - Current battle state
  * @param seed - Random seed for deterministic behavior
+ * @param processor - Optional mechanics processor for Core 2.0 mechanics
  * @returns Events generated during the turn and updated state
  */
 function executeUnitTurnWithAbilities(
   unit: BattleUnitWithAbilities,
   state: BattleStateWithAbilities,
-  seed: number
+  seed: number,
+  processor?: MechanicsProcessor
 ): { events: BattleEvent[]; state: BattleStateWithAbilities } {
   const events: BattleEvent[] = [];
   let currentState = state;
+  let currentSeed = seed;
   
   // Skip turn if unit is stunned
   if (unit.isStunned) {
     return { events: [], state: currentState };
+  }
+  
+  // Skip turn if unit is dead (safety check)
+  if (!unit.alive) {
+    return { events: [], state: currentState };
+  }
+  
+  // TURN_START phase (Core 2.0)
+  const turnStartResult = processPhase(processor, 'turn_start', currentState, {
+    activeUnit: unit as unknown as CoreBattleUnit,
+    seed: currentSeed++,
+  });
+  currentState = turnStartResult.state;
+  events.push(...turnStartResult.events);
+  
+  // Check if unit is surrounded at turn start (Core 2.0)
+  // Per design doc: -20 resolve if 3+ enemies are adjacent
+  if (processor?.config.resolve) {
+    const surroundedResult = checkSurroundedResolveDamage(
+      currentState,
+      unit,
+      currentState.currentRound
+    );
+    if (surroundedResult.event) {
+      currentState = surroundedResult.state;
+      events.push(surroundedResult.event);
+    }
+    
+    // Get fresh unit state after surrounded damage
+    const freshUnit = currentState.units.find(u => u.instanceId === unit.instanceId);
+    if (freshUnit) {
+      // Check routing state (resolve = 0 starts routing, resolve >= 25 rallies)
+      const routingChange = checkRoutingState(freshUnit as BattleUnitWithAbilities & { resolve?: number; isRouting?: boolean });
+      
+      if (routingChange === 'route') {
+        // Unit starts routing
+        const routeResult = applyRoutingStateChange(currentState, freshUnit, true, currentState.currentRound);
+        currentState = routeResult.state;
+        events.push(routeResult.event);
+      } else if (routingChange === 'rally') {
+        // Unit rallies (stops routing)
+        const rallyResult = applyRoutingStateChange(currentState, freshUnit, false, currentState.currentRound);
+        currentState = rallyResult.state;
+        events.push(rallyResult.event);
+      }
+      
+      // If unit is routing, execute routing turn instead of normal turn
+      const unitAfterCheck = currentState.units.find(u => u.instanceId === unit.instanceId);
+      if (unitAfterCheck && (unitAfterCheck as BattleUnitWithAbilities & { isRouting?: boolean }).isRouting) {
+        const routingTurnResult = executeRoutingTurn(unitAfterCheck, currentState, currentState.currentRound);
+        currentState = routingTurnResult.state;
+        events.push(...routingTurnResult.events);
+        
+        // TURN_END phase (Core 2.0)
+        const turnEndResult = processPhase(processor, 'turn_end', currentState, {
+          activeUnit: unitAfterCheck as unknown as CoreBattleUnit,
+          seed: currentSeed++,
+        });
+        currentState = turnEndResult.state;
+        events.push(...turnEndResult.events);
+        
+        return { events, state: currentState };
+      }
+    }
   }
   
   // Get AI decision for this unit
@@ -332,6 +1251,33 @@ function executeUnitTurnWithAbilities(
   // Execute based on action type
   switch (action.type) {
     case 'ability': {
+      // CRITICAL: Validate target is still alive before using ability
+      // Target may have been killed by another unit earlier in this round
+      if (action.target) {
+        const freshTarget = currentState.units.find(u => u.instanceId === action.target?.instanceId);
+        if (!freshTarget || !freshTarget.alive) {
+          // Target is dead - skip ability, use legacy turn to find new target or action
+          const turnEvents = executeTurn(unit, currentState, seed);
+          if (turnEvents.length > 0) {
+            currentState = applyBattleEvents(currentState, turnEvents) as BattleStateWithAbilities;
+            events.push(...turnEvents);
+          }
+          break;
+        }
+      }
+      
+      // PRE_ATTACK phase for abilities (Core 2.0)
+      if (action.target) {
+        const preAttackResult = processPhase(processor, 'pre_attack', currentState, {
+          activeUnit: unit as unknown as CoreBattleUnit,
+          target: action.target as unknown as CoreBattleUnit,
+          action: convertToBattleAction(action),
+          seed: currentSeed++,
+        });
+        currentState = preAttackResult.state;
+        events.push(...preAttackResult.events);
+      }
+      
       // Execute ability
       const abilityEvents = executeAbilityAction(unit, action, currentState, seed);
       
@@ -349,17 +1295,779 @@ function executeUnitTurnWithAbilities(
         
         // Add ability events to result
         events.push(...abilityEvents);
+        
+        // Generate death events for units killed by abilities
+        // This ensures the frontend can properly display death animations
+        for (const abilityEvent of abilityEvents) {
+          if (abilityEvent.killedUnits && abilityEvent.killedUnits.length > 0) {
+            for (const killedUnitId of abilityEvent.killedUnits) {
+              const deathEvent: BattleEvent = {
+                round: currentState.currentRound,
+                type: 'death',
+                actorId: killedUnitId,
+                killedUnits: [killedUnitId],
+              };
+              events.push(deathEvent);
+              
+              // Apply resolve damage to allies of the dead unit (Core 2.0)
+              if (processor?.config.resolve) {
+                const deadUnit = currentState.units.find(u => u.instanceId === killedUnitId);
+                if (deadUnit) {
+                  const allyDeathResult = applyAllyDeathResolveDamage(
+                    currentState,
+                    deadUnit as BattleUnitWithAbilities,
+                    currentState.currentRound
+                  );
+                  currentState = allyDeathResult.state;
+                  events.push(...allyDeathResult.events);
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      // POST_ATTACK phase for abilities (Core 2.0)
+      if (action.target) {
+        const postAttackResult = processPhase(processor, 'post_attack', currentState, {
+          activeUnit: unit as unknown as CoreBattleUnit,
+          target: action.target as unknown as CoreBattleUnit,
+          seed: currentSeed++,
+        });
+        currentState = postAttackResult.state;
+        events.push(...postAttackResult.events);
       }
       break;
     }
     
-    case 'attack':
+    case 'attack': {
+      // Validate target is still alive before attacking
+      // Get fresh target state from current state
+      let currentTarget = action.target;
+      if (action.target) {
+        const freshTarget = currentState.units.find(u => u.instanceId === action.target?.instanceId);
+        if (!freshTarget || !freshTarget.alive) {
+          // Target is dead - skip attack, use legacy turn to find new target
+          const turnEvents = executeTurn(unit, currentState, seed);
+          if (turnEvents.length > 0) {
+            currentState = applyBattleEvents(currentState, turnEvents) as BattleStateWithAbilities;
+            events.push(...turnEvents);
+          }
+          break;
+        }
+        currentTarget = freshTarget as BattleUnitWithAbilities;
+      }
+      
+      // PRE_ATTACK phase (Core 2.0)
+      if (currentTarget) {
+        const preAttackResult = processPhase(processor, 'pre_attack', currentState, {
+          activeUnit: unit as unknown as CoreBattleUnit,
+          target: currentTarget as unknown as CoreBattleUnit,
+          action: convertToBattleAction(action),
+          seed: currentSeed++,
+        });
+        currentState = preAttackResult.state;
+        events.push(...preAttackResult.events);
+      }
+      
+      // Check if any mechanics are actually enabled
+      // If not, use legacy turn execution for backward compatibility
+      const hasMechanicsEnabled = processor && (
+        processor.config.facing ||
+        processor.config.flanking ||
+        processor.config.charge ||
+        processor.config.armorShred ||
+        processor.config.resolve ||
+        processor.config.riposte ||
+        processor.config.engagement
+      );
+      
+      if (hasMechanicsEnabled && currentTarget) {
+        // Calculate combat modifiers from enabled mechanics
+        // This includes flanking, charge momentum, etc.
+        // Note: Facing is already updated by FacingProcessor in pre_attack phase
+        
+        // Get updated attacker from current state (may have momentum from previous move action)
+        const updatedAttacker = currentState.units.find(u => u.instanceId === unit.instanceId) ?? unit;
+        
+        // Check if attacker has momentum from movement phase (set by ChargeProcessor)
+        const attackerWithCharge = updatedAttacker as BattleUnitWithAbilities & { 
+          momentum?: number;
+          chargeDistance?: number;
+        };
+        const distanceMovedThisTurn = attackerWithCharge.chargeDistance ?? 0;
+        
+        const modifiersResult = calculateCombatModifiers(processor, {
+          attacker: updatedAttacker,
+          target: currentTarget,
+          distanceMoved: distanceMovedThisTurn,
+          round: currentState.currentRound,
+          seed: currentSeed++,
+        });
+        
+        const combatModifiers = modifiersResult.modifiers;
+        
+        // Add mechanic events (flanking, charge, etc.)
+        if (modifiersResult.events.length > 0) {
+          events.push(...modifiersResult.events);
+        }
+        
+        // Check if target is in range and execute attack with mechanics modifiers
+        if (canTarget(unit, currentTarget)) {
+          const distance = manhattanDistance(unit.position, currentTarget.position);
+          
+          if (distance <= unit.range) {
+            // Track events generated during this attack for state application
+            const attackEvents: BattleEvent[] = [];
+            
+            // Execute attack with mechanics modifiers
+            const attackEvent = executeAttack(unit, currentTarget, currentSeed++, combatModifiers);
+            attackEvent.round = currentState.currentRound;
+            events.push(attackEvent);
+            attackEvents.push(attackEvent);
+            
+            // Create damage event if attack was not dodged
+            if (attackEvent.damage > 0) {
+              const damageEvent: BattleEvent = {
+                round: currentState.currentRound,
+                type: 'damage',
+                actorId: unit.instanceId,
+                targetId: currentTarget.instanceId,
+                damage: attackEvent.damage,
+              };
+              events.push(damageEvent);
+              attackEvents.push(damageEvent);
+              
+              // Apply resolve damage (Core 2.0)
+              if (processor?.config.resolve) {
+                const resolveResult = applyAttackResolveDamage(
+                  currentState,
+                  unit,
+                  currentTarget,
+                  { resolveDamage: combatModifiers.resolveDamage, attackArc: combatModifiers.attackArc },
+                  currentState.currentRound
+                );
+                currentState = resolveResult.state;
+                events.push(resolveResult.event);
+                
+                // Check if target should start routing (resolve = 0)
+                const targetAfterResolve = currentState.units.find(u => u.instanceId === currentTarget?.instanceId);
+                if (targetAfterResolve && targetAfterResolve.alive) {
+                  const routingChange = checkRoutingState(targetAfterResolve as BattleUnitWithAbilities & { resolve?: number; isRouting?: boolean });
+                  if (routingChange === 'route') {
+                    const routeResult = applyRoutingStateChange(currentState, targetAfterResolve, true, currentState.currentRound);
+                    currentState = routeResult.state;
+                    events.push(routeResult.event);
+                  }
+                }
+              }
+            }
+            
+            // Apply attack events to state (damage and death)
+            currentState = applyBattleEvents(currentState, attackEvents) as BattleStateWithAbilities;
+            
+            // Check if target was killed AFTER applying damage to state
+            // This ensures we use the actual HP after damage, not the pre-calculated value
+            const targetAfterDamage = currentState.units.find(u => u.instanceId === currentTarget?.instanceId);
+            if (targetAfterDamage && !targetAfterDamage.alive) {
+              // Only add death event if not already added
+              const hasDeathEvent = attackEvents.some(e => e.type === 'death' && e.killedUnits?.includes(currentTarget?.instanceId ?? ''));
+              if (!hasDeathEvent) {
+                const deathEvent: BattleEvent = {
+                  round: currentState.currentRound,
+                  type: 'death',
+                  actorId: currentTarget.instanceId,
+                  killedUnits: [currentTarget.instanceId],
+                };
+                events.push(deathEvent);
+                // Apply death event to state
+                currentState = applyBattleEvents(currentState, [deathEvent]) as BattleStateWithAbilities;
+                
+                // Apply resolve damage to allies of the dead unit (Core 2.0)
+                if (processor?.config.resolve) {
+                  const allyDeathResult = applyAllyDeathResolveDamage(
+                    currentState,
+                    currentTarget as BattleUnitWithAbilities,
+                    currentState.currentRound
+                  );
+                  currentState = allyDeathResult.state;
+                  events.push(...allyDeathResult.events);
+                }
+              }
+            }
+          } else {
+            // Target not in range, need to move first then attack
+            // Calculate movement path for charge mechanics (Core 2.0)
+            let movementPath: Position[] = [];
+            let distanceMoved = 0;
+            
+            if (processor?.config.charge || processor?.config.engagement) {
+              // Import pathfinding to calculate the full movement path
+              const { findPath } = require('./pathfinding');
+              const { createEmptyGrid } = require('./grid');
+              
+              const grid = createEmptyGrid();
+              const otherUnits = currentState.units.filter(
+                u => u.alive && u.instanceId !== unit.instanceId
+              );
+              
+              // Find positions within attack range of target
+              const attackPositions: Position[] = [];
+              const attackRange = unit.range;
+              
+              for (let dx = -attackRange; dx <= attackRange; dx++) {
+                for (let dy = -attackRange; dy <= attackRange; dy++) {
+                  if (dx === 0 && dy === 0) continue;
+                  const pos = {
+                    x: currentTarget.position.x + dx,
+                    y: currentTarget.position.y + dy,
+                  };
+                  if (manhattanDistance(pos, currentTarget.position) <= attackRange) {
+                    if (pos.x >= 0 && pos.x < 8 && pos.y >= 0 && pos.y < 10) {
+                      attackPositions.push(pos);
+                    }
+                  }
+                }
+              }
+              
+              // Find shortest path to any attack position
+              let bestPath: Position[] = [];
+              let shortestDistance = Infinity;
+              
+              for (const attackPos of attackPositions) {
+                const pathToPosition = findPath(
+                  unit.position,
+                  attackPos,
+                  grid,
+                  otherUnits,
+                  unit
+                );
+                
+                if (pathToPosition.length > 0 && pathToPosition.length < shortestDistance) {
+                  shortestDistance = pathToPosition.length;
+                  bestPath = pathToPosition;
+                }
+              }
+              
+              if (bestPath.length > 1) {
+                // Limit path to unit's speed
+                const maxSteps = Math.min(bestPath.length, unit.stats.speed + 1);
+                movementPath = bestPath.slice(0, maxSteps);
+                distanceMoved = movementPath.length - 1;
+              }
+            }
+            
+            // MOVEMENT phase (Core 2.0) - process charge momentum before attack
+            if (movementPath.length > 1 && processor) {
+              const movementAction: BattleAction = { 
+                type: 'move',
+                path: movementPath,
+              };
+              
+              const movementResult = processPhase(processor, 'movement', currentState, {
+                activeUnit: unit as unknown as CoreBattleUnit,
+                action: movementAction,
+                seed: currentSeed++,
+              });
+              currentState = movementResult.state;
+              events.push(...movementResult.events);
+            }
+            
+            // Get updated unit from state (may have momentum from movement phase)
+            const unitForLegacyTurn = currentState.units.find(u => u.instanceId === unit.instanceId) ?? unit;
+            
+            // Use legacy turn execution for movement + attack
+            const turnEvents = executeTurn(unitForLegacyTurn, currentState, seed);
+            
+            if (turnEvents.length > 0) {
+              // Find attack event to apply mechanics to the actual target
+              const attackEvent = turnEvents.find(e => e.type === 'attack');
+              if (attackEvent && attackEvent.targetId && hasMechanicsEnabled) {
+                const attackTarget = currentState.units.find(u => u.instanceId === attackEvent.targetId);
+                if (attackTarget) {
+                  // Get updated unit from state (may have momentum from movement phase)
+                  const updatedAttacker = currentState.units.find(u => u.instanceId === unit.instanceId) ?? unit;
+                  
+                  // PRE_ATTACK phase for legacy turn (Core 2.0) - handles Spear Wall counter
+                  const preAttackResult = processPhase(processor, 'pre_attack', currentState, {
+                    activeUnit: updatedAttacker as unknown as CoreBattleUnit,
+                    target: attackTarget as unknown as CoreBattleUnit,
+                    action: { type: 'attack', targetId: attackTarget.instanceId },
+                    seed: currentSeed++,
+                  });
+                  currentState = preAttackResult.state;
+                  events.push(...preAttackResult.events);
+                  
+                  // Re-fetch attacker after pre_attack (may have taken counter damage)
+                  const attackerAfterPreAttack = currentState.units.find(u => u.instanceId === unit.instanceId) ?? updatedAttacker;
+                  
+                  // Apply flanking mechanics for legacy turn attacks
+                  const legacyModifiers = calculateCombatModifiers(processor, {
+                    attacker: attackerAfterPreAttack,
+                    target: attackTarget,
+                    distanceMoved, // Use actual distance moved for charge calculation
+                    round: currentState.currentRound,
+                    seed: currentSeed++,
+                  });
+                  
+                  // Add flanking events BEFORE attack event
+                  if (legacyModifiers.events.length > 0) {
+                    events.push(...legacyModifiers.events);
+                  }
+                  
+                  // Check if we need to recalculate damage with modifiers (new formula: ATK * modifier - armor)
+                  const hasFlankingBonus = legacyModifiers.modifiers.flankingModifier > 1.0;
+                  const hasMomentumBonus = legacyModifiers.modifiers.momentumBonus > 0;
+                  
+                  // Recalculate damage with new formula if modifiers apply
+                  if ((hasFlankingBonus || hasMomentumBonus) && attackEvent.damage && attackEvent.damage > 0) {
+                    const originalDamage = attackEvent.damage;
+                    
+                    // Use calculatePhysicalDamage with modifiers for correct formula:
+                    // (ATK * flankingModifier * (1 + momentumBonus) - armor) * atkCount
+                    // Build options object only with defined values to satisfy exactOptionalPropertyTypes
+                    const damageOptions: { flankingModifier?: number; momentumBonus?: number } = {};
+                    if (hasFlankingBonus) {
+                      damageOptions.flankingModifier = legacyModifiers.modifiers.flankingModifier;
+                    }
+                    if (hasMomentumBonus) {
+                      damageOptions.momentumBonus = legacyModifiers.modifiers.momentumBonus;
+                    }
+                    
+                    const newDamage = calculatePhysicalDamage(
+                      attackerAfterPreAttack as DamageUnit,
+                      attackTarget as DamageUnit,
+                      undefined,
+                      damageOptions
+                    );
+                    attackEvent.damage = newDamage;
+                    
+                    // Also update damage event if present
+                    const damageEvent = turnEvents.find(e => e.type === 'damage' && e.targetId === attackEvent.targetId);
+                    if (damageEvent && damageEvent.damage) {
+                      damageEvent.damage = newDamage;
+                    }
+                    
+                    // Add metadata to attack event
+                    attackEvent.metadata = {
+                      ...attackEvent.metadata,
+                      attackArc: legacyModifiers.modifiers.attackArc,
+                      flankingModifier: legacyModifiers.modifiers.flankingModifier,
+                      momentumBonus: legacyModifiers.modifiers.momentumBonus,
+                      originalDamage,
+                    };
+                  }
+                  
+                  // Apply resolve damage for legacy turn attacks (Core 2.0)
+                  if (processor?.config.resolve && attackEvent.damage && attackEvent.damage > 0) {
+                    const resolveResult = applyAttackResolveDamage(
+                      currentState,
+                      unit,
+                      attackTarget,
+                      { resolveDamage: legacyModifiers.modifiers.resolveDamage, attackArc: legacyModifiers.modifiers.attackArc },
+                      currentState.currentRound
+                    );
+                    currentState = resolveResult.state;
+                    events.push(resolveResult.event);
+                  }
+                  
+                  // Update currentTarget for post-attack mechanics
+                  currentTarget = attackTarget as BattleUnitWithAbilities;
+                }
+              }
+              
+              currentState = applyBattleEvents(currentState, turnEvents) as BattleStateWithAbilities;
+              events.push(...turnEvents);
+              
+              // Check if target was killed after applying modified damage
+              // This handles cases where flanking modifier increases damage enough to kill
+              if (attackEvent && attackEvent.targetId) {
+                const targetAfterDamage = currentState.units.find(u => u.instanceId === attackEvent.targetId);
+                const hasDeathEvent = turnEvents.some(e => e.type === 'death' && e.killedUnits?.includes(attackEvent.targetId ?? ''));
+                if (targetAfterDamage && !targetAfterDamage.alive && !hasDeathEvent) {
+                  const deathEvent: BattleEvent = {
+                    round: currentState.currentRound,
+                    type: 'death',
+                    actorId: attackEvent.targetId,
+                    killedUnits: [attackEvent.targetId],
+                  };
+                  events.push(deathEvent);
+                  
+                  // Apply resolve damage to allies of the dead unit (Core 2.0)
+                  if (processor?.config.resolve) {
+                    const deadUnit = currentState.units.find(u => u.instanceId === attackEvent.targetId);
+                    if (deadUnit) {
+                      const allyDeathResult = applyAllyDeathResolveDamage(
+                        currentState,
+                        deadUnit as BattleUnitWithAbilities,
+                        currentState.currentRound
+                      );
+                      currentState = allyDeathResult.state;
+                      events.push(...allyDeathResult.events);
+                    }
+                  }
+                }
+              }
+            }
+          }
+        } else {
+          // No valid target, use legacy turn execution
+          const turnEvents = executeTurn(unit, currentState, seed);
+          
+          if (turnEvents.length > 0) {
+            // Find attack event to apply mechanics
+            const attackEvent = turnEvents.find(e => e.type === 'attack');
+            if (attackEvent && attackEvent.targetId && hasMechanicsEnabled) {
+              const attackTarget = currentState.units.find(u => u.instanceId === attackEvent.targetId);
+              if (attackTarget) {
+                // PRE_ATTACK phase for legacy turn (Core 2.0) - handles Spear Wall counter
+                const preAttackResult = processPhase(processor, 'pre_attack', currentState, {
+                  activeUnit: unit as unknown as CoreBattleUnit,
+                  target: attackTarget as unknown as CoreBattleUnit,
+                  action: { type: 'attack', targetId: attackTarget.instanceId },
+                  seed: currentSeed++,
+                });
+                currentState = preAttackResult.state;
+                events.push(...preAttackResult.events);
+                
+                // Re-fetch attacker after pre_attack (may have taken counter damage)
+                const attackerAfterPreAttack = currentState.units.find(u => u.instanceId === unit.instanceId) ?? unit;
+                
+                const legacyModifiers = calculateCombatModifiers(processor, {
+                  attacker: attackerAfterPreAttack,
+                  target: attackTarget,
+                  distanceMoved: 0,
+                  round: currentState.currentRound,
+                  seed: currentSeed++,
+                });
+                
+                // Add flanking events BEFORE attack event
+                if (legacyModifiers.events.length > 0) {
+                  events.push(...legacyModifiers.events);
+                }
+                
+                // Recalculate damage with flanking modifier using new formula (ATK * modifier - armor)
+                if (legacyModifiers.modifiers.flankingModifier > 1.0 && attackEvent.damage && attackEvent.damage > 0) {
+                  const originalDamage = attackEvent.damage;
+                  
+                  // Use calculatePhysicalDamage with modifiers for correct formula
+                  const newDamage = calculatePhysicalDamage(
+                    attackerAfterPreAttack as DamageUnit,
+                    attackTarget as DamageUnit,
+                    undefined,
+                    { flankingModifier: legacyModifiers.modifiers.flankingModifier }
+                  );
+                  attackEvent.damage = newDamage;
+                  
+                  // Also update damage event if present
+                  const damageEvent = turnEvents.find(e => e.type === 'damage' && e.targetId === attackEvent.targetId);
+                  if (damageEvent && damageEvent.damage) {
+                    damageEvent.damage = newDamage;
+                  }
+                  
+                  attackEvent.metadata = {
+                    ...attackEvent.metadata,
+                    attackArc: legacyModifiers.modifiers.attackArc,
+                    flankingModifier: legacyModifiers.modifiers.flankingModifier,
+                    originalDamage,
+                  };
+                }
+                
+                // Apply resolve damage for legacy turn attacks (Core 2.0)
+                if (processor?.config.resolve && attackEvent.damage && attackEvent.damage > 0) {
+                  const resolveResult = applyAttackResolveDamage(
+                    currentState,
+                    attackerAfterPreAttack,
+                    attackTarget,
+                    { resolveDamage: legacyModifiers.modifiers.resolveDamage, attackArc: legacyModifiers.modifiers.attackArc },
+                    currentState.currentRound
+                  );
+                  currentState = resolveResult.state;
+                  events.push(resolveResult.event);
+                }
+                
+                currentTarget = attackTarget as BattleUnitWithAbilities;
+              }
+            }
+            
+            currentState = applyBattleEvents(currentState, turnEvents) as BattleStateWithAbilities;
+            events.push(...turnEvents);
+            
+            // Check if target was killed after applying modified damage
+            // This handles cases where flanking modifier increases damage enough to kill
+            if (attackEvent && attackEvent.targetId) {
+              const targetAfterDamage = currentState.units.find(u => u.instanceId === attackEvent.targetId);
+              const hasDeathEvent = turnEvents.some(e => e.type === 'death' && e.killedUnits?.includes(attackEvent.targetId ?? ''));
+              if (targetAfterDamage && !targetAfterDamage.alive && !hasDeathEvent) {
+                const deathEvent: BattleEvent = {
+                  round: currentState.currentRound,
+                  type: 'death',
+                  actorId: attackEvent.targetId,
+                  killedUnits: [attackEvent.targetId],
+                };
+                events.push(deathEvent);
+                
+                // Apply resolve damage to allies of the dead unit (Core 2.0)
+                if (processor?.config.resolve) {
+                  const deadUnit = currentState.units.find(u => u.instanceId === attackEvent.targetId);
+                  if (deadUnit) {
+                    const allyDeathResult = applyAllyDeathResolveDamage(
+                      currentState,
+                      deadUnit as BattleUnitWithAbilities,
+                      currentState.currentRound
+                    );
+                    currentState = allyDeathResult.state;
+                    events.push(...allyDeathResult.events);
+                  }
+                }
+              }
+            }
+          }
+        }
+      } else {
+        // No mechanics enabled - use legacy turn execution for backward compatibility
+        const turnEvents = executeTurn(unit, currentState, seed);
+        
+        if (turnEvents.length > 0) {
+          currentState = applyBattleEvents(currentState, turnEvents) as BattleStateWithAbilities;
+          
+          // Add turn events first (attack, damage, etc.)
+          events.push(...turnEvents);
+          
+          // Check if any unit was killed but death event wasn't generated
+          // This can happen when damage calculation in executeTurn doesn't account for
+          // the actual HP reduction (e.g., target already damaged by previous attacks)
+          // Death event must come AFTER attack/damage events for correct replay order
+          const attackEvent = turnEvents.find(e => e.type === 'attack');
+          if (attackEvent && attackEvent.targetId) {
+            const targetAfterDamage = currentState.units.find(u => u.instanceId === attackEvent.targetId);
+            const hasDeathEvent = turnEvents.some(e => e.type === 'death' && e.killedUnits?.includes(attackEvent.targetId ?? ''));
+            if (targetAfterDamage && !targetAfterDamage.alive && !hasDeathEvent) {
+              const deathEvent: BattleEvent = {
+                round: currentState.currentRound,
+                type: 'death',
+                actorId: attackEvent.targetId,
+                killedUnits: [attackEvent.targetId],
+              };
+              events.push(deathEvent);
+            }
+          }
+        }
+      }
+      
+      // ATTACK phase (Core 2.0) - apply armor shred, riposte, etc.
+      if (currentTarget) {
+        // Get updated unit from current state (includes momentum from movement phase)
+        const updatedUnit = currentState.units.find(u => u.instanceId === unit.instanceId);
+        const attackResult = processPhase(processor, 'attack', currentState, {
+          activeUnit: (updatedUnit ?? unit) as unknown as CoreBattleUnit,
+          target: currentTarget as unknown as CoreBattleUnit,
+          action: convertToBattleAction(action),
+          seed: currentSeed++,
+        });
+        currentState = attackResult.state;
+        events.push(...attackResult.events);
+      }
+      
+      // POST_ATTACK phase (Core 2.0)
+      if (currentTarget) {
+        // Get updated unit from current state
+        const updatedUnit = currentState.units.find(u => u.instanceId === unit.instanceId);
+        const postAttackResult = processPhase(processor, 'post_attack', currentState, {
+          activeUnit: (updatedUnit ?? unit) as unknown as CoreBattleUnit,
+          target: currentTarget as unknown as CoreBattleUnit,
+          seed: currentSeed++,
+        });
+        currentState = postAttackResult.state;
+        events.push(...postAttackResult.events);
+      }
+      break;
+    }
+    
     case 'move':
     default: {
-      // Use legacy turn execution for basic attacks and movement
-      const turnEvents = executeTurn(unit, currentState, seed);
+      // Calculate movement path for engagement checks (Core 2.0) and charge mechanics
+      // We need the full path to check for Attack of Opportunity triggers and calculate momentum
+      let movementPath: Position[] | undefined;
+      let distanceMoved = 0;
+      
+      if (action.targetPosition && (processor?.config.engagement || processor?.config.charge)) {
+        // Import pathfinding to calculate the full movement path
+        const { findPath } = require('./pathfinding');
+        const { createEmptyGrid } = require('./grid');
+        
+        const grid = createEmptyGrid();
+        const otherUnits = currentState.units.filter(
+          u => u.alive && u.instanceId !== unit.instanceId
+        );
+        
+        // Calculate full path from current position to target
+        const fullPath = findPath(
+          unit.position,
+          action.targetPosition,
+          grid,
+          otherUnits,
+          unit
+        );
+        
+        if (fullPath.length > 1) {
+          // Limit path to unit's speed
+          const maxSteps = Math.min(fullPath.length, unit.stats.speed + 1);
+          movementPath = fullPath.slice(0, maxSteps);
+          distanceMoved = movementPath ? movementPath.length - 1 : 0;
+        }
+      }
+      
+      // MOVEMENT phase (Core 2.0) - only process if we have a path
+      // Pass the full path to engagement processor for AoO checks and charge processor for momentum
+      // Note: If no path is calculated here, we'll process movement after executeTurn
+      // using the actual path from the move event
+      if (movementPath && movementPath.length > 1) {
+        const movementAction: BattleAction = { type: 'move', path: movementPath };
+        
+        const movementResult = processPhase(processor, 'movement', currentState, {
+          activeUnit: unit as unknown as CoreBattleUnit,
+          action: movementAction,
+          seed: currentSeed++,
+        });
+        currentState = movementResult.state;
+        events.push(...movementResult.events);
+      }
+      
+      // Check if unit died from Attack of Opportunity
+      const unitAfterMovement = currentState.units.find(u => u.instanceId === unit.instanceId);
+      if (!unitAfterMovement || !unitAfterMovement.alive) {
+        // Unit was killed by AoO - skip rest of turn
+        break;
+      }
+      
+      // Use legacy turn execution for movement
+      const turnEvents = executeTurn(unitAfterMovement, currentState, seed);
       
       if (turnEvents.length > 0) {
+        // Check if any mechanics are enabled that affect combat
+        const hasMechanicsEnabled = processor && (
+          processor.config.facing ||
+          processor.config.flanking ||
+          processor.config.charge ||
+          processor.config.armorShred ||
+          processor.config.resolve ||
+          processor.config.riposte
+        );
+        
+        // Get actual distance moved from move event (executeTurn calculates its own path)
+        const moveEvent = turnEvents.find(e => e.type === 'move') as BattleEvent & { 
+          path?: Position[];
+          fromPosition?: Position;
+          toPosition?: Position;
+        } | undefined;
+        let actualDistanceMoved = distanceMoved;
+        if (moveEvent && moveEvent.path) {
+          actualDistanceMoved = moveEvent.path.length - 1;
+        } else if (moveEvent && moveEvent.fromPosition && moveEvent.toPosition) {
+          // Fallback: calculate from positions
+          actualDistanceMoved = Math.abs(moveEvent.toPosition.x - moveEvent.fromPosition.x) + 
+                               Math.abs(moveEvent.toPosition.y - moveEvent.fromPosition.y);
+        }
+        
+        // Process charge momentum if unit moved and has charge capability
+        if (actualDistanceMoved > 0 && processor?.config.charge) {
+          const movePath = moveEvent?.path ?? (moveEvent ? [moveEvent.fromPosition, moveEvent.toPosition] : []);
+          if (movePath.length > 1) {
+            const chargeMovementAction: BattleAction = { 
+              type: 'move',
+              path: movePath as Position[],
+            };
+            
+            const chargeResult = processPhase(processor, 'movement', currentState, {
+              activeUnit: unitAfterMovement as unknown as CoreBattleUnit,
+              action: chargeMovementAction,
+              seed: currentSeed++,
+            });
+            currentState = chargeResult.state;
+            // Don't add events here - they would duplicate the move event
+          }
+        }
+        
+        // Find attack event to apply mechanics modifiers
+        const attackEvent = turnEvents.find(e => e.type === 'attack');
+        if (attackEvent && attackEvent.targetId && hasMechanicsEnabled) {
+          const attackTarget = currentState.units.find(u => u.instanceId === attackEvent.targetId);
+          if (attackTarget) {
+            // Get updated unit from state (has momentum from movement phase)
+            // Use unitAfterMovement.instanceId to find the correct unit
+            const updatedAttacker = currentState.units.find(u => u.instanceId === unitAfterMovement.instanceId) ?? unitAfterMovement;
+            
+            // Calculate combat modifiers including charge momentum
+            const moveModifiers = calculateCombatModifiers(processor, {
+              attacker: updatedAttacker,
+              target: attackTarget,
+              distanceMoved: actualDistanceMoved,
+              round: currentState.currentRound,
+              seed: currentSeed++,
+            });
+            
+            // Add mechanic events (flanking, charge, etc.)
+            if (moveModifiers.events.length > 0) {
+              events.push(...moveModifiers.events);
+            }
+            
+            // Check if we need to recalculate damage with modifiers (new formula: ATK * modifier - armor)
+            const hasFlankingBonus = moveModifiers.modifiers.flankingModifier > 1.0;
+            const hasMomentumBonus = moveModifiers.modifiers.momentumBonus > 0;
+            
+            // Recalculate damage with new formula if modifiers apply
+            if ((hasFlankingBonus || hasMomentumBonus) && attackEvent.damage && attackEvent.damage > 0) {
+              const originalDamage = attackEvent.damage;
+              
+              // Use calculatePhysicalDamage with modifiers for correct formula:
+              // (ATK * flankingModifier * (1 + momentumBonus) - armor) * atkCount
+              // Build options object only with defined values to satisfy exactOptionalPropertyTypes
+              const damageOptions: { flankingModifier?: number; momentumBonus?: number } = {};
+              if (hasFlankingBonus) {
+                damageOptions.flankingModifier = moveModifiers.modifiers.flankingModifier;
+              }
+              if (hasMomentumBonus) {
+                damageOptions.momentumBonus = moveModifiers.modifiers.momentumBonus;
+              }
+              
+              const newDamage = calculatePhysicalDamage(
+                updatedAttacker as DamageUnit,
+                attackTarget as DamageUnit,
+                undefined,
+                damageOptions
+              );
+              attackEvent.damage = newDamage;
+              
+              // Also update damage event if present
+              const damageEvent = turnEvents.find(e => e.type === 'damage' && e.targetId === attackEvent.targetId);
+              if (damageEvent && damageEvent.damage) {
+                damageEvent.damage = newDamage;
+              }
+              
+              // Add metadata to attack event
+              attackEvent.metadata = {
+                ...attackEvent.metadata,
+                attackArc: moveModifiers.modifiers.attackArc,
+                flankingModifier: moveModifiers.modifiers.flankingModifier,
+                momentumBonus: moveModifiers.modifiers.momentumBonus,
+                originalDamage,
+              };
+            }
+            
+            // ATTACK phase (Core 2.0) - apply ammunition consumption, riposte, etc.
+            // This is called after move+attack when unit moved then attacked
+            const attackPhaseResult = processPhase(processor, 'attack', currentState, {
+              activeUnit: updatedAttacker as unknown as CoreBattleUnit,
+              target: attackTarget as unknown as CoreBattleUnit,
+              action: { type: 'attack', targetId: attackTarget.instanceId },
+              seed: currentSeed++,
+            });
+            currentState = attackPhaseResult.state;
+            events.push(...attackPhaseResult.events);
+          }
+        }
+        
         currentState = applyBattleEvents(currentState, turnEvents) as BattleStateWithAbilities;
         events.push(...turnEvents);
       }
@@ -367,7 +2075,52 @@ function executeUnitTurnWithAbilities(
     }
   }
   
+  // TURN_END phase (Core 2.0)
+  const turnEndResult = processPhase(processor, 'turn_end', currentState, {
+    activeUnit: unit as unknown as CoreBattleUnit,
+    seed: currentSeed++,
+  });
+  currentState = turnEndResult.state;
+  events.push(...turnEndResult.events);
+  
   return { events, state: currentState };
+}
+
+/**
+ * Convert UnitAction to BattleAction for mechanics processor.
+ * 
+ * @param action - AI decision action
+ * @returns BattleAction for mechanics processor
+ */
+function convertToBattleAction(action: UnitAction): BattleAction {
+  switch (action.type) {
+    case 'ability': {
+      const battleAction: BattleAction = { type: 'ability' };
+      if (action.target?.instanceId) {
+        battleAction.targetId = action.target.instanceId;
+      }
+      if (action.abilityId) {
+        battleAction.abilityId = action.abilityId;
+      }
+      return battleAction;
+    }
+    case 'attack': {
+      const battleAction: BattleAction = { type: 'attack' };
+      if (action.target?.instanceId) {
+        battleAction.targetId = action.target.instanceId;
+      }
+      return battleAction;
+    }
+    case 'move': {
+      const battleAction: BattleAction = { type: 'move' };
+      if (action.targetPosition) {
+        battleAction.path = [action.targetPosition];
+      }
+      return battleAction;
+    }
+    default:
+      return { type: 'wait' };
+  }
 }
 
 // =============================================================================
@@ -379,10 +2132,19 @@ function executeUnitTurnWithAbilities(
  * Uses advanced grid-based combat with pathfinding, targeting, abilities,
  * status effects, and deterministic AI.
  * 
+ * Core 2.0 Integration:
+ * - Optional MechanicsProcessor for advanced combat mechanics
+ * - Phase hooks: turn_start, movement, pre_attack, attack, post_attack, turn_end
+ * - Backward compatible: no processor = MVP behavior (identical to Core 1.0)
+ * 
  * Turn flow per unit:
  * 1. Check if stunned (skip if true)
- * 2. AI decides action (ability/attack/move)
- * 3. Execute action
+ * 2. [Core 2.0] Apply turn_start mechanics
+ * 3. AI decides action (ability/attack/move)
+ * 4. [Core 2.0] Apply movement/pre_attack mechanics
+ * 5. Execute action
+ * 6. [Core 2.0] Apply attack/post_attack mechanics
+ * 7. [Core 2.0] Apply turn_end mechanics
  * 
  * Round flow:
  * 1. Tick status effects (duration, DoT/HoT)
@@ -394,17 +2156,24 @@ function executeUnitTurnWithAbilities(
  * @param playerTeam - Player team setup with units and positions
  * @param enemyTeam - Enemy team setup with units and positions
  * @param seed - Random seed for deterministic simulation
+ * @param processor - Optional mechanics processor for Core 2.0 mechanics
  * @returns Complete battle result with events and final states
  * @throws Error if team setups are invalid
  * @example
- * const playerTeam = { units: [warrior, mage], positions: [{ x: 1, y: 0 }, { x: 2, y: 1 }] };
- * const enemyTeam = { units: [orc, goblin], positions: [{ x: 1, y: 9 }, { x: 2, y: 8 }] };
+ * // MVP mode (Core 1.0 behavior, no mechanics)
  * const result = simulateBattle(playerTeam, enemyTeam, 12345);
+ * 
+ * @example
+ * // With Core 2.0 mechanics (roguelike preset)
+ * import { createMechanicsProcessor, ROGUELIKE_PRESET } from '@core/mechanics';
+ * const processor = createMechanicsProcessor(ROGUELIKE_PRESET);
+ * const result = simulateBattle(playerTeam, enemyTeam, 12345, processor);
  */
 export function simulateBattle(
   playerTeam: TeamSetup,
   enemyTeam: TeamSetup,
-  seed: number
+  seed: number,
+  processor?: MechanicsProcessor
 ): BattleResult {
   const startTime = Date.now();
   
@@ -431,6 +2200,7 @@ export function simulateBattle(
   };
   
   const allEvents: BattleEvent[] = [];
+  let currentSeed = seed;
   
   // Add battle start event
   allEvents.push({
@@ -441,6 +2211,7 @@ export function simulateBattle(
       message: 'Battle begins',
       playerUnits: playerUnits.length,
       enemyUnits: enemyUnits.length,
+      mechanicsEnabled: processor ? true : false,
     },
   });
   
@@ -466,20 +2237,29 @@ export function simulateBattle(
     // Step 3: Execute each unit's turn
     for (const unit of turnQueue) {
       // Get current unit state from battle state
+      // CRITICAL: Must get fresh state because previous turns may have killed this unit
       const currentUnit = battleState.units.find(u => u.instanceId === unit.instanceId);
-      if (!currentUnit || !currentUnit.alive) continue;
+      
+      // Skip if unit not found or dead (killed by another unit earlier in this round)
+      if (!currentUnit) continue;
+      if (!currentUnit.alive) continue;
+      
+      // Double-check HP is positive (defensive check)
+      if (currentUnit.currentHp <= 0) continue;
       
       // Generate seed for this turn (deterministic based on battle seed, round, and unit)
-      const turnSeed = seed + battleState.currentRound * 1000 + hashTeamSetup({ 
+      const turnSeed = currentSeed + battleState.currentRound * 1000 + hashTeamSetup({ 
         units: [unit], 
         positions: [unit.position] 
       });
+      currentSeed = turnSeed + 1;
       
-      // Execute unit's turn with ability support
+      // Execute unit's turn with ability support and optional mechanics processor
       const turnResult = executeUnitTurnWithAbilities(
         currentUnit as BattleUnitWithAbilities, 
         battleState, 
-        turnSeed
+        turnSeed,
+        processor
       );
       
       // Update state and collect events
@@ -646,6 +2426,7 @@ export function analyzeBattleResult(result: BattleResult): BattleAnalysis {
  * @param enemyUnits - Array of enemy unit templates
  * @param enemyPositions - Array of enemy unit positions
  * @param seed - Random seed for deterministic simulation
+ * @param processor - Optional mechanics processor for Core 2.0 mechanics
  * @returns Battle result
  */
 export function simulateBattleLegacy(
@@ -653,7 +2434,8 @@ export function simulateBattleLegacy(
   playerPositions: Position[],
   enemyUnits: UnitTemplate[],
   enemyPositions: Position[],
-  seed: number
+  seed: number,
+  processor?: MechanicsProcessor
 ): BattleResult {
   const playerTeam: TeamSetup = {
     units: playerUnits,
@@ -665,5 +2447,5 @@ export function simulateBattleLegacy(
     positions: enemyPositions,
   };
   
-  return simulateBattle(playerTeam, enemyTeam, seed);
+  return simulateBattle(playerTeam, enemyTeam, seed, processor);
 }

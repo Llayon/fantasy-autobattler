@@ -24,8 +24,7 @@ import {
   ROGUELIKE_MATCHMAKING_CONFIG,
 } from '../../core/progression/snapshot/snapshot.presets';
 import { getBotDifficulty } from '../../core/progression/snapshot/snapshot';
-import { HUMANS_T1_UNITS } from '../data/humans.units';
-import { UNDEAD_T1_UNITS } from '../data/undead.units';
+import { getT1UnitsByFaction } from '../data/units.registry';
 import { SeededRandom } from '../../core/utils/random';
 import { getBotTeamForRound, getBudgetForRound } from '../data/bot-teams.data';
 
@@ -334,7 +333,7 @@ export class MatchmakingService {
     roundNumber: number,
     rng: SeededRandom,
   ): PlacedUnit[] {
-    const units = faction === 'humans' ? HUMANS_T1_UNITS : UNDEAD_T1_UNITS;
+    const units = getT1UnitsByFaction(faction);
     const budget = getBudgetForRound(roundNumber);
     const team: PlacedUnit[] = [];
     let remainingBudget = budget;

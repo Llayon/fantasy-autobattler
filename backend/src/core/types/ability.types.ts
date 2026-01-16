@@ -333,8 +333,16 @@ import { BattleUnit, UnitStats } from './battle.types';
 
 /**
  * Extended battle unit with status effects tracking.
+ * 
+ * Note: This interface uses the ability system's StatusEffect type which
+ * is more detailed than BattleStatusEffect. The statusEffects property
+ * is intentionally typed as StatusEffect[] to support the full ability
+ * system features (effect objects, stacks, etc.).
+ * 
+ * For simpler status effect tracking (e.g., contagion), use BattleUnit
+ * with BattleStatusEffect[] directly.
  */
-export interface BattleUnitWithEffects<TUnitId = string> extends BattleUnit {
+export interface BattleUnitWithEffects<TUnitId = string> extends Omit<BattleUnit, 'statusEffects'> {
   statusEffects: StatusEffect<TUnitId>[];
   isStunned: boolean;
   hasTaunt: boolean;

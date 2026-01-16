@@ -13,6 +13,12 @@ import { StarterDeck, DeckCard } from '../types/unit.types';
 /**
  * Humans starter deck composition.
  * Balanced mix of tanks, DPS, mages, and support.
+ * Includes Core 2.0 specialized units for tactical gameplay.
+ *
+ * Core 2.0 units:
+ * - Light Cavalry (Charge mechanic)
+ * - Spearman (Phalanx mechanic)
+ * - Hunter (Ammunition mechanic)
  *
  * @example
  * const deck = HUMANS_STARTER_DECK;
@@ -21,12 +27,14 @@ import { StarterDeck, DeckCard } from '../types/unit.types';
 export const HUMANS_STARTER_DECK: StarterDeck = {
   faction: 'humans',
   units: [
-    { unitId: 'footman', count: 2 },
-    { unitId: 'swordsman', count: 2 },
-    { unitId: 'archer', count: 2 },
+    { unitId: 'footman', count: 1 },
+    { unitId: 'spearman', count: 2 }, // Core 2.0: Phalanx (2 for formation bonus)
+    { unitId: 'swordsman', count: 1 },
+    { unitId: 'light_cavalry', count: 1 }, // Core 2.0: Charge
+    { unitId: 'archer', count: 1 },
+    { unitId: 'hunter', count: 1 }, // Core 2.0: Ammunition
     { unitId: 'apprentice', count: 1 },
     { unitId: 'knight', count: 1 },
-    { unitId: 'crusader', count: 1 },
     { unitId: 'crossbowman', count: 1 },
     { unitId: 'battle_mage', count: 1 },
     { unitId: 'priest', count: 1 },
@@ -36,6 +44,12 @@ export const HUMANS_STARTER_DECK: StarterDeck = {
 /**
  * Undead starter deck composition.
  * Aggressive mix with high damage potential.
+ * Includes Core 2.0 specialized units for tactical gameplay.
+ *
+ * Core 2.0 units:
+ * - Plague Bearer (Contagion mechanic)
+ * - Wraith (Flanking & Riposte)
+ * - Bone Archer (Ammunition mechanic)
  *
  * @example
  * const deck = UNDEAD_STARTER_DECK;
@@ -44,9 +58,12 @@ export const HUMANS_STARTER_DECK: StarterDeck = {
 export const UNDEAD_STARTER_DECK: StarterDeck = {
   faction: 'undead',
   units: [
-    { unitId: 'zombie', count: 2 },
-    { unitId: 'skeleton_warrior', count: 2 },
-    { unitId: 'skeleton_archer', count: 2 },
+    { unitId: 'zombie', count: 1 },
+    { unitId: 'plague_bearer', count: 1 }, // Core 2.0: Contagion
+    { unitId: 'skeleton_warrior', count: 1 },
+    { unitId: 'wraith', count: 1 }, // Core 2.0: Flanking & Riposte
+    { unitId: 'skeleton_archer', count: 1 },
+    { unitId: 'bone_archer', count: 1 }, // Core 2.0: Ammunition
     { unitId: 'necromancer', count: 1 },
     { unitId: 'abomination', count: 1 },
     { unitId: 'ghoul', count: 1 },

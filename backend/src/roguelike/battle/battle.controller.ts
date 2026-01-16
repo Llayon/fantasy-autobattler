@@ -304,6 +304,24 @@ export class BattleController {
       newRating: updatedRun.rating,
       runComplete: updatedRun.status !== 'active',
       runStatus: updatedRun.status,
+      // Core 2.0 mechanics info (roguelike always uses ROGUELIKE_PRESET)
+      mechanicsPreset: 'roguelike' as const,
+      enabledMechanics: [
+        'facing',
+        'resolve',
+        'engagement',
+        'flanking',
+        'riposte',
+        'intercept',
+        'aura',
+        'charge',
+        'overwatch',
+        'phalanx',
+        'lineOfSight',
+        'ammunition',
+        'contagion',
+        'armorShred',
+      ],
     };
   }
 

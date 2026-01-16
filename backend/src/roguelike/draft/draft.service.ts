@@ -417,14 +417,26 @@ export class DraftService {
     });
 
     if (!run) {
+      this.logger.warn('Run not found', { runId, playerId });
       throw new RunNotFoundException(runId);
     }
 
     if (run.playerId !== playerId) {
+      this.logger.warn('Access denied - run belongs to different player', {
+        runId,
+        requestingPlayerId: playerId,
+        runOwnerId: run.playerId,
+        runCreatedAt: run.createdAt,
+      });
       throw new RunAccessDeniedException(runId, playerId);
     }
 
     if (run.isComplete()) {
+      this.logger.warn('Run already completed', {
+        runId,
+        playerId,
+        status: run.status,
+      });
       throw new RunAlreadyCompletedException(runId, run.status as 'won' | 'lost');
     }
 

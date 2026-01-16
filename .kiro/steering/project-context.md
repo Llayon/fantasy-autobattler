@@ -126,7 +126,15 @@ backend/src/
 │   │   ├── damage.ts         # calculatePhysicalDamage, rollDodge
 │   │   ├── turn-order.ts     # buildTurnQueue, getNextUnit
 │   │   └── targeting.ts      # selectTarget, findNearestEnemy
-│   ├── progression/ # 🆕 Core 3.0 - Roguelike progression systems
+│   ├── mechanics/  # 🆕 Core 2.0 - Modular combat mechanics
+│   │   ├── config/           # Types, defaults, presets, validation
+│   │   ├── tier0/            # Facing (directional combat)
+│   │   ├── tier1/            # Resolve, Engagement, Flanking
+│   │   ├── tier2/            # Riposte, Intercept, Aura
+│   │   ├── tier3/            # Charge, Overwatch, Phalanx, LoS, Ammo
+│   │   ├── tier4/            # Contagion, Armor Shred
+│   │   └── processor.ts      # MechanicsProcessor factory
+│   ├── progression/ # Core 3.0 - Roguelike progression systems
 │   │   ├── deck/             # Card collection (createDeck, shuffleDeck, drawCards)
 │   │   ├── hand/             # Hand management (createHand, addToHand)
 │   │   ├── draft/            # Pick/ban drafting (createDraft, pickCard)
@@ -284,10 +292,26 @@ Control: Stun high threat > Attack
 Reusable engine code extracted to `backend/src/core/`:
 - `core/grid/` — Grid utilities, A* pathfinding
 - `core/battle/` — Damage, turn order, targeting
+- `core/mechanics/` — **Core 2.0** Modular combat mechanics (14 systems)
 - `core/progression/` — **Core 3.0** Deck, draft, upgrade, economy, run, snapshot
 - `core/types/` — Core type definitions
 - `core/utils/` — Seeded random for determinism
 - `core/events/` — Event emitter system
+
+### Core 2.0: Mechanics System ✅ Complete
+Modular battle mechanics with feature flags:
+- **Tier 0**: Facing (directional combat)
+- **Tier 1**: Resolve, Engagement, Flanking
+- **Tier 2**: Riposte, Intercept, Aura
+- **Tier 3**: Charge, Overwatch, Phalanx, LoS, Ammunition
+- **Tier 4**: Contagion, Armor Shred
+
+Three presets available:
+- `MVP_PRESET` — All disabled (Core 1.0 behavior)
+- `TACTICAL_PRESET` — Tier 0-2 mechanics
+- `ROGUELIKE_PRESET` — All 14 mechanics enabled
+
+See `backend/src/core/mechanics/README.md` for documentation.
 
 ### Core 3.0: Progression Systems ✅ Complete
 Seven reusable systems for roguelike/deckbuilder games:
@@ -331,7 +355,7 @@ See `.kiro/specs/roguelike-run/` for full specification.
 | `documentation-cleanup` | 🔄 In Progress | Reorganize docs structure |
 | `core-extraction` | 🔄 In Progress (PR 5) | Extract reusable engine code (Core 1.0) |
 | `core-progression` | ✅ Complete | Progression systems (Core 3.0) |
-| `core-mechanics-2.0` | ⬜ Ready | Modular combat mechanics with feature flags |
+| `core-mechanics-2.0` | ✅ Complete | Modular combat mechanics with feature flags |
 | `roguelike-run` | ⬜ Ready | Roguelike progression mode (12 mechanics) |
 | `battle-replay-ux` | ✅ Complete | Battle replay improvements |
 | `hp-bar-visibility` | ✅ Complete | HP bar visibility |

@@ -200,21 +200,28 @@ export default function DraftPage() {
 
   // Show error state if draft failed to load (network error, etc.)
   if (draftError && options.length === 0) {
+    // Check if it's an access denied error
+    const isAccessDenied = draftError.includes('Доступ') || draftError.includes('запрещен');
+    
     return (
       <div className="min-h-screen bg-gray-900 text-white">
         <Navigation />
         <NavigationWrapper>
           <div className="max-w-2xl mx-auto p-6 text-center py-16">
-            <div className="text-6xl mb-4">⚠️</div>
-            <h1 className="text-2xl font-bold text-red-400 mb-2">Ошибка загрузки драфта</h1>
+            <div className="text-6xl mb-4">{isAccessDenied ? '🔒' : '⚠️'}</div>
+            <h1 className="text-2xl font-bold text-red-400 mb-2">
+              {isAccessDenied ? 'Доступ к забегу запрещен' : 'Ошибка загрузки драфта'}
+            </h1>
             <p className="text-gray-400 mb-6">{draftError}</p>
             <div className="flex gap-4 justify-center">
-              <button
-                onClick={() => loadDraft(runId)}
-                className="px-6 py-3 bg-yellow-500 text-black font-bold rounded-lg hover:bg-yellow-400 transition-colors"
-              >
-                Повторить
-              </button>
+              {!isAccessDenied && (
+                <button
+                  onClick={() => loadDraft(runId)}
+                  className="px-6 py-3 bg-yellow-500 text-black font-bold rounded-lg hover:bg-yellow-400 transition-colors"
+                >
+                  Повторить
+                </button>
+              )}
               <button
                 onClick={handleBackToMenu}
                 className="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"

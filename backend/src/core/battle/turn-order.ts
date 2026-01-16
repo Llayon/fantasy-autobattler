@@ -4,9 +4,41 @@
  *
  * @fileoverview Turn order implementation with deterministic sorting.
  * Provides deterministic turn ordering based on initiative, speed, and ID tiebreaking.
+ * Supports resolve state filtering (routing units skip their turns).
+ * Supports vigilance state filtering (units in overwatch skip their normal turns).
  *
  * @module core/battle/turn-order
  */
+
+// =============================================================================
+// RESOLVE STATE (imported from mechanics when available)
+// =============================================================================
+
+/**
+ * Resolve state for units (morale system).
+ * Routing units skip their turns in the turn order.
+ */
+export enum ResolveState {
+  STEADY = 'steady',
+  WAVERING = 'wavering',
+  ROUTING = 'routing',
+}
+
+// =============================================================================
+// VIGILANCE STATE (for overwatch mechanic)
+// =============================================================================
+
+/**
+ * Vigilance state for units (overwatch mechanic).
+ * Units in vigilance mode are waiting to react to enemy movement
+ * and skip their normal turns.
+ */
+export enum VigilanceState {
+  /** Unit acts normally */
+  NORMAL = 'normal',
+  /** Unit is in overwatch mode, skips normal turn but reacts to enemy movement */
+  VIGILANT = 'vigilant',
+}
 
 // =============================================================================
 // UNIT INTERFACE (minimal for core)
@@ -34,6 +66,10 @@ export interface TurnOrderUnit {
   };
   /** Team affiliation */
   team: 'player' | 'bot';
+  /** Optional resolve state for morale system */
+  resolveState?: ResolveState;
+  /** Optional vigilance state for overwatch mechanic */
+  vigilanceState?: VigilanceState;
 }
 
 // =============================================================================
@@ -41,11 +77,43 @@ export interface TurnOrderUnit {
 // =============================================================================
 
 /**
+ * Check if a unit can act in the turn order.
+ * A unit can act if it is alive, not routing, and not in vigilance mode.
+ *
+ * @param unit - Unit to check
+ * @returns True if unit can act
+ * @example
+ * if (canUnitAct(unit)) {
+ *   // Process unit's turn
+ * }
+ */
+export function canUnitAct<T extends TurnOrderUnit>(unit: T): boolean {
+  // Unit must be alive
+  if (!unit.alive) {
+    return false;
+  }
+
+  // Routing units skip their turns
+  if (unit.resolveState === ResolveState.ROUTING) {
+    return false;
+  }
+
+  // Vigilant units skip their normal turns (they react to enemy movement instead)
+  if (unit.vigilanceState === VigilanceState.VIGILANT) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
  * Build turn queue from units with deterministic sorting.
  * Sorting rules:
  * 1. Initiative (descending) - higher initiative goes first
  * 2. Speed (descending) - higher speed breaks initiative ties
  * 3. ID (ascending) - alphabetical order for complete determinism
+ *
+ * Note: Routing units are excluded from the queue (they skip their turns).
  *
  * @param units - Array of units to sort
  * @returns Sorted array of units in turn order
@@ -60,7 +128,7 @@ export interface TurnOrderUnit {
  */
 export function buildTurnQueue<T extends TurnOrderUnit>(units: T[]): T[] {
   return units
-    .filter((unit) => unit.alive) // Only include living units
+    .filter((unit) => canUnitAct(unit)) // Only include units that can act
     .sort((a, b) => {
       // 1. Primary sort: Initiative (descending - higher goes first)
       if (b.stats.initiative !== a.stats.initiative) {
@@ -79,10 +147,10 @@ export function buildTurnQueue<T extends TurnOrderUnit>(units: T[]): T[] {
 
 /**
  * Get the next unit to act from the turn queue.
- * Returns the first living unit in the queue, or null if none available.
+ * Returns the first unit that can act (alive and not routing), or null if none available.
  *
  * @param queue - Turn queue array of units
- * @returns Next unit to act, or null if no living units
+ * @returns Next unit to act, or null if no units can act
  * @example
  * const next = getNextUnit(queue);
  * if (next) {
@@ -90,14 +158,14 @@ export function buildTurnQueue<T extends TurnOrderUnit>(units: T[]): T[] {
  * }
  */
 export function getNextUnit<T extends TurnOrderUnit>(queue: T[]): T | null {
-  // Find first living unit in queue
+  // Find first unit that can act
   for (const unit of queue) {
-    if (unit.alive) {
+    if (canUnitAct(unit)) {
       return unit;
     }
   }
 
-  // No living units found
+  // No units can act
   return null;
 }
 
@@ -112,6 +180,20 @@ export function getNextUnit<T extends TurnOrderUnit>(queue: T[]): T | null {
  */
 export function removeDeadUnits<T extends TurnOrderUnit>(queue: T[]): T[] {
   return queue.filter((unit) => unit.alive);
+}
+
+/**
+ * Remove units that cannot act from the turn queue.
+ * This includes dead units and routing units.
+ * Creates a new array with only units that can act, preserving order.
+ *
+ * @param queue - Current turn queue
+ * @returns New queue with only units that can act
+ * @example
+ * const cleaned = removeInactiveUnits(queue);
+ */
+export function removeInactiveUnits<T extends TurnOrderUnit>(queue: T[]): T[] {
+  return queue.filter((unit) => canUnitAct(unit));
 }
 
 // =============================================================================
@@ -131,6 +213,22 @@ export function removeDeadUnits<T extends TurnOrderUnit>(queue: T[]): T[] {
  */
 export function hasLivingUnits<T extends TurnOrderUnit>(queue: T[]): boolean {
   return queue.some((unit) => unit.alive);
+}
+
+/**
+ * Check if any units can act in the queue.
+ * A unit can act if it is alive and not routing.
+ * Useful for determining if any units can take turns.
+ *
+ * @param queue - Turn queue to check
+ * @returns True if at least one unit can act
+ * @example
+ * if (!hasActiveUnits(queue)) {
+ *   // No units can act this round
+ * }
+ */
+export function hasActiveUnits<T extends TurnOrderUnit>(queue: T[]): boolean {
+  return queue.some((unit) => canUnitAct(unit));
 }
 
 /**
@@ -197,6 +295,7 @@ export function findUnitById<T extends TurnOrderUnit>(queue: T[], instanceId: st
 /**
  * Get turn order preview for UI display.
  * Returns array of unit IDs in turn order for the next few turns.
+ * Excludes routing units from the preview.
  *
  * @param queue - Current turn queue
  * @param maxTurns - Maximum number of turns to preview (default: 5)
@@ -209,12 +308,12 @@ export function getTurnOrderPreview<T extends TurnOrderUnit>(
   queue: T[],
   maxTurns: number = 5
 ): string[] {
-  const livingUnits = removeDeadUnits(queue);
+  const activeUnits = removeInactiveUnits(queue);
   const preview: string[] = [];
 
-  for (let i = 0; i < maxTurns && livingUnits.length > 0; i++) {
-    const unitIndex = i % livingUnits.length;
-    const unit = livingUnits[unitIndex];
+  for (let i = 0; i < maxTurns && activeUnits.length > 0; i++) {
+    const unitIndex = i % activeUnits.length;
+    const unit = activeUnits[unitIndex];
     if (unit) {
       preview.push(unit.instanceId);
     }
@@ -242,8 +341,10 @@ export function getTurnOrderPreview<T extends TurnOrderUnit>(
 export function validateTurnQueue<T extends TurnOrderUnit>(queue: T[]): {
   valid: boolean;
   errors: string[];
+  warnings: string[];
 } {
   const errors: string[] = [];
+  const warnings: string[] = [];
   const seenIds = new Set<string>();
 
   // Check for duplicate instance IDs
@@ -267,17 +368,29 @@ export function validateTurnQueue<T extends TurnOrderUnit>(queue: T[]): {
     if (unit.currentHp > 0 && !unit.alive) {
       errors.push(`Unit ${unit.instanceId} has HP but is marked dead`);
     }
+
+    // Warn about routing units in queue (they should be filtered out)
+    if (unit.resolveState === ResolveState.ROUTING && unit.alive) {
+      warnings.push(`Unit ${unit.instanceId} is routing and should skip turns`);
+    }
+
+    // Warn about vigilant units in queue (they should be filtered out)
+    if (unit.vigilanceState === VigilanceState.VIGILANT && unit.alive) {
+      warnings.push(`Unit ${unit.instanceId} is vigilant and should skip normal turns`);
+    }
   }
 
   return {
     valid: errors.length === 0,
     errors,
+    warnings,
   };
 }
 
 /**
  * Check if turn queue is properly sorted according to rules.
  * Verifies that the queue follows initiative > speed > ID sorting.
+ * Only considers units that can act (alive and not routing).
  *
  * @param queue - Turn queue to check
  * @returns True if queue is properly sorted
@@ -287,11 +400,11 @@ export function validateTurnQueue<T extends TurnOrderUnit>(queue: T[]): {
  * }
  */
 export function isTurnQueueSorted<T extends TurnOrderUnit>(queue: T[]): boolean {
-  const livingUnits = queue.filter((unit) => unit.alive);
+  const activeUnits = queue.filter((unit) => canUnitAct(unit));
 
-  for (let i = 1; i < livingUnits.length; i++) {
-    const prev = livingUnits[i - 1];
-    const curr = livingUnits[i];
+  for (let i = 1; i < activeUnits.length; i++) {
+    const prev = activeUnits[i - 1];
+    const curr = activeUnits[i];
 
     if (!prev || !curr) continue;
 
@@ -325,7 +438,7 @@ export function isTurnQueueSorted<T extends TurnOrderUnit>(queue: T[]): boolean 
 /**
  * Advance to next turn in the queue.
  * Removes the current unit from front and returns updated queue.
- * If queue becomes empty, rebuilds from all living units.
+ * If queue becomes empty or no units can act, rebuilds from all units.
  *
  * @param queue - Current turn queue
  * @param allUnits - All units in battle (for queue rebuilding)
@@ -337,9 +450,9 @@ export function advanceToNextTurn<T extends TurnOrderUnit>(queue: T[], allUnits:
   // Remove current unit (first in queue)
   const remainingQueue = queue.slice(1);
 
-  // If queue is empty or no living units remain, rebuild from all units
-  const livingInQueue = remainingQueue.filter((unit) => unit.alive);
-  if (livingInQueue.length === 0) {
+  // If queue is empty or no units can act, rebuild from all units
+  const activeInQueue = remainingQueue.filter((unit) => canUnitAct(unit));
+  if (activeInQueue.length === 0) {
     return buildTurnQueue(allUnits);
   }
 
@@ -348,7 +461,7 @@ export function advanceToNextTurn<T extends TurnOrderUnit>(queue: T[], allUnits:
 
 /**
  * Check if a new round should start.
- * A new round starts when all living units have acted once.
+ * A new round starts when no units that can act remain in the queue.
  *
  * @param queue - Current turn queue
  * @param allUnits - All units in battle
@@ -360,9 +473,9 @@ export function advanceToNextTurn<T extends TurnOrderUnit>(queue: T[], allUnits:
  * }
  */
 export function shouldStartNewRound<T extends TurnOrderUnit>(queue: T[], allUnits: T[]): boolean {
-  const livingUnits = allUnits.filter((unit) => unit.alive);
-  const livingInQueue = queue.filter((unit) => unit.alive);
+  const activeUnits = allUnits.filter((unit) => canUnitAct(unit));
+  const activeInQueue = queue.filter((unit) => canUnitAct(unit));
 
-  // New round if no living units remain in queue but living units exist
-  return livingInQueue.length === 0 && livingUnits.length > 0;
+  // New round if no active units remain in queue but active units exist
+  return activeInQueue.length === 0 && activeUnits.length > 0;
 }

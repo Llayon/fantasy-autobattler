@@ -2,29 +2,29 @@
  * Unit Helper Functions for Roguelike Mode
  *
  * Provides functions to retrieve unit data by ID.
+ * Re-exports from units.registry for backward compatibility.
  *
  * @module roguelike/data/units.helpers
  */
 
 import { RoguelikeUnit, UnitUpgradeLine } from '../types/unit.types';
-import { HUMANS_T1_UNITS, HUMANS_UPGRADE_LINES } from './humans.units';
-import { UNDEAD_T1_UNITS, UNDEAD_UPGRADE_LINES } from './undead.units';
+import {
+  ALL_T1_UNITS as REGISTRY_T1_UNITS,
+  ALL_UPGRADE_LINES as REGISTRY_UPGRADE_LINES,
+  getUnitById,
+} from './units.registry';
 
 /**
- * All T1 units from all factions.
+ * All T1 units from all factions including Core 2.0.
+ * @deprecated Use getT1UnitsByFaction or ALL_T1_UNITS from units.registry instead
  */
-export const ALL_T1_UNITS: RoguelikeUnit[] = [
-  ...HUMANS_T1_UNITS,
-  ...UNDEAD_T1_UNITS,
-];
+export const ALL_T1_UNITS: RoguelikeUnit[] = REGISTRY_T1_UNITS;
 
 /**
- * All upgrade lines from all factions.
+ * All upgrade lines from all factions including Core 2.0.
+ * @deprecated Use ALL_UPGRADE_LINES from units.registry instead
  */
-export const ALL_UPGRADE_LINES: UnitUpgradeLine[] = [
-  ...HUMANS_UPGRADE_LINES,
-  ...UNDEAD_UPGRADE_LINES,
-];
+export const ALL_UPGRADE_LINES: UnitUpgradeLine[] = REGISTRY_UPGRADE_LINES;
 
 /**
  * Map of unit ID to unit data for fast lookup.
@@ -48,7 +48,7 @@ for (const line of ALL_UPGRADE_LINES) {
  * console.log(footman?.name); // 'Footman'
  */
 export function getRoguelikeUnit(unitId: string): RoguelikeUnit | undefined {
-  return UNIT_MAP.get(unitId);
+  return getUnitById(unitId);
 }
 
 /**

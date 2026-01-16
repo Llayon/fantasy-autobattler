@@ -59,6 +59,45 @@ const ERROR_MESSAGES: Record<number, string> = {
   503: 'Сервис временно недоступен',
 };
 
+/**
+ * Checks if an error is an access denied error (403).
+ * 
+ * @param error - Error to check
+ * @returns True if error is access denied
+ */
+export function isAccessDeniedError(error: unknown): boolean {
+  if (error instanceof ApiError) {
+    return error.status === 403;
+  }
+  return false;
+}
+
+/**
+ * Checks if an error is a not found error (404).
+ * 
+ * @param error - Error to check
+ * @returns True if error is not found
+ */
+export function isNotFoundError(error: unknown): boolean {
+  if (error instanceof ApiError) {
+    return error.status === 404;
+  }
+  return false;
+}
+
+/**
+ * Checks if an error is an authentication error (401).
+ * 
+ * @param error - Error to check
+ * @returns True if error is authentication error
+ */
+export function isAuthError(error: unknown): boolean {
+  if (error instanceof ApiError) {
+    return error.status === 401;
+  }
+  return false;
+}
+
 // =============================================================================
 // AUTHENTICATION
 // =============================================================================
@@ -462,17 +501,31 @@ export const api = {
    * 
    * @param difficulty - Battle difficulty (optional)
    * @param teamId - Team to use (optional, uses active team)
+   * @param mechanicsPreset - Mechanics preset (optional, defaults to 'mvp')
+   * @param mechanicsToggles - Custom mechanics toggles (optional, used with 'custom' preset)
    * @returns Battle result with events and winner
    * @throws ApiError if no active team or invalid parameters
    * @example
-   * const battle = await api.startBattle('medium', 'team-123');
+   * const battle = await api.startBattle('medium', 'team-123', 'tactical');
    */
-  async startBattle(difficulty?: string, teamId?: string): Promise<{
+  async startBattle(
+    difficulty?: string, 
+    teamId?: string,
+    mechanicsPreset?: 'mvp' | 'tactical' | 'roguelike' | 'custom',
+    mechanicsToggles?: Record<string, boolean>,
+  ): Promise<{
     battleId: string;
   }> {
-    const body: { difficulty?: string; teamId?: string } = {};
+    const body: { 
+      difficulty?: string; 
+      teamId?: string;
+      mechanicsPreset?: string;
+      mechanicsToggles?: Record<string, boolean>;
+    } = {};
     if (difficulty) body.difficulty = difficulty;
     if (teamId) body.teamId = teamId;
+    if (mechanicsPreset) body.mechanicsPreset = mechanicsPreset;
+    if (mechanicsToggles) body.mechanicsToggles = mechanicsToggles;
 
     return fetchApi<{
       battleId: string;

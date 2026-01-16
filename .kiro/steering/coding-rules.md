@@ -1,91 +1,51 @@
-# Coding Rules for AI Assistants
+# Coding Rules
 
-## MUST Follow
-
-### TypeScript
-- Use explicit types, never `any`
-- Prefer interfaces for objects, types for unions
+## TypeScript
+- Explicit types, never `any`
+- Interfaces for objects, types for unions
 - No non-null assertions (`!`)
 
-### JSDoc Documentation (REQUIRED)
-- ALL public functions MUST have JSDoc comments
-- Include: @description, @param, @returns, @throws, @example
-- Interfaces and types MUST have descriptions
-- Complex logic MUST have inline comments explaining WHY
+## JSDoc (REQUIRED)
+All public functions: `@param`, `@returns`, `@example`
 
 ```typescript
 /**
- * Calculates physical damage dealt by attacker to target.
- * Formula: max(1, (ATK - armor) * atkCount)
- * 
- * @param attacker - The unit dealing damage
- * @param target - The unit receiving damage
- * @returns Calculated damage value (minimum 1)
- * @example
- * const damage = calculatePhysicalDamage(warrior, enemy);
+ * Calculates physical damage. Formula: max(1, (ATK - armor) * atkCount)
+ * @param attacker - Unit dealing damage
+ * @param target - Unit receiving damage
+ * @returns Damage value (min 1)
  */
 function calculatePhysicalDamage(attacker: BattleUnit, target: BattleUnit): number
 ```
 
-### Logging & Error Tracking (REQUIRED)
-- Use NestJS Logger, never console.log
-- Log ALL errors with context (userId, battleId, etc.)
-- Log important business events (battle started, team saved)
-- Include correlation ID for request tracing
-- Log levels: error (bugs), warn (issues), log (events), debug (dev)
+## Logging (REQUIRED)
+NestJS Logger only, never console.log. Include context: `{ battleId, playerId, error }`
 
-```typescript
-// ✅ CORRECT logging
-this.logger.error(`Battle simulation failed`, {
-  battleId,
-  playerId,
-  error: error.message,
-  stack: error.stack,
-});
+## Backend (NestJS)
+- Controllers: HTTP only, delegate to services
+- Services: Business logic + DI
+- Use NestJS exceptions, TypeORM methods (no raw SQL)
 
-this.logger.log(`Battle completed`, { battleId, winner, rounds });
+## Frontend (Next.js)
+- Components: Pure functions of props
+- State: Zustand store only
+- API calls: In store actions, not components
+- Styles: Tailwind classes only
 
-// ❌ WRONG
-console.log('error', error);
-```
+## Forbidden
+- `any` type
+- Business logic in controllers
+- API calls in components
+- Direct state mutation
+- console.log
+- Inline styles
+- Fire-and-forget promises
 
-### Backend (NestJS)
-- Controllers: HTTP handling ONLY, delegate to services
-- Services: All business logic, use dependency injection
-- Use NestJS exceptions (`NotFoundException`, `BadRequestException`)
-- Never use raw SQL, always TypeORM methods
-
-### Frontend (Next.js)
-- Components are pure functions of props
-- State management via Zustand store only
-- API calls in store actions, not components
-- Use Tailwind classes, no inline styles
-
-### General
-- No magic numbers - use named constants
-- No console.log - use proper logging
-- No commented-out code
-- Handle all promise rejections
-
-## MUST NOT Do
-
-1. ❌ Business logic in controllers
-2. ❌ Direct database access in controllers
-3. ❌ API calls in React components
-4. ❌ Using `any` type
-5. ❌ Type assertions without validation
-6. ❌ Raw SQL queries
-7. ❌ Direct state mutation
-8. ❌ Inline styles
-9. ❌ Fire-and-forget promises
-10. ❌ Exposing sensitive data in responses
-
-## Reference Files
-
-When creating new code, follow patterns from:
-- `backend/src/battle/battle.service.ts` - Service pattern
-- `backend/src/battle/battle.controller.ts` - Controller pattern
-- `backend/src/battle/battle.simulator.ts` - Pure function pattern
-- `frontend/src/components/UnitCard.tsx` - Component pattern
-- `frontend/src/store/gameStore.ts` - Store pattern
-- `frontend/src/lib/api.ts` - API client pattern
+## Reference Patterns
+| Pattern | File |
+|---------|------|
+| Service | `backend/src/battle/battle.service.ts` |
+| Controller | `backend/src/battle/battle.controller.ts` |
+| Pure function | `backend/src/battle/battle.simulator.ts` |
+| Component | `frontend/src/components/UnitCard.tsx` |
+| Store | `frontend/src/store/gameStore.ts` |

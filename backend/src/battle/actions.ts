@@ -17,6 +17,7 @@ import { resolvePhysicalAttack, resolveMagicAttack } from './damage';
 import { selectTarget, canTarget } from './targeting';
 import { manhattanDistance, createEmptyGrid } from './grid';
 import { BATTLE_LIMITS } from '../config/game.constants';
+import type { CombatModifiers } from './mechanics-integration';
 
 // =============================================================================
 // BATTLE STATE TYPE (Game-specific extension of core type)
@@ -222,18 +223,32 @@ export function executeMove(
 /**
  * Execute attack between attacker and target.
  * Resolves damage, dodge, and death based on unit stats and seed.
+ * Supports optional combat modifiers from Core 2.0 mechanics.
  * 
  * @param attacker - Unit performing the attack
  * @param target - Unit being attacked
  * @param seed - Random seed for deterministic results
+ * @param modifiers - Optional combat modifiers from mechanics (flanking, charge, etc.)
  * @returns Attack event with damage resolution
  * @example
+ * // Basic attack (Core 1.0)
  * const attackEvent = executeAttack(warrior, enemy, 12345);
+ * 
+ * @example
+ * // Attack with mechanics modifiers (Core 2.0)
+ * const attackEvent = executeAttack(warrior, enemy, 12345, {
+ *   flankingModifier: 1.3,  // Rear attack +30%
+ *   momentumBonus: 0.6,     // Charge bonus +60%
+ *   attackArc: 'rear',
+ *   disablesRiposte: true,
+ *   resolveDamage: 20,
+ * });
  */
 export function executeAttack(
   attacker: BattleUnit, 
   target: BattleUnit, 
-  seed: number
+  seed: number,
+  modifiers?: CombatModifiers
 ): AttackEvent {
   if (!attacker.alive) {
     throw new Error(`Cannot execute attack: attacker ${attacker.instanceId} is dead`);
@@ -248,7 +263,13 @@ export function executeAttack(
   
   // Resolve attack based on type
   if (isPhysicalAttack) {
-    const attackResult = resolvePhysicalAttack(attacker, target, seed);
+    // Build options for physical attack with mechanics modifiers
+    const attackOptions = modifiers ? {
+      flankingModifier: modifiers.flankingModifier,
+      momentumBonus: modifiers.momentumBonus,
+    } : undefined;
+    
+    const attackResult = resolvePhysicalAttack(attacker, target, seed, undefined, attackOptions);
     return {
       round: 0, // Will be set by caller
       type: 'attack',
@@ -258,6 +279,14 @@ export function executeAttack(
       dodged: attackResult.dodged,
       killed: attackResult.newHp <= 0,
       attackType: 'physical' as const,
+      // Include mechanics info in metadata for battle log
+      ...(modifiers && modifiers.attackArc !== 'front' && {
+        metadata: {
+          attackArc: modifiers.attackArc,
+          flankingModifier: modifiers.flankingModifier,
+          momentumBonus: modifiers.momentumBonus,
+        },
+      }),
     };
   } else {
     const attackResult = resolveMagicAttack(attacker, target);
@@ -428,46 +457,53 @@ export function executeTurn(
   const newDistance = manhattanDistance(currentUnit.position, target.position);
   const nowInRange = newDistance <= currentUnit.range;
   
-  if (nowInRange && canTarget(currentUnit, target)) {
-    // Generate unique seed for this specific attack by combining:
-    // - base seed
-    // - current round
-    // - attacker instanceId hash
-    // - target instanceId hash
-    // This ensures each attack has a unique seed for dodge calculation
-    const attackSeed = generateAttackSeed(
-      seed, 
-      currentState.currentRound, 
-      currentUnit.instanceId, 
-      target.instanceId
-    );
+  if (nowInRange) {
+    // Get fresh target state from current state to ensure target is still alive
+    // This is critical because other units may have killed the target earlier in the same round
+    const freshTarget = currentState.units.find(u => u.instanceId === target.instanceId);
     
-    // Execute attack with unique seed
-    const attackEvent = executeAttack(currentUnit, target, attackSeed);
-    attackEvent.round = currentState.currentRound;
-    events.push(attackEvent);
-    
-    // Only create damage event if attack was not dodged (damage > 0)
-    if (attackEvent.damage > 0) {
-      const damageEvent: BattleEvent = {
-        round: currentState.currentRound,
-        type: 'damage',
-        actorId: currentUnit.instanceId,
-        targetId: target.instanceId,
-        damage: attackEvent.damage,
-      };
-      events.push(damageEvent);
-    }
-    
-    // Check if target was killed
-    if (attackEvent.killed) {
-      const deathEvent: BattleEvent = {
-        round: currentState.currentRound,
-        type: 'death',
-        actorId: target.instanceId,
-        killedUnits: [target.instanceId],
-      };
-      events.push(deathEvent);
+    // Only attack if target is still alive
+    if (freshTarget && freshTarget.alive && canTarget(currentUnit, freshTarget)) {
+      // Generate unique seed for this specific attack by combining:
+      // - base seed
+      // - current round
+      // - attacker instanceId hash
+      // - target instanceId hash
+      // This ensures each attack has a unique seed for dodge calculation
+      const attackSeed = generateAttackSeed(
+        seed, 
+        currentState.currentRound, 
+        currentUnit.instanceId, 
+        freshTarget.instanceId
+      );
+      
+      // Execute attack with unique seed
+      const attackEvent = executeAttack(currentUnit, freshTarget, attackSeed);
+      attackEvent.round = currentState.currentRound;
+      events.push(attackEvent);
+      
+      // Only create damage event if attack was not dodged (damage > 0)
+      if (attackEvent.damage > 0) {
+        const damageEvent: BattleEvent = {
+          round: currentState.currentRound,
+          type: 'damage',
+          actorId: currentUnit.instanceId,
+          targetId: freshTarget.instanceId,
+          damage: attackEvent.damage,
+        };
+        events.push(damageEvent);
+      }
+      
+      // Check if target was killed
+      if (attackEvent.killed) {
+        const deathEvent: BattleEvent = {
+          round: currentState.currentRound,
+          type: 'death',
+          actorId: freshTarget.instanceId,
+          killedUnits: [freshTarget.instanceId],
+        };
+        events.push(deathEvent);
+      }
     }
   }
   

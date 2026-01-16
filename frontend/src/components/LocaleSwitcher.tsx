@@ -77,6 +77,7 @@ export function LocaleSwitcher({
     // 3. Using router.push with locale parameter
     // 4. Triggering a page reload with new locale
 
+    // eslint-disable-next-line no-console
     console.log(`Switching to locale: ${locale}`);
 
     // Placeholder: Show notification

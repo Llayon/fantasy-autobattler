@@ -555,6 +555,7 @@ export function SynergyIndicator({
     }
 
     return undefined;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSynergies, showHighlight]); // Removed previousSynergyIds from deps to prevent infinite loop
 
   // Empty state

@@ -25,6 +25,7 @@ import {
   useTeamStore, 
   selectActiveTeam 
 } from '@/store/teamStore';
+import { useUIStore } from '@/store/uiStore';
 
 // =============================================================================
 // TYPES
@@ -121,6 +122,9 @@ export function MatchmakingPanel({ className = '' }: MatchmakingPanelProps) {
   
   const activeTeam = useTeamStore(selectActiveTeam);
   
+  // UI Store for mechanics settings
+  const { mechanics, getMechanicsToggles } = useUIStore();
+  
   // Store actions
   const { joinQueue, leaveQueue, startBotBattle, clearError, clearMatch } = useMatchmakingStore();
   
@@ -195,13 +199,16 @@ export function MatchmakingPanel({ className = '' }: MatchmakingPanelProps) {
     }
     
     try {
-      await startBotBattle(activeTeam.id, difficulty);
+      // Get mechanics settings from UI store
+      const mechanicsToggles = mechanics.preset === 'custom' ? getMechanicsToggles() : undefined;
+      
+      await startBotBattle(activeTeam.id, difficulty, mechanics.preset, mechanicsToggles);
       showSuccess(`Бой с ${difficulty === 'easy' ? 'легким' : difficulty === 'medium' ? 'средним' : 'сложным'} ботом начат!`);
     } catch (error) {
       // Error is handled by the store
       showError('Не удалось начать бой с ботом');
     }
-  }, [activeTeam, startBotBattle, showSuccess, showError]);
+  }, [activeTeam, startBotBattle, showSuccess, showError, mechanics.preset, getMechanicsToggles]);
   
   /**
    * Handle leaving matchmaking queue.

@@ -287,5 +287,54 @@ export class BattleResultDto {
     enum: ['active', 'won', 'lost'],
   })
   runStatus!: 'active' | 'won' | 'lost';
+
+  @ApiProperty({
+    description: 'Mechanics preset used for roguelike battle (always ROGUELIKE_PRESET with all 14 mechanics)',
+    example: 'roguelike',
+    enum: ['roguelike'],
+  })
+  mechanicsPreset!: 'roguelike';
+
+  @ApiProperty({
+    description: 'Enabled mechanics in ROGUELIKE_PRESET',
+    example: [
+      'facing',
+      'resolve',
+      'engagement',
+      'flanking',
+      'riposte',
+      'intercept',
+      'aura',
+      'charge',
+      'overwatch',
+      'phalanx',
+      'lineOfSight',
+      'ammunition',
+      'contagion',
+      'armorShred'
+    ],
+    type: [String],
+  })
+  enabledMechanics!: string[];
+
+  @ApiProperty({
+    description: 'Count of mechanic events generated during battle',
+    example: {
+      mechanic_facing: 24,
+      mechanic_flanking: 12,
+      mechanic_resolve: 18,
+      mechanic_riposte: 5,
+      mechanic_engagement: 8,
+      mechanic_intercept: 3,
+      mechanic_charge: 2,
+      mechanic_phalanx: 15,
+      mechanic_overwatch: 4,
+      mechanic_contagion: 1,
+      mechanic_armor_shred: 10
+    },
+    type: 'object',
+    required: false,
+  })
+  mechanicEventCounts?: Record<string, number>;
 }
 

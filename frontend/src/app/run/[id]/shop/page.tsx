@@ -77,19 +77,6 @@ export default function ShopPage() {
   const { currentRun, loading: runLoading, error: runError, loadRun } = useRunStore();
   const { initPlayer } = usePlayerStore();
 
-  // Initialize - force reload to get fresh run data
-  useEffect(() => {
-    const init = async () => {
-      await initPlayer();
-      if (runId) {
-        // Force reload to ensure we have fresh run data
-        await loadRun(runId, true);
-        await loadShop();
-      }
-    };
-    init();
-  }, [runId, initPlayer, loadRun]);
-
   // Load shop state
   const loadShop = useCallback(async () => {
     try {
@@ -103,6 +90,19 @@ export default function ShopPage() {
       setShopLoading(false);
     }
   }, [runId]);
+
+  // Initialize - force reload to get fresh run data
+  useEffect(() => {
+    const init = async () => {
+      await initPlayer();
+      if (runId) {
+        // Force reload to ensure we have fresh run data
+        await loadRun(runId, true);
+        await loadShop();
+      }
+    };
+    init();
+  }, [runId, initPlayer, loadRun, loadShop]);
 
   // Handle upgrade
   const handleUpgrade = useCallback(

@@ -131,7 +131,21 @@ export type BattleEventType =
   | 'buff' 
   | 'debuff'
   | 'round_start'
-  | 'battle_end';
+  | 'battle_end'
+  // Core 2.0 Mechanics events
+  | 'mechanic_facing'
+  | 'mechanic_armor_shred'
+  | 'mechanic_flanking'
+  | 'mechanic_charge'
+  | 'mechanic_riposte'
+  | 'mechanic_resolve'
+  | 'mechanic_routing'
+  | 'mechanic_phalanx'
+  | 'mechanic_overwatch'
+  | 'mechanic_contagion'
+  | 'mechanic_intercept'
+  | 'mechanic_aoo'
+  | 'mechanic_ammunition';
 
 /**
  * Individual battle event record matching backend.

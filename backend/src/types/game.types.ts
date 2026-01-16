@@ -89,6 +89,57 @@ export interface UnitTemplate {
   range: number;
   /** Available ability IDs */
   abilities: string[];
+  
+  // =========================================================================
+  // MECHANICS 2.0 EXTENSIONS (Roguelike mode)
+  // =========================================================================
+  
+  /**
+   * Initial facing direction (Tier 0: Facing mechanic).
+   * Defaults to 'S' (South) for player units, 'N' (North) for enemy units.
+   */
+  facing?: 'N' | 'S' | 'E' | 'W';
+  
+  /**
+   * Base resolve/morale value (Tier 1: Resolve mechanic).
+   * Higher resolve = more resistant to morale damage.
+   * Defaults to 100 if not specified.
+   */
+  resolve?: number;
+  
+  /**
+   * Unit faction for resolve behavior (Tier 1: Resolve mechanic).
+   * - 'human': Retreats when resolve reaches 0
+   * - 'undead': Crumbles when resolve reaches 0
+   * Defaults to 'human' if not specified.
+   */
+  faction?: 'human' | 'undead' | string;
+  
+  /**
+   * Unit classification tags (Tier 2+: Various mechanics).
+   * Common tags:
+   * - 'melee': Close combat unit
+   * - 'ranged': Uses ranged attacks (affected by engagement penalty)
+   * - 'mage': Uses magic (cooldowns instead of ammo)
+   * - 'cavalry': Can perform charge attacks with momentum
+   * - 'spear_wall': Can counter cavalry charges
+   * - 'phalanx': Can form defensive formations
+   * - 'heavy': Reduced knockback/displacement
+   * - 'light': Increased mobility
+   */
+  tags?: string[];
+  
+  /**
+   * Base ammunition count for ranged units (Tier 3: Ammunition mechanic).
+   * Only used by units with 'ranged' tag.
+   */
+  ammo?: number;
+  
+  /**
+   * Base riposte charges per round (Tier 2: Riposte mechanic).
+   * Defaults to unit's atkCount if not specified.
+   */
+  riposteCharges?: number;
 }
 
 /**

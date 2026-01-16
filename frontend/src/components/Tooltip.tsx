@@ -12,6 +12,7 @@ import React, {
   useRef,
   useEffect,
   useCallback,
+  useMemo,
   createContext,
   useContext,
   ReactNode,
@@ -594,7 +595,10 @@ export function Tooltip({
   const [position, setPosition] = useState<TooltipPosition | null>(null);
   const [mounted, setMounted] = useState(false);
 
-  const triggers = Array.isArray(trigger) ? trigger : [trigger];
+  const triggers = useMemo(
+    () => Array.isArray(trigger) ? trigger : [trigger],
+    [trigger]
+  );
   const isControlled = controlledIsOpen !== undefined;
 
   const {
